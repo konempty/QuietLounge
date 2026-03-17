@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuietLounge</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>QuietLounge</h1>
+      <p class="subtitle">Quiet Lounge 대시보드</p>
+    </header>
+
+    <section class="stats">
+      <div class="stat">
+        <span class="stat-value" id="blocked-count">0</span>
+        <span class="stat-label">총 차단 유저</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="persona-count">0</span>
+        <span class="stat-label">ID 확보된 유저</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="nickname-count">0</span>
+        <span class="stat-label">닉네임만 확보된 유저</span>
+      </div>
+    </section>
+
+    <section class="block-list">
+      <h2>차단 목록</h2>
+      <div id="block-list-container">
+        <p class="empty-message">차단된 유저가 없습니다</p>
+      </div>
+    </section>
+
+    <section class="actions">
+      <button id="btn-export" class="btn btn-secondary">내보내기 (JSON)</button>
+      <button id="btn-import" class="btn btn-secondary">가져오기</button>
+      <input type="file" id="file-import" accept=".json" style="display:none">
+    </section>
+
+    <footer>
+      <span>v1.0.0</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
