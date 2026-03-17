@@ -85,17 +85,53 @@
     document.querySelectorAll('script').forEach((s) => {
       const t = s.textContent;
       if (!t) return;
+
+      // 인접 패턴
       for (const m of t.matchAll(
         /\\?"postId\\?":\\?"([^"\\]+)\\?",\\?"personaId\\?":\\?"([^"\\]+)\\?"/g
       )) {
         personaMap.set(m[1], m[2]);
       }
+
+      // 비인접 패턴 (글 상세 하이드레이션 — postId, personaId가 별도 줄)
+      const postIds = [...t.matchAll(/\\?"postId\\?":\\?"([^"\\]+)\\?"/g)];
+      const pIds = [...t.matchAll(/\\?"personaId\\?":\\?"([^"\\]+)\\?"/g)];
+      for (const pm of postIds) {
+        if (personaMap.has(pm[1])) continue;
+        let closest = null, dist = Infinity;
+        for (const pi of pIds) {
+          const d = pi.index - pm.index;
+          if (d > 0 && d < dist && d < 200) { dist = d; closest = pi[1]; }
+        }
+        if (closest) personaMap.set(pm[1], closest);
+      }
+
       for (const m of t.matchAll(
         /\\?"personaId\\?":\\?"([^"\\]+)\\?",\\?"nickname\\?":\\?"([^"\\]+)\\?"/g
       )) {
         personaCache.set(m[1], m[2]);
       }
     });
+
+    // DOM 프로필 링크에서 personaId 추출 (글 상세 페이지)
+    document.querySelectorAll('a[href^="/profiles/"]').forEach((link) => {
+      const pid = link.getAttribute('href')?.replace('/profiles/', '');
+      const nick = link.textContent?.trim();
+      if (pid && nick && pid.length >= 6) personaCache.set(pid, nick);
+    });
+
+    // /posts/{postId} URL이면 작성자 personaId를 DOM에서 추출
+    const urlMatch = window.location.pathname.match(/^\/posts\/([^/]+)/);
+    if (urlMatch && !personaMap.has(urlMatch[1])) {
+      const authorLink = document.querySelector(
+        '[data-slot="profile-name"] a[href^="/profiles/"]'
+      );
+      if (authorLink) {
+        const authorPid = authorLink.getAttribute('href')?.replace('/profiles/', '');
+        if (authorPid) personaMap.set(urlMatch[1], authorPid);
+      }
+    }
+
     console.log(`[QL] 초기: ${personaMap.size} posts, ${personaCache.size} personas`);
   }
 
@@ -185,20 +221,40 @@
       btn.onclick = (e) => {
         e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         const nickname = el
           .querySelector('[data-slot="profile-name-label"] span.truncate')
           ?.textContent?.trim();
         if (!nickname) return;
 
-        const postLink =
-          el.closest(SEL.postLink) ||
-          el.closest('div')?.querySelector(SEL.postLink) ||
-          el.closest('[tabindex]')?.querySelector(SEL.postLink);
         let pid;
-        if (postLink) {
-          const postId = postLink.getAttribute('href')?.replace('/posts/', '');
-          if (postId) pid = personaMap.get(postId);
+
+        // 방법 1: 프로필 링크에서 personaId 직접 추출 (글 상세 페이지)
+        const profileLink =
+          el.querySelector('a[href^="/profiles/"]') ||
+          el.closest('[data-slot="profile-name"]')?.querySelector('a[href^="/profiles/"]');
+        if (profileLink) {
+          pid = profileLink.getAttribute('href')?.replace('/profiles/', '');
         }
+
+        // 방법 2: 피드 목록 — postLink에서 postId → personaMap 조회
+        if (!pid) {
+          const postLink =
+            el.closest('a[href^="/posts/"]') ||
+            el.closest('div.relative[tabindex]')?.querySelector('a[href^="/posts/"]');
+          if (postLink) {
+            const postId = postLink.getAttribute('href')?.replace('/posts/', '');
+            if (postId) pid = personaMap.get(postId);
+          }
+        }
+
+        // 방법 3: 글 상세 페이지 — URL에서 postId → personaMap
+        if (!pid) {
+          const pathMatch = window.location.pathname.match(/^\/posts\/([^/]+)/);
+          if (pathMatch) pid = personaMap.get(pathMatch[1]);
+        }
+
+        console.log(`[QL] 차단 시도: nickname="${nickname}", personaId="${pid}"`);
 
         if (confirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
           blockUser(pid, nickname);

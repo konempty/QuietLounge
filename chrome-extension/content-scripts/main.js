@@ -311,20 +311,37 @@
           ?.textContent?.trim();
         if (!nickname) return;
 
-        // postLink 탐색: profile-name은 a[href^="/posts/"] 안에 있음
-        // DOM: a[href="/posts/{postId}"] > ... > [data-slot="profile-name"]
-        const postLink =
-          el.closest('a[href^="/posts/"]') ||
-          el.closest('div.relative[tabindex]')?.querySelector('a[href^="/posts/"]');
-
-        let postId;
         let pid;
-        if (postLink) {
-          postId = postLink.getAttribute('href')?.replace('/posts/', '');
-          if (postId) pid = personaMap.get(postId);
+
+        // 방법 1: 프로필 링크에서 personaId 직접 추출
+        // 글 상세 페이지에서 작성자/댓글 프로필: <a href="/profiles/{personaId}">
+        const profileLink =
+          el.querySelector('a[href^="/profiles/"]') ||
+          el.closest('[data-slot="profile-name"]')?.querySelector('a[href^="/profiles/"]');
+        if (profileLink) {
+          pid = profileLink.getAttribute('href')?.replace('/profiles/', '');
         }
 
-        console.log(`[QuietLounge] 차단 시도: nickname="${nickname}", postId="${postId}", personaId="${pid}", personaMap.size=${personaMap.size}`);
+        // 방법 2: 피드 목록 — postLink에서 postId → personaMap 조회
+        if (!pid) {
+          const postLink =
+            el.closest('a[href^="/posts/"]') ||
+            el.closest('div.relative[tabindex]')?.querySelector('a[href^="/posts/"]');
+          if (postLink) {
+            const postId = postLink.getAttribute('href')?.replace('/posts/', '');
+            if (postId) pid = personaMap.get(postId);
+          }
+        }
+
+        // 방법 3: 글 상세 페이지 — URL에서 postId 추출 → personaMap 조회
+        if (!pid) {
+          const pathMatch = window.location.pathname.match(/^\/posts\/([^/]+)/);
+          if (pathMatch) {
+            pid = personaMap.get(pathMatch[1]);
+          }
+        }
+
+        console.log(`[QuietLounge] 차단 시도: nickname="${nickname}", personaId="${pid}", personaMap.size=${personaMap.size}`);
 
         if (confirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
           await blockUser(pid, nickname, '');

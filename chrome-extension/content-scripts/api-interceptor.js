@@ -69,19 +69,39 @@
       const text = script.textContent;
       if (!text || text.length < 20) return;
 
-      // postId → personaId (일반 JSON + escaped JSON 모두 대응)
-      const postPattern = /\\?"postId\\?":\\?"([^"\\]+)\\?",\\?"personaId\\?":\\?"([^"\\]+)\\?"/g;
-      for (const m of text.matchAll(postPattern)) {
+      // 패턴 1: postId, personaId가 인접한 경우 (피드 API 응답)
+      // "postId":"xxx","personaId":"yyy" 또는 escaped 버전
+      const adjacentPattern = /\\?"postId\\?":\\?"([^"\\]+)\\?",\\?"personaId\\?":\\?"([^"\\]+)\\?"/g;
+      for (const m of text.matchAll(adjacentPattern)) {
         personaMap[m[1]] = m[2];
         found++;
       }
 
-      // personaId가 postId보다 먼저 나오는 경우도 대응
-      // (channelId 등 다른 필드가 사이에 끼어있는 경우)
-      const reversePattern = /\\?"personaId\\?":\\?"([^"\\]+)\\?"[^}]*\\?"postId\\?":\\?"([^"\\]+)\\?"/g;
-      for (const m of text.matchAll(reversePattern)) {
-        personaMap[m[2]] = m[1];
-        found++;
+      // 패턴 2: postId, personaId가 인접하지 않은 경우 (글 상세 하이드레이션)
+      // Next.js RSC에서 \"postId\":\"xxx\"\n\"personaId\":\"yyy\" 형태로 별도 줄에 올 수 있음
+      const separatePostIds = [...text.matchAll(/\\?"postId\\?":\\?"([^"\\]+)\\?"/g)];
+      const separatePersonaIds = [...text.matchAll(/\\?"personaId\\?":\\?"([^"\\]+)\\?"/g)];
+
+      // 인접 패턴으로 매칭된 것 외에 나머지를 위치 기반으로 매칭
+      if (separatePostIds.length > 0 && separatePersonaIds.length > 0) {
+        for (const postMatch of separatePostIds) {
+          if (personaMap[postMatch[1]]) continue; // 이미 매칭됨
+
+          // 이 postId 뒤에 가장 가까운 personaId를 찾음
+          let closestPersona = null;
+          let closestDist = Infinity;
+          for (const personaMatch of separatePersonaIds) {
+            const dist = personaMatch.index - postMatch.index;
+            if (dist > 0 && dist < closestDist && dist < 200) {
+              closestDist = dist;
+              closestPersona = personaMatch[1];
+            }
+          }
+          if (closestPersona) {
+            personaMap[postMatch[1]] = closestPersona;
+            found++;
+          }
+        }
       }
 
       // personaId → nickname
@@ -91,7 +111,37 @@
       }
     });
 
-    if (found > 0) {
+    // DOM에서 프로필 링크 파싱 (글 상세 페이지)
+    // <a href="/profiles/{personaId}">닉네임</a>
+    const profileLinks = document.querySelectorAll('a[href^="/profiles/"]');
+    profileLinks.forEach((link) => {
+      const pid = link.getAttribute('href')?.replace('/profiles/', '');
+      const nickname = link.textContent?.trim();
+      if (pid && nickname && pid.length >= 6) {
+        personaCache[pid] = nickname;
+      }
+    });
+
+    // 현재 URL이 /posts/{postId}이고 personaMap에 없으면, DOM에서 작성자 personaId 추출
+    const urlMatch = window.location.pathname.match(/^\/posts\/([^/]+)/);
+    if (urlMatch) {
+      const currentPostId = urlMatch[1];
+      if (!personaMap[currentPostId]) {
+        // 글 상세 페이지의 첫 번째 프로필 링크가 작성자
+        const authorLink = document.querySelector(
+          '[data-slot="profile-name"] a[href^="/profiles/"]'
+        );
+        if (authorLink) {
+          const authorPid = authorLink.getAttribute('href')?.replace('/profiles/', '');
+          if (authorPid) {
+            personaMap[currentPostId] = authorPid;
+            found++;
+          }
+        }
+      }
+    }
+
+    if (found > 0 || profileLinks.length > 0) {
       notifyContentScript();
       console.log(
         `[QuietLounge:MAIN] 하이드레이션 파싱 — ${Object.keys(personaMap).length}개 포스트, ${Object.keys(personaCache).length}개 페르소나`
