@@ -3,8 +3,15 @@
 (function () {
   'use strict';
 
-  // ── URL 체크: /posts/** 또는 /channels/** 에서만 동작 ──
+  // ── URL 체크 ──
   function isActivePage() {
+    const path = window.location.pathname;
+    return path === '/' || path.startsWith('/posts') || path.startsWith('/channels');
+  }
+
+  // 홈/랭킹 페이지에서는 닉네임 자리에 채널명이 표시되므로 차단 버튼을 숨김
+  // 필터링은 personaId 기반으로 정상 동작
+  function isBlockButtonPage() {
     const path = window.location.pathname;
     return path.startsWith('/posts') || path.startsWith('/channels');
   }
@@ -263,8 +270,8 @@
 
   // ── UI Injector (차단 버튼) ──
   function injectBlockButtons() {
-    // /posts/** 또는 /channels/** 에서만 동작
-    if (!isActivePage()) return;
+    // 홈(/)에서는 닉네임 자리에 채널명이 표시되므로 차단 버튼 미노출
+    if (!isBlockButtonPage()) return;
 
     const profileNames = document.querySelectorAll(SEL.profileName);
 

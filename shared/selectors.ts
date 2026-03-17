@@ -16,8 +16,8 @@ export const DEFAULT_SELECTORS: SelectorConfig = {
   },
 };
 
-// /posts/** 또는 /channels/** 경로에서만 동작
+// 루트, /posts/**, /channels/** 경로에서 동작
 export function isActivePage(): boolean {
   const path = window.location.pathname;
-  return path.startsWith('/posts') || path.startsWith('/channels');
+  return path === '/' || path.startsWith('/posts') || path.startsWith('/channels');
 }

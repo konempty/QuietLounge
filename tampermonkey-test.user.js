@@ -13,8 +13,13 @@
 (function () {
   'use strict';
 
-  // ── URL 체크: /posts/** 또는 /channels/** 에서만 동작 ──
+  // ── URL 체크 ──
   function isActivePage() {
+    const path = window.location.pathname;
+    return path === '/' || path.startsWith('/posts') || path.startsWith('/channels');
+  }
+
+  function isBlockButtonPage() {
     const path = window.location.pathname;
     return path.startsWith('/posts') || path.startsWith('/channels');
   }
@@ -205,7 +210,7 @@
 
   // ── 차단 버튼 inject ──
   function injectButtons() {
-    if (!isActivePage()) return;
+    if (!isBlockButtonPage()) return;
 
     document.querySelectorAll(SEL.profileName).forEach((el) => {
       if (el.querySelector('.ql-btn')) return;
