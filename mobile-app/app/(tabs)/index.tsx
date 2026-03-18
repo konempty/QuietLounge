@@ -1,8 +1,7 @@
-import React, { useRef, useCallback, useEffect, useState } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import { StyleSheet, BackHandler, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useBlockList } from '@/hooks/useBlockList';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -10,8 +9,8 @@ import {
   buildBeforeScript,
   buildAfterScript,
   buildBlockListUpdateScript,
+  buildFilterModeScript,
 } from '@/utils/webview-scripts';
-import type { FilterMode } from '../../shared/types';
 
 const LOUNGE_URL = 'https://lounge.naver.com';
 
@@ -22,24 +21,24 @@ const MOBILE_UA = Platform.select({
 
 export default function LoungeScreen() {
   const webViewRef = useRef<WebView>(null);
-  const { blockData, blockUser, updatePersonaCache } = useBlockList();
+  const { blockData, filterMode, blockUser, updatePersonaCache } = useBlockList();
   const { colors } = useThemeColors();
-  const [filterMode, setFilterMode] = useState<FilterMode>('hide');
-  const blockDataRef = useRef(blockData);
 
+  // blockData 변경 시 WebView에 push
   useEffect(() => {
-    AsyncStorage.getItem('quiet_lounge_filter_mode').then((val) => {
-      if (val === 'blur' || val === 'hide') setFilterMode(val);
-    });
-  }, []);
-
-  useEffect(() => {
-    blockDataRef.current = blockData;
     if (webViewRef.current) {
       webViewRef.current.injectJavaScript(buildBlockListUpdateScript(blockData));
     }
   }, [blockData]);
 
+  // filterMode 변경 시 WebView에 push
+  useEffect(() => {
+    if (webViewRef.current) {
+      webViewRef.current.injectJavaScript(buildFilterModeScript(filterMode));
+    }
+  }, [filterMode]);
+
+  // Android 뒤로가기 처리
   useEffect(() => {
     if (Platform.OS !== 'android') return;
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {

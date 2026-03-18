@@ -1,9 +1,8 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BlockList, StorageAdapter } from '../shared/block-list';
-import type { BlockListData, BlockedUser, NicknameOnlyBlock } from '../shared/types';
+import type { BlockListData, BlockedUser, NicknameOnlyBlock, FilterMode } from '../shared/types';
 
-// AsyncStorage 기반 StorageAdapter
 const asyncStorageAdapter: StorageAdapter = {
   async get(key: string) {
     return AsyncStorage.getItem(key);
@@ -15,6 +14,8 @@ const asyncStorageAdapter: StorageAdapter = {
 
 export interface BlockListContextType {
   blockData: BlockListData;
+  filterMode: FilterMode;
+  setFilterMode: (mode: FilterMode) => Promise<void>;
   blockUser: (personaId: string | undefined, nickname: string) => Promise<void>;
   unblockByPersonaId: (personaId: string) => Promise<void>;
   unblockByNickname: (nickname: string) => Promise<void>;
@@ -40,6 +41,7 @@ export function useBlockListProvider(): BlockListContextType {
     nicknameOnlyBlocks: [],
     personaCache: {},
   });
+  const [filterMode, setFilterModeState] = useState<FilterMode>('hide');
 
   const blockListRef = useRef<BlockList | null>(null);
 
@@ -51,6 +53,15 @@ export function useBlockListProvider(): BlockListContextType {
     bl.load().then(() => {
       setBlockData({ ...bl.getData() });
     });
+
+    AsyncStorage.getItem('quiet_lounge_filter_mode').then((val) => {
+      if (val === 'blur' || val === 'hide') setFilterModeState(val);
+    });
+  }, []);
+
+  const setFilterMode = useCallback(async (mode: FilterMode) => {
+    setFilterModeState(mode);
+    await AsyncStorage.setItem('quiet_lounge_filter_mode', mode);
   }, []);
 
   const blockUser = useCallback(async (personaId: string | undefined, nickname: string) => {
@@ -113,6 +124,8 @@ export function useBlockListProvider(): BlockListContextType {
 
   return {
     blockData,
+    filterMode,
+    setFilterMode,
     blockUser,
     unblockByPersonaId,
     unblockByNickname,

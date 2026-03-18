@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   StyleSheet,
   View,
@@ -11,28 +11,17 @@ import {
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useBlockList } from '@/hooks/useBlockList';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import Colors from '@/constants/Colors';
-import type { FilterMode } from '../../shared/types';
 
 export default function SettingsScreen() {
-  const { exportJSON, importJSON, clearAll, allBlocked } = useBlockList();
+  const { exportJSON, importJSON, clearAll, allBlocked, filterMode, setFilterMode } = useBlockList();
   const { colors } = useThemeColors();
-  const [filterMode, setFilterMode] = useState<FilterMode>('hide');
-
-  useEffect(() => {
-    AsyncStorage.getItem('quiet_lounge_filter_mode').then((val) => {
-      if (val === 'blur' || val === 'hide') setFilterMode(val);
-    });
-  }, []);
 
   const toggleFilterMode = async () => {
-    const newMode: FilterMode = filterMode === 'hide' ? 'blur' : 'hide';
-    setFilterMode(newMode);
-    await AsyncStorage.setItem('quiet_lounge_filter_mode', newMode);
+    await setFilterMode(filterMode === 'hide' ? 'blur' : 'hide');
   };
 
   const handleExport = async () => {
