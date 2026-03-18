@@ -150,7 +150,8 @@ export class BlockList {
   }
 
   exportJSON(): string {
-    const { personaCache: _, ...rest } = this.data;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { personaCache: _cache, ...rest } = this.data;
     return JSON.stringify(rest, null, 2);
   }
 

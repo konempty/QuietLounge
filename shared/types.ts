@@ -28,30 +28,5 @@ export interface BlockListData {
   personaCache: Record<string, PersonaCacheEntry>;
 }
 
-// 셀렉터 설정
-export interface SelectorConfig {
-  feed: {
-    scrollContainer: string;
-    postLink: string;
-    postContainer: string;
-    nickname: string;
-    profileName: string;
-    separator: string;
-  };
-  carousel: {
-    card: string;
-    cardItem: string;
-    cardNickname: string;
-  };
-}
-
 // 필터 모드
 export type FilterMode = 'hide' | 'blur';
-
-// 네이티브 브릿지 메시지 타입
-export type BridgeMessage =
-  | { type: 'BLOCK_USER'; payload: { personaId?: string; nickname: string } }
-  | { type: 'UNBLOCK_USER'; payload: { personaId: string } }
-  | { type: 'UPDATE_BLOCK_LIST'; payload: BlockListData }
-  | { type: 'GET_BLOCK_LIST' }
-  | { type: 'BLOCK_LIST_UPDATED'; payload: BlockListData };

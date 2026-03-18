@@ -4,8 +4,8 @@
   "description": "네이버 라운지(`lounge.naver.com`)에서 특정 유저의 게시글을 숨기는 클라이언트 사이드 차단 도구.",
   "main": "tampermonkey-test.user.js",
   "scripts": {
-    "lint": "eslint . --ext .ts,.js",
-    "lint:fix": "eslint . --ext .ts,.js --fix",
+    "lint": "eslint shared/ chrome-extension/ tampermonkey-test.user.js --ext .ts,.js",
+    "lint:fix": "eslint shared/ chrome-extension/ tampermonkey-test.user.js --ext .ts,.js --fix",
     "format": "prettier --write \"shared/**/*.ts\" \"chrome-extension/**/*.{js,json}\" \"*.user.js\""
   },
   "keywords": [],

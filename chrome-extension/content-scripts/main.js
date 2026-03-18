@@ -77,14 +77,13 @@
     });
   }
 
-  function isBlockedByPersonaId(personaId) {
-    return personaId in blockData.blockedUsers;
-  }
-
-  function isBlockedByNickname(nickname) {
-    const byPersona = Object.values(blockData.blockedUsers).some((u) => u.nickname === nickname);
-    const byNickname = blockData.nicknameOnlyBlocks.some((b) => b.nickname === nickname);
-    return byPersona || byNickname;
+  function isBlocked(personaId, nickname) {
+    if (personaId && blockData.blockedUsers[personaId]) return true;
+    if (nickname) {
+      if (Object.values(blockData.blockedUsers).some((u) => u.nickname === nickname)) return true;
+      if (blockData.nicknameOnlyBlocks.some((b) => b.nickname === nickname)) return true;
+    }
+    return false;
   }
 
   async function blockUser(personaId, nickname, reason) {
@@ -105,7 +104,7 @@
         (b) => b.nickname !== nickname,
       );
     } else {
-      if (isBlockedByNickname(nickname)) return;
+      if (isBlocked(undefined, nickname)) return;
       blockData.nicknameOnlyBlocks.push({
         nickname,
         blockedAt: new Date().toISOString(),
@@ -224,19 +223,13 @@
 
       if (!postId && !nickname) return;
 
-      let isBlocked = false;
-      if (postId) {
-        const pid = personaMap.get(postId);
-        if (pid) isBlocked = isBlockedByPersonaId(pid);
-      }
-      if (!isBlocked && nickname) {
-        isBlocked = isBlockedByNickname(nickname);
-      }
+      const pid = postId ? personaMap.get(postId) : undefined;
+      const blocked = isBlocked(pid, nickname);
 
       const container = link.closest(SEL.postContainer) || link.parentElement?.parentElement;
       if (!container) return;
 
-      if (isBlocked) {
+      if (blocked) {
         totalBlocked++;
         applyBlockStyle(container);
         const wrapper = container.parentElement;
@@ -261,11 +254,11 @@
       const nickname = card.querySelector(SEL.nickname)?.textContent?.trim();
       if (!nickname) return;
 
-      const isBlocked = isBlockedByNickname(nickname);
+      const blocked = isBlocked(undefined, nickname);
       const item = card.closest(SEL.cardItem);
       if (!item) return;
 
-      if (isBlocked) {
+      if (blocked) {
         totalBlocked++;
         applyBlockStyle(item);
       } else {

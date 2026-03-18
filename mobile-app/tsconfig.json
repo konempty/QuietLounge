@@ -14,11 +14,5 @@
     "expo-env.d.ts",
     "../shared/types.ts",
     "../shared/block-list.ts"
-  ],
-  "exclude": [
-    "shared/api-interceptor.ts",
-    "shared/filter-engine.ts",
-    "shared/ui-injector.ts",
-    "shared/selectors.ts"
   ]
 }

@@ -31,5 +31,3 @@ export default {
     dangerBorder: 'rgba(231, 76, 60, 0.2)',
   },
 } as const;
-
-export type ThemeColors = (typeof import('./Colors'))['default']['light'];
