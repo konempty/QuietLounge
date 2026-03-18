@@ -1,6 +1,7 @@
 // QuietLounge — Popup UI
 
 const STORAGE_KEY = 'quiet_lounge_data';
+const FILTER_MODE_KEY = 'quiet_lounge_filter_mode';
 
 function createEmptyData() {
   return {
@@ -164,5 +165,26 @@ chrome.storage.onChanged.addListener((changes) => {
   }
 });
 
+// ── 필터 모드 토글 ──
+const filterToggle = document.getElementById('filter-mode-toggle');
+const filterDesc = document.getElementById('filter-mode-desc');
+
+function updateFilterModeUI(mode) {
+  filterToggle.checked = mode === 'blur';
+  filterDesc.textContent =
+    mode === 'blur' ? '차단된 글을 흐리게 표시합니다' : '차단된 글을 완전히 숨깁니다';
+}
+
+filterToggle.addEventListener('change', () => {
+  const mode = filterToggle.checked ? 'blur' : 'hide';
+  chrome.storage.local.set({ [FILTER_MODE_KEY]: mode });
+  updateFilterModeUI(mode);
+});
+
 // ── 초기화 ──
-loadData().then(render);
+loadData().then(() => {
+  render();
+  chrome.storage.local.get(FILTER_MODE_KEY, (result) => {
+    updateFilterModeUI(result[FILTER_MODE_KEY] || 'hide');
+  });
+});

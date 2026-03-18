@@ -49,17 +49,22 @@
     };
   }
 
+  const FILTER_MODE_KEY = 'quiet_lounge_filter_mode';
   let blockData = createEmptyData();
+  let filterMode = 'hide'; // 'hide' or 'blur'
 
   async function loadBlockData() {
     return new Promise((resolve) => {
-      chrome.storage.local.get(STORAGE_KEY, (result) => {
+      chrome.storage.local.get([STORAGE_KEY, FILTER_MODE_KEY], (result) => {
         if (result[STORAGE_KEY]) {
           try {
             blockData = JSON.parse(result[STORAGE_KEY]);
           } catch {
             blockData = createEmptyData();
           }
+        }
+        if (result[FILTER_MODE_KEY]) {
+          filterMode = result[FILTER_MODE_KEY];
         }
         resolve();
       });
@@ -172,6 +177,30 @@
     if (changed) await saveBlockData();
   }
 
+  // ── 스타일 적용 ──
+  function applyBlockStyle(el) {
+    if (!el) return;
+    if (filterMode === 'blur') {
+      el.style.display = '';
+      el.style.filter = 'blur(5px)';
+      el.style.opacity = '0.3';
+      el.style.pointerEvents = 'none';
+    } else {
+      el.style.display = 'none';
+      el.style.filter = '';
+      el.style.opacity = '';
+      el.style.pointerEvents = '';
+    }
+  }
+
+  function clearBlockStyle(el) {
+    if (!el) return;
+    el.style.display = '';
+    el.style.filter = '';
+    el.style.opacity = '';
+    el.style.pointerEvents = '';
+  }
+
   // ── 필터 엔진 ──
   let totalBlocked = 0;
 
@@ -209,18 +238,18 @@
 
       if (isBlocked) {
         totalBlocked++;
-        container.style.display = 'none';
+        applyBlockStyle(container);
         const wrapper = container.parentElement;
         const separator = wrapper?.nextElementSibling;
         if (separator?.getAttribute?.('data-slot') === 'separator') {
-          separator.style.display = 'none';
+          applyBlockStyle(separator);
         }
       } else {
-        container.style.display = '';
+        clearBlockStyle(container);
         const wrapper = container.parentElement;
         const separator = wrapper?.nextElementSibling;
         if (separator?.getAttribute?.('data-slot') === 'separator') {
-          separator.style.display = '';
+          clearBlockStyle(separator);
         }
       }
     });
@@ -238,9 +267,9 @@
 
       if (isBlocked) {
         totalBlocked++;
-        item.style.display = 'none';
+        applyBlockStyle(item);
       } else {
-        item.style.display = '';
+        clearBlockStyle(item);
       }
     });
   }
@@ -444,6 +473,10 @@
       } catch {
         blockData = createEmptyData();
       }
+      filterAll();
+    }
+    if (changes[FILTER_MODE_KEY]) {
+      filterMode = changes[FILTER_MODE_KEY].newValue || 'hide';
       filterAll();
     }
   });
