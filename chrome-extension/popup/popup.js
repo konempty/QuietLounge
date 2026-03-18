@@ -100,7 +100,7 @@ function render() {
         delete blockData.blockedUsers[btn.dataset.id];
       } else {
         blockData.nicknameOnlyBlocks = blockData.nicknameOnlyBlocks.filter(
-          (b) => b.nickname !== btn.dataset.nickname
+          (b) => b.nickname !== btn.dataset.nickname,
         );
       }
       await saveData();

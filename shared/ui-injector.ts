@@ -13,7 +13,7 @@ export class UIInjector {
   constructor(
     selectors: SelectorConfig,
     interceptor: ApiInterceptor,
-    onBlockUser: BlockUserCallback
+    onBlockUser: BlockUserCallback,
   ) {
     this.selectors = selectors;
     this.interceptor = interceptor;
@@ -86,8 +86,7 @@ export class UIInjector {
   observe(): void {
     if (this.observer) return;
 
-    const target =
-      document.querySelector(this.selectors.feed.scrollContainer) || document.body;
+    const target = document.querySelector(this.selectors.feed.scrollContainer) || document.body;
 
     let debounceTimer: ReturnType<typeof setTimeout>;
     this.observer = new MutationObserver(() => {

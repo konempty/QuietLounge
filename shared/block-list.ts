@@ -68,7 +68,7 @@ export class BlockList {
 
     // nicknameOnlyBlocks에서 해당 닉네임 제거 (승격)
     this.data.nicknameOnlyBlocks = this.data.nicknameOnlyBlocks.filter(
-      (b) => b.nickname !== nickname
+      (b) => b.nickname !== nickname,
     );
 
     await this.save();
@@ -76,7 +76,7 @@ export class BlockList {
 
   async blockByNickname(nickname: string, reason = ''): Promise<void> {
     const alreadyBlocked = Object.values(this.data.blockedUsers).some(
-      (u) => u.nickname === nickname
+      (u) => u.nickname === nickname,
     );
     if (alreadyBlocked) return;
 
@@ -97,7 +97,7 @@ export class BlockList {
 
   async unblockByNickname(nickname: string): Promise<void> {
     this.data.nicknameOnlyBlocks = this.data.nicknameOnlyBlocks.filter(
-      (b) => b.nickname !== nickname
+      (b) => b.nickname !== nickname,
     );
     await this.save();
   }
@@ -107,9 +107,7 @@ export class BlockList {
   }
 
   isBlockedByNickname(nickname: string): boolean {
-    const byPersona = Object.values(this.data.blockedUsers).some(
-      (u) => u.nickname === nickname
-    );
+    const byPersona = Object.values(this.data.blockedUsers).some((u) => u.nickname === nickname);
     const byNickname = this.data.nicknameOnlyBlocks.some((b) => b.nickname === nickname);
     return byPersona || byNickname;
   }
@@ -126,7 +124,7 @@ export class BlockList {
 
     // 닉네임 차단 → personaId 차단 자동 승격
     const nicknameBlock = this.data.nicknameOnlyBlocks.find(
-      (b) => b.nickname === nickname || (nicknameChanged && b.nickname === cached.nickname)
+      (b) => b.nickname === nickname || (nicknameChanged && b.nickname === cached.nickname),
     );
     if (nicknameBlock) {
       await this.blockByPersonaId(personaId, nickname, nicknameBlock.reason);

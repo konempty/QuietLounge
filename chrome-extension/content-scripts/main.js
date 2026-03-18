@@ -68,10 +68,7 @@
 
   async function saveBlockData() {
     return new Promise((resolve) => {
-      chrome.storage.local.set(
-        { [STORAGE_KEY]: JSON.stringify(blockData) },
-        resolve
-      );
+      chrome.storage.local.set({ [STORAGE_KEY]: JSON.stringify(blockData) }, resolve);
     });
   }
 
@@ -80,12 +77,8 @@
   }
 
   function isBlockedByNickname(nickname) {
-    const byPersona = Object.values(blockData.blockedUsers).some(
-      (u) => u.nickname === nickname
-    );
-    const byNickname = blockData.nicknameOnlyBlocks.some(
-      (b) => b.nickname === nickname
-    );
+    const byPersona = Object.values(blockData.blockedUsers).some((u) => u.nickname === nickname);
+    const byNickname = blockData.nicknameOnlyBlocks.some((b) => b.nickname === nickname);
     return byPersona || byNickname;
   }
 
@@ -104,7 +97,7 @@
         reason: reason || existing?.reason || '',
       };
       blockData.nicknameOnlyBlocks = blockData.nicknameOnlyBlocks.filter(
-        (b) => b.nickname !== nickname
+        (b) => b.nickname !== nickname,
       );
     } else {
       if (isBlockedByNickname(nickname)) return;
@@ -143,7 +136,7 @@
       }
 
       console.log(
-        `[QuietLounge] 매핑 수신: ${personaMap.size}개 포스트, ${personaCache.size}개 페르소나`
+        `[QuietLounge] 매핑 수신: ${personaMap.size}개 포스트, ${personaCache.size}개 페르소나`,
       );
 
       filterAll();
@@ -157,9 +150,7 @@
   async function autoPromoteBlocks() {
     let changed = false;
     for (const [pid, { nickname }] of personaCache) {
-      const idx = blockData.nicknameOnlyBlocks.findIndex(
-        (b) => b.nickname === nickname
-      );
+      const idx = blockData.nicknameOnlyBlocks.findIndex((b) => b.nickname === nickname);
       if (idx !== -1) {
         const block = blockData.nicknameOnlyBlocks.splice(idx, 1)[0];
         blockData.blockedUsers[pid] = {
@@ -171,10 +162,7 @@
         };
         changed = true;
       }
-      if (
-        blockData.blockedUsers[pid] &&
-        blockData.blockedUsers[pid].nickname !== nickname
-      ) {
+      if (blockData.blockedUsers[pid] && blockData.blockedUsers[pid].nickname !== nickname) {
         const user = blockData.blockedUsers[pid];
         user.previousNicknames.push(user.nickname);
         user.nickname = nickname;
@@ -216,9 +204,7 @@
         isBlocked = isBlockedByNickname(nickname);
       }
 
-      const container =
-        link.closest(SEL.postContainer) ||
-        link.parentElement?.parentElement;
+      const container = link.closest(SEL.postContainer) || link.parentElement?.parentElement;
       if (!container) return;
 
       if (isBlocked) {
@@ -243,9 +229,7 @@
   function filterCarouselCards() {
     const cards = document.querySelectorAll(SEL.card);
     cards.forEach((card) => {
-      const nickname = card
-        .querySelector(SEL.nickname)
-        ?.textContent?.trim();
+      const nickname = card.querySelector(SEL.nickname)?.textContent?.trim();
       if (!nickname) return;
 
       const isBlocked = isBlockedByNickname(nickname);
@@ -298,15 +282,23 @@
 
       // mousedown/pointerdown 단계에서 이벤트 전파 차단
       // → 상위 <a> 태그의 클릭(페이지 이동)을 방지
-      btn.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      }, true);
-      btn.addEventListener('pointerdown', (e) => {
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      }, true);
+      btn.addEventListener(
+        'mousedown',
+        (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+        },
+        true,
+      );
+      btn.addEventListener(
+        'pointerdown',
+        (e) => {
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+        },
+        true,
+      );
 
       btn.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -348,7 +340,9 @@
           }
         }
 
-        console.log(`[QuietLounge] 차단 시도: nickname="${nickname}", personaId="${pid}", personaMap.size=${personaMap.size}`);
+        console.log(
+          `[QuietLounge] 차단 시도: nickname="${nickname}", personaId="${pid}", personaMap.size=${personaMap.size}`,
+        );
 
         if (confirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
           await blockUser(pid, nickname, '');
@@ -437,8 +431,7 @@
     }
 
     // MutationObserver는 항상 설치 (SPA 전환 후 DOM 변경 대응)
-    const target =
-      document.querySelector(SEL.scrollContainer) || document.body;
+    const target = document.querySelector(SEL.scrollContainer) || document.body;
 
     const debouncedUpdate = debounce(() => {
       if (isActivePage()) {

@@ -6,16 +6,19 @@
   'use strict';
 
   // 매핑 저장소 (page world 전역)
-  const personaMap = {};  // postId → personaId
+  const personaMap = {}; // postId → personaId
   const personaCache = {}; // personaId → nickname
 
   // content script(ISOLATED world)로 데이터 전달
   function notifyContentScript() {
-    window.postMessage({
-      type: 'QUIET_LOUNGE_API_DATA',
-      personaMap: personaMap,
-      personaCache: personaCache,
-    }, '*');
+    window.postMessage(
+      {
+        type: 'QUIET_LOUNGE_API_DATA',
+        personaMap: personaMap,
+        personaCache: personaCache,
+      },
+      '*',
+    );
   }
 
   // 재귀적으로 API 응답에서 매핑 추출
@@ -50,7 +53,7 @@
         extractMappings(data);
         notifyContentScript();
         console.log(
-          `[QuietLounge:MAIN] API 인터셉트 — ${Object.keys(personaMap).length}개 포스트 매핑`
+          `[QuietLounge:MAIN] API 인터셉트 — ${Object.keys(personaMap).length}개 포스트 매핑`,
         );
       }
     } catch {
@@ -71,7 +74,8 @@
 
       // 패턴 1: postId, personaId가 인접한 경우 (피드 API 응답)
       // "postId":"xxx","personaId":"yyy" 또는 escaped 버전
-      const adjacentPattern = /\\?"postId\\?":\\?"([^"\\]+)\\?",\\?"personaId\\?":\\?"([^"\\]+)\\?"/g;
+      const adjacentPattern =
+        /\\?"postId\\?":\\?"([^"\\]+)\\?",\\?"personaId\\?":\\?"([^"\\]+)\\?"/g;
       for (const m of text.matchAll(adjacentPattern)) {
         personaMap[m[1]] = m[2];
         found++;
@@ -105,7 +109,8 @@
       }
 
       // personaId → nickname
-      const personaPattern = /\\?"personaId\\?":\\?"([^"\\]+)\\?",\\?"nickname\\?":\\?"([^"\\]+)\\?"/g;
+      const personaPattern =
+        /\\?"personaId\\?":\\?"([^"\\]+)\\?",\\?"nickname\\?":\\?"([^"\\]+)\\?"/g;
       for (const m of text.matchAll(personaPattern)) {
         personaCache[m[1]] = m[2];
       }
@@ -129,7 +134,7 @@
       if (!personaMap[currentPostId]) {
         // 글 상세 페이지의 첫 번째 프로필 링크가 작성자
         const authorLink = document.querySelector(
-          '[data-slot="profile-name"] a[href^="/profiles/"]'
+          '[data-slot="profile-name"] a[href^="/profiles/"]',
         );
         if (authorLink) {
           const authorPid = authorLink.getAttribute('href')?.replace('/profiles/', '');
@@ -144,7 +149,7 @@
     if (found > 0 || profileLinks.length > 0) {
       notifyContentScript();
       console.log(
-        `[QuietLounge:MAIN] 하이드레이션 파싱 — ${Object.keys(personaMap).length}개 포스트, ${Object.keys(personaCache).length}개 페르소나`
+        `[QuietLounge:MAIN] 하이드레이션 파싱 — ${Object.keys(personaMap).length}개 포스트, ${Object.keys(personaCache).length}개 페르소나`,
       );
     }
   }

@@ -23,7 +23,7 @@ export class FilterEngine {
     blockList: BlockList,
     interceptor: ApiInterceptor,
     selectors: SelectorConfig,
-    filterMode: FilterMode = 'hide'
+    filterMode: FilterMode = 'hide',
   ) {
     this.blockList = blockList;
     this.interceptor = interceptor;
@@ -50,9 +50,7 @@ export class FilterEngine {
   }
 
   private filterFeedPosts(): void {
-    const postLinks = document.querySelectorAll<HTMLAnchorElement>(
-      this.selectors.feed.postLink
-    );
+    const postLinks = document.querySelectorAll<HTMLAnchorElement>(this.selectors.feed.postLink);
 
     postLinks.forEach((link) => {
       const postId = link.getAttribute('href')?.replace('/posts/', '');
@@ -76,8 +74,7 @@ export class FilterEngine {
       }
 
       const container =
-        link.closest(this.selectors.feed.postContainer) ||
-        link.parentElement?.parentElement;
+        link.closest(this.selectors.feed.postContainer) || link.parentElement?.parentElement;
 
       if (!container || !(container instanceof HTMLElement)) return;
 
@@ -154,8 +151,7 @@ export class FilterEngine {
   observe(): void {
     if (this.observer) return;
 
-    const target =
-      document.querySelector(this.selectors.feed.scrollContainer) || document.body;
+    const target = document.querySelector(this.selectors.feed.scrollContainer) || document.body;
 
     const debouncedFilter = debounce(() => this.filterAll(), 200);
 

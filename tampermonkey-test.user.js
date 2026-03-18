@@ -45,7 +45,9 @@
   try {
     const raw = GM_getValue('quiet_lounge_data', null);
     if (raw) data = JSON.parse(raw);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   function save() {
     GM_setValue('quiet_lounge_data', JSON.stringify(data));
@@ -93,7 +95,7 @@
 
       // 인접 패턴
       for (const m of t.matchAll(
-        /\\?"postId\\?":\\?"([^"\\]+)\\?",\\?"personaId\\?":\\?"([^"\\]+)\\?"/g
+        /\\?"postId\\?":\\?"([^"\\]+)\\?",\\?"personaId\\?":\\?"([^"\\]+)\\?"/g,
       )) {
         personaMap.set(m[1], m[2]);
       }
@@ -103,16 +105,20 @@
       const pIds = [...t.matchAll(/\\?"personaId\\?":\\?"([^"\\]+)\\?"/g)];
       for (const pm of postIds) {
         if (personaMap.has(pm[1])) continue;
-        let closest = null, dist = Infinity;
+        let closest = null,
+          dist = Infinity;
         for (const pi of pIds) {
           const d = pi.index - pm.index;
-          if (d > 0 && d < dist && d < 200) { dist = d; closest = pi[1]; }
+          if (d > 0 && d < dist && d < 200) {
+            dist = d;
+            closest = pi[1];
+          }
         }
         if (closest) personaMap.set(pm[1], closest);
       }
 
       for (const m of t.matchAll(
-        /\\?"personaId\\?":\\?"([^"\\]+)\\?",\\?"nickname\\?":\\?"([^"\\]+)\\?"/g
+        /\\?"personaId\\?":\\?"([^"\\]+)\\?",\\?"nickname\\?":\\?"([^"\\]+)\\?"/g,
       )) {
         personaCache.set(m[1], m[2]);
       }
@@ -128,9 +134,7 @@
     // /posts/{postId} URL이면 작성자 personaId를 DOM에서 추출
     const urlMatch = window.location.pathname.match(/^\/posts\/([^/]+)/);
     if (urlMatch && !personaMap.has(urlMatch[1])) {
-      const authorLink = document.querySelector(
-        '[data-slot="profile-name"] a[href^="/profiles/"]'
-      );
+      const authorLink = document.querySelector('[data-slot="profile-name"] a[href^="/profiles/"]');
       if (authorLink) {
         const authorPid = authorLink.getAttribute('href')?.replace('/profiles/', '');
         if (authorPid) personaMap.set(urlMatch[1], authorPid);
@@ -150,7 +154,9 @@
         const d = await resp.clone().json();
         extractMappings(d);
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return resp;
   };
 
@@ -180,21 +186,18 @@
       const nickname = link.querySelector(SEL.nickname)?.textContent?.trim();
       const pid = postId ? personaMap.get(postId) : undefined;
 
-      const container =
-        link.closest(SEL.postContainer) || link.parentElement?.parentElement;
+      const container = link.closest(SEL.postContainer) || link.parentElement?.parentElement;
       if (!container) return;
 
       if (isBlocked(pid, nickname)) {
         blockedCount++;
         container.style.display = 'none';
         const sep = container.parentElement?.nextElementSibling;
-        if (sep?.getAttribute?.('data-slot') === 'separator')
-          sep.style.display = 'none';
+        if (sep?.getAttribute?.('data-slot') === 'separator') sep.style.display = 'none';
       } else {
         container.style.display = '';
         const sep = container.parentElement?.nextElementSibling;
-        if (sep?.getAttribute?.('data-slot') === 'separator')
-          sep.style.display = '';
+        if (sep?.getAttribute?.('data-slot') === 'separator') sep.style.display = '';
       }
     });
 
@@ -328,6 +331,6 @@
   });
 
   console.log(
-    `[QL] 초기화 완료 — 차단 ${Object.keys(data.blockedUsers).length + data.nicknameOnlyBlocks.length}명`
+    `[QL] 초기화 완료 — 차단 ${Object.keys(data.blockedUsers).length + data.nicknameOnlyBlocks.length}명`,
   );
 })();

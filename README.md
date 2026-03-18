@@ -12,7 +12,7 @@ QuietLounge는 이 문제를 **클라이언트 단에서** 해결한다.
 
 - 네이버 서버를 거치지 않는다. 로그인 세션이나 개인정보가 외부로 나가지 않는다.
 - 닉네임이 아닌 **personaId**(고유 ID)로 차단하므로, 닉네임을 바꿔도 차단이 유지된다.
-- 브라우저 확장 프로그램(Chrome)과 Tampermonkey 스크립트, 두 가지 방식을 지원한다.
+- Chrome 확장, Tampermonkey 스크립트, **모바일 앱(iOS/Android)** 세 가지 방식을 지원한다.
 
 ---
 
@@ -36,6 +36,37 @@ QuietLounge는 이 문제를 **클라이언트 단에서** 해결한다.
 3. `tampermonkey-test.user.js` 내용을 붙여넣고 저장한다.
 4. 네이버 라운지에 접속하면 자동으로 동작한다.
 
+### 모바일 앱 (iOS / Android)
+
+Expo + React Native 기반 모바일 앱. WebView로 네이버 라운지를 로드하고 JS inject로 차단 기능을 주입한다.
+
+```bash
+cd mobile-app
+npm install
+npx expo prebuild
+npx expo run:ios     # iOS
+npx expo run:android # Android
+```
+
+#### 주요 기능
+
+- **WebView 라운지**: 모바일 Chrome UA로 네이버 라운지를 로드, fetch monkey-patch로 personaId 수집
+- **네이티브 차단 UI**: 차단 버튼 클릭 시 네이티브 Alert으로 확인 (WebView `confirm()` 미사용)
+- **차단 목록 탭**: FlatList로 차단 유저 관리 (personaId/닉네임 구분, 이전 닉네임 표시, 해제)
+- **설정 탭**: 필터 모드 전환 (완전 숨김/흐림), JSON 내보내기/가져오기, 전체 삭제
+- **라이트/다크 모드**: 시스템 테마에 따라 자동 전환
+- **Android 뒤로가기**: WebView goBack() 처리
+
+#### 브릿지 프로토콜
+
+| 방향           | 메시지 타입                     | 용도                    |
+|--------------|----------------------------|-----------------------|
+| WebView → RN | `BLOCK_USER`               | 차단 버튼 클릭 → 네이티브 Alert |
+| WebView → RN | `PERSONA_MAP_UPDATE`       | API 인터셉트 결과 전달        |
+| WebView → RN | `PAGE_CHANGED`             | SPA 네비게이션 감지          |
+| RN → WebView | `__QL_onBlockListUpdate()` | 차단 목록 변경 push         |
+| RN → WebView | `__QL_setFilterMode()`     | 필터 모드 변경              |
+
 ---
 
 ## 사용 방법
@@ -51,9 +82,13 @@ QuietLounge는 이 문제를 **클라이언트 단에서** 해결한다.
 
 Chrome 확장 프로그램의 팝업 아이콘을 클릭하면 차단 목록이 표시된다. 각 유저 옆의 **해제** 버튼으로 차단을 풀 수 있다.
 
+모바일 앱에서는 **차단 목록** 탭에서 동일하게 해제할 수 있다.
+
 ### 차단 목록 백업
 
 팝업 하단의 **내보내기 (JSON)** 버튼으로 차단 목록을 JSON 파일로 저장하고, **가져오기** 버튼으로 복원할 수 있다.
+
+모바일 앱의 **설정** 탭에서도 내보내기/가져오기가 가능하다. (expo-sharing, expo-document-picker 사용)
 
 ---
 
@@ -100,10 +135,28 @@ chrome-extension/                Chrome Extension (Manifest V3)
 ├── background/service-worker.js 뱃지 업데이트
 └── icons/
 
+mobile-app/                      모바일 앱 (Expo + React Native)
+├── app/
+│   ├── _layout.tsx              BlockListProvider + 테마
+│   └── (tabs)/
+│       ├── _layout.tsx          3탭 (라운지/차단목록/설정)
+│       ├── index.tsx            WebView 메인 (JS inject + 브릿지)
+│       ├── blocklist.tsx        차단 목록 네이티브 UI
+│       └── settings.tsx         설정 (필터모드/내보내기/가져오기)
+├── hooks/
+│   ├── useBlockList.ts          차단 목록 상태관리 (shared/ import)
+│   └── useThemeColors.ts        라이트/다크 테마 컬러
+├── utils/
+│   └── webview-scripts.ts       injectable JS 문자열 생성
+├── constants/
+│   └── Colors.ts                테마 컬러 정의
+├── metro.config.js              shared/ watchFolder 설정
+└── tsconfig.json                경로 alias 설정
+
 tampermonkey-test.user.js        Tampermonkey 테스트 스크립트
 ```
 
-`shared/`는 모든 플랫폼(Chrome Extension, Tampermonkey, 추후 모바일 앱)에서 재사용하는 공통 로직이다. Chrome Extension의 `main.js`는 이 로직을 순수 JS로 인라인 번들한 형태다.
+`shared/`는 모든 플랫폼(Chrome Extension, Tampermonkey, 모바일 앱)에서 재사용하는 공통 로직이다. Chrome Extension의 `main.js`는 이 로직을 순수 JS로 인라인 번들한 형태다. 모바일 앱은 `shared/block-list.ts`와 `shared/types.ts`를 Metro bundler를 통해 직접 import한다.
 
 ---
 
@@ -132,14 +185,40 @@ tampermonkey-test.user.js        Tampermonkey 테스트 스크립트
 
 ---
 
-## 브라우저 지원
+## 플랫폼 지원
 
-| 브라우저 | 방식 |
-|----------|------|
-| Chrome | Chrome Extension |
-| Edge, Brave, Arc, Opera, Vivaldi | Chrome Extension (동일) |
-| Firefox | Tampermonkey (Add-on 포팅 예정) |
-| 기타 | Tampermonkey |
+| 플랫폼                        | 방식                  | 저장소                    |
+|----------------------------|---------------------|------------------------|
+| Chrome, Edge, Brave, Arc 등 | Chrome Extension    | `chrome.storage.local` |
+| Firefox, 기타                | Tampermonkey        | `GM_setValue`          |
+| iOS                        | Expo + React Native | `AsyncStorage`         |
+| Android                    | Expo + React Native | `AsyncStorage`         |
+
+---
+
+## 개발
+
+### 린팅
+
+```bash
+# 루트 (shared + chrome-extension + tampermonkey)
+npm run lint        # ESLint 검사
+npm run lint:fix    # 자동 수정
+npm run format      # Prettier 포맷팅
+
+# 모바일 앱
+cd mobile-app
+npm run lint        # ESLint 검사
+```
+
+### 모바일 앱 빌드
+
+```bash
+cd mobile-app
+npx expo prebuild                # 네이티브 프로젝트 생성
+npx expo run:ios                 # iOS 빌드 및 실행
+npx expo run:android             # Android 빌드 및 실행
+```
 
 ---
 
@@ -147,7 +226,8 @@ tampermonkey-test.user.js        Tampermonkey 테스트 스크립트
 
 - 네이버 라운지의 DOM 구조나 API가 변경되면 셀렉터/인터셉터 업데이트가 필요할 수 있다.
 - 이 도구는 클라이언트 사이드에서만 동작하며, 네이버 서버에 어떠한 요청도 보내지 않는다.
-- 차단 데이터는 브라우저 로컬 저장소에만 저장된다. 브라우저를 초기화하면 데이터가 사라지므로 정기적인 백업을 권장한다.
+- 차단 데이터는 로컬 저장소에만 저장된다. 브라우저/앱을 초기화하면 데이터가 사라지므로 정기적인 백업을 권장한다.
+- 모바일 앱의 WebView는 모바일 Chrome UA를 사용하며, 쿠키 공유를 활성화한다.
 
 ---
 

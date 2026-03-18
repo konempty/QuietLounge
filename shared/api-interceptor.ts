@@ -2,7 +2,7 @@
 
 export type PersonaMapUpdateCallback = (
   postMappings: Map<string, string>,
-  personaCache: Map<string, { nickname: string }>
+  personaCache: Map<string, { nickname: string }>,
 ) => void;
 
 export class ApiInterceptor {
@@ -22,6 +22,7 @@ export class ApiInterceptor {
   }
 
   private _patchFetch(): void {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const self = this;
     const originalFetch = window.fetch;
 
