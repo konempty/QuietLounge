@@ -47,7 +47,7 @@
     const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
 
     try {
-      if (url.includes('api.lounge.naver.com') && url.includes('/feed/')) {
+      if (url.includes('api.lounge.naver.com')) {
         const cloned = response.clone();
         const data = await cloned.json();
         extractMappings(data);

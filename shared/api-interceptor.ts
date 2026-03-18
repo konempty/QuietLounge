@@ -31,7 +31,7 @@ export class ApiInterceptor {
       const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request)?.url || '';
 
       try {
-        if (self._isFeedApi(url)) {
+        if (self._isLoungeApi(url)) {
           const cloned = response.clone();
           const data = await cloned.json();
           self._extractMappings(data);
@@ -69,8 +69,8 @@ export class ApiInterceptor {
     }
   }
 
-  private _isFeedApi(url: string): boolean {
-    return url.includes('api.lounge.naver.com') && url.includes('/feed/');
+  private _isLoungeApi(url: string): boolean {
+    return url.includes('api.lounge.naver.com');
   }
 
   private _extractMappings(data: unknown): void {

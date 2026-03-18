@@ -150,7 +150,7 @@
     const resp = await origFetch.apply(this, args);
     const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
     try {
-      if (url.includes('api.lounge.naver.com') && url.includes('/feed/')) {
+      if (url.includes('api.lounge.naver.com')) {
         const d = await resp.clone().json();
         extractMappings(d);
       }
@@ -212,11 +212,69 @@
   }
 
   // ── 차단 버튼 inject ──
-  function injectButtons() {
-    if (!isBlockButtonPage()) return;
+  function findPersonaIdFromEl(container) {
+    let pid;
+    const profileLink = container.querySelector('a[href^="/profiles/"]');
+    if (profileLink) pid = profileLink.getAttribute('href')?.replace('/profiles/', '');
+    if (!pid) {
+      const postLink =
+        container.closest('a[href^="/posts/"]') ||
+        container.querySelector('a[href^="/posts/"]') ||
+        container.closest('div.relative[tabindex]')?.querySelector('a[href^="/posts/"]');
+      if (postLink) {
+        const postId = postLink.getAttribute('href')?.replace('/posts/', '');
+        if (postId) pid = personaMap.get(postId);
+      }
+    }
+    if (!pid) {
+      const pathMatch = window.location.pathname.match(/^\/posts\/([^/]+)/);
+      if (pathMatch) pid = personaMap.get(pathMatch[1]);
+    }
+    return pid;
+  }
 
-    document.querySelectorAll(SEL.profileName).forEach((el) => {
-      if (el.querySelector('.ql-btn')) return;
+  function injectButtons() {
+    if (!isActivePage()) return;
+
+    // 방법 A: data-slot="profile-name"이 있는 게시글 (피드, 글 상세)
+    // 홈(/)에서는 닉네임 자리에 라운지명이 표시되므로 스킵
+    if (isBlockButtonPage())
+      document.querySelectorAll(SEL.profileName).forEach((el) => {
+        if (el.querySelector('.ql-btn')) return;
+
+        const btn = document.createElement('button');
+        btn.className = 'ql-btn';
+        btn.textContent = '\u2715';
+        btn.title = '이 유저 차단';
+        btn.style.cssText =
+          'margin-left:4px;cursor:pointer;opacity:0.3;font-size:11px;border:none;background:none;padding:0 2px;color:inherit;transition:opacity 0.15s;';
+        btn.onmouseenter = () => (btn.style.opacity = '0.8');
+        btn.onmouseleave = () => (btn.style.opacity = '0.3');
+        btn.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          const nickname = el
+            .querySelector('[data-slot="profile-name-label"] span.truncate')
+            ?.textContent?.trim();
+          if (!nickname) return;
+          const pid = findPersonaIdFromEl(el);
+          console.log(`[QL] 차단 시도: nickname="${nickname}", personaId="${pid}"`);
+          if (confirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
+            blockUser(pid, nickname);
+            filterAll();
+            injectButtons();
+          }
+        };
+        el.appendChild(btn);
+      });
+
+    // 방법 B: data-slot="profile-name"이 없는 게시글 (주간 베스트 등)
+    document.querySelectorAll(SEL.postContainer).forEach((container) => {
+      if (container.querySelector('.ql-btn')) return;
+      if (container.querySelector(SEL.profileName)) return;
+      const postLink = container.querySelector(SEL.postLink) || container.closest(SEL.postLink);
+      if (!postLink) return;
 
       const btn = document.createElement('button');
       btn.className = 'ql-btn';
@@ -230,47 +288,22 @@
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        const nickname = el
-          .querySelector('[data-slot="profile-name-label"] span.truncate')
-          ?.textContent?.trim();
-        if (!nickname) return;
-
-        let pid;
-
-        // 방법 1: 프로필 링크에서 personaId 직접 추출 (글 상세 페이지)
-        const profileLink =
-          el.querySelector('a[href^="/profiles/"]') ||
-          el.closest('[data-slot="profile-name"]')?.querySelector('a[href^="/profiles/"]');
-        if (profileLink) {
-          pid = profileLink.getAttribute('href')?.replace('/profiles/', '');
-        }
-
-        // 방법 2: 피드 목록 — postLink에서 postId → personaMap 조회
+        const pid = findPersonaIdFromEl(container);
+        const nickname = pid ? personaCache.get(pid) : null;
         if (!pid) {
-          const postLink =
-            el.closest('a[href^="/posts/"]') ||
-            el.closest('div.relative[tabindex]')?.querySelector('a[href^="/posts/"]');
-          if (postLink) {
-            const postId = postLink.getAttribute('href')?.replace('/posts/', '');
-            if (postId) pid = personaMap.get(postId);
-          }
+          alert('personaId를 찾을 수 없습니다. 글 상세 페이지에서 차단해주세요.');
+          return;
         }
-
-        // 방법 3: 글 상세 페이지 — URL에서 postId → personaMap
-        if (!pid) {
-          const pathMatch = window.location.pathname.match(/^\/posts\/([^/]+)/);
-          if (pathMatch) pid = personaMap.get(pathMatch[1]);
-        }
-
-        console.log(`[QL] 차단 시도: nickname="${nickname}", personaId="${pid}"`);
-
-        if (confirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
-          blockUser(pid, nickname);
+        console.log(`[QL] 차단 시도 (베스트): personaId="${pid}", nickname="${nickname}"`);
+        if (confirm(`"${nickname || pid}" 유저를 차단하시겠습니까?`)) {
+          blockUser(pid, nickname || '');
           filterAll();
           injectButtons();
         }
       };
-      el.appendChild(btn);
+      const firstRow = container.querySelector('a > div');
+      if (firstRow) firstRow.appendChild(btn);
+      else container.appendChild(btn);
     });
   }
 

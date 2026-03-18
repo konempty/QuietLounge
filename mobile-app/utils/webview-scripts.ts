@@ -23,7 +23,7 @@ export function buildBeforeScript(): string {
     const resp = await origFetch.apply(this, args);
     const url = typeof args[0] === 'string' ? args[0] : (args[0]?.url || '');
     try {
-      if (url.includes('api.lounge.naver.com') && url.includes('/feed/')) {
+      if (url.includes('api.lounge.naver.com')) {
         const data = await resp.clone().json();
         extractMappings(data);
         // RN에 매핑 전송
@@ -240,22 +240,67 @@ export function buildAfterScript(blockData: BlockListData, filterMode: FilterMod
     });
   }
 
-  function injectButtons() {
-    if (!isBlockButtonPage()) return;
+  function createBlockBtn(onClickHandler) {
+    var btn = document.createElement('button');
+    btn.className = 'ql-btn';
+    btn.textContent = '\\u2715';
+    btn.title = '이 유저 차단';
+    btn.style.cssText = 'margin-left:6px;cursor:pointer;opacity:0.5;font-size:16px;border:none;background:rgba(200,50,50,0.12);padding:4px 8px;color:#e74c3c;border-radius:4px;transition:opacity 0.15s;line-height:1;min-width:28px;min-height:28px;display:inline-flex;align-items:center;justify-content:center;';
+    btn.ontouchstart = function() { btn.style.opacity = '1'; btn.style.background = 'rgba(200,50,50,0.25)'; };
+    btn.ontouchend = function() { btn.style.opacity = '0.5'; btn.style.background = 'rgba(200,50,50,0.12)'; };
+    btn.onclick = onClickHandler;
+    return btn;
+  }
 
-    document.querySelectorAll(SEL.profileName).forEach(function(el) {
+  function findPersonaId(container) {
+    var ql = window.__QL || { personaMap: {} };
+    var pid;
+
+    // 방법 1: 프로필 링크에서 personaId 직접 추출
+    var profileLink = container.querySelector('a[href^="/profiles/"]');
+    if (profileLink) {
+      pid = profileLink.getAttribute('href')?.replace('/profiles/', '');
+    }
+
+    // 방법 2: postLink에서 postId → personaMap 조회
+    if (!pid) {
+      var postLink = container.closest('a[href^="/posts/"]') ||
+        container.querySelector('a[href^="/posts/"]') ||
+        container.closest('div.relative[tabindex]')?.querySelector('a[href^="/posts/"]');
+      if (postLink) {
+        var postId = postLink.getAttribute('href')?.replace('/posts/', '');
+        if (postId) pid = ql.personaMap[postId];
+      }
+    }
+
+    // 방법 3: URL에서 postId → personaMap
+    if (!pid) {
+      var pathMatch = window.location.pathname.match(/^\\/posts\\/([^/]+)/);
+      if (pathMatch) pid = ql.personaMap[pathMatch[1]];
+    }
+
+    return pid;
+  }
+
+  function sendBlockMessage(pid, nickname) {
+    console.log('[QL] 차단 시도: nickname="' + nickname + '", personaId="' + pid + '"');
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'BLOCK_USER',
+        payload: { personaId: pid || null, nickname: nickname }
+      }));
+    }
+  }
+
+  function injectButtons() {
+    if (!isActivePage()) return;
+
+    // 방법 A: data-slot="profile-name"이 있는 게시글 (피드, 글 상세)
+    // 홈(/)에서는 닉네임 자리에 라운지명이 표시되므로 스킵
+    if (isBlockButtonPage()) document.querySelectorAll(SEL.profileName).forEach(function(el) {
       if (el.querySelector('.ql-btn')) return;
 
-      var btn = document.createElement('button');
-      btn.className = 'ql-btn';
-      btn.textContent = '\\u2715';
-      btn.title = '이 유저 차단';
-      btn.style.cssText = 'margin-left:6px;cursor:pointer;opacity:0.5;font-size:16px;border:none;background:rgba(200,50,50,0.12);padding:4px 8px;color:#e74c3c;border-radius:4px;transition:opacity 0.15s;line-height:1;min-width:28px;min-height:28px;display:inline-flex;align-items:center;justify-content:center;';
-
-      btn.ontouchstart = function() { btn.style.opacity = '1'; btn.style.background = 'rgba(200,50,50,0.25)'; };
-      btn.ontouchend = function() { btn.style.opacity = '0.5'; btn.style.background = 'rgba(200,50,50,0.12)'; };
-
-      btn.onclick = function(e) {
+      var btn = createBlockBtn(function(e) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -263,43 +308,46 @@ export function buildAfterScript(blockData: BlockListData, filterMode: FilterMod
         var nickname = el.querySelector('[data-slot="profile-name-label"] span.truncate')?.textContent?.trim();
         if (!nickname) return;
 
-        var pid;
-        var ql = window.__QL || { personaMap: {} };
-
-        // 방법 1: 프로필 링크에서 personaId 직접 추출
-        var profileLink = el.querySelector('a[href^="/profiles/"]') ||
-          el.closest('[data-slot="profile-name"]')?.querySelector('a[href^="/profiles/"]');
-        if (profileLink) {
-          pid = profileLink.getAttribute('href')?.replace('/profiles/', '');
-        }
-
-        // 방법 2: postLink에서 postId → personaMap 조회
-        if (!pid) {
-          var postLink = el.closest('a[href^="/posts/"]') ||
-            el.closest('div.relative[tabindex]')?.querySelector('a[href^="/posts/"]');
-          if (postLink) {
-            var postId = postLink.getAttribute('href')?.replace('/posts/', '');
-            if (postId) pid = ql.personaMap[postId];
-          }
-        }
-
-        // 방법 3: URL에서 postId → personaMap
-        if (!pid) {
-          var pathMatch = window.location.pathname.match(/^\\/posts\\/([^/]+)/);
-          if (pathMatch) pid = ql.personaMap[pathMatch[1]];
-        }
-
-        console.log('[QL] 차단 시도: nickname="' + nickname + '", personaId="' + pid + '"');
-
-        // confirm() 대신 RN에 위임
-        if (window.ReactNativeWebView) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'BLOCK_USER',
-            payload: { personaId: pid || null, nickname: nickname }
-          }));
-        }
-      };
+        var pid = findPersonaId(el);
+        sendBlockMessage(pid, nickname);
+      });
       el.appendChild(btn);
+    });
+
+    // 방법 B: data-slot="profile-name"이 없는 게시글 (주간 베스트 등)
+    // postContainer 안에 postLink가 있지만 profile-name이 없는 경우
+    document.querySelectorAll(SEL.postContainer).forEach(function(container) {
+      if (container.querySelector('.ql-btn')) return;
+      if (container.querySelector(SEL.profileName)) return; // 방법 A에서 처리됨
+
+      var postLink = container.querySelector(SEL.postLink) ||
+        container.closest(SEL.postLink);
+      if (!postLink) return;
+
+      var btn = createBlockBtn(function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        var pid = findPersonaId(container);
+        var ql = window.__QL || { personaCache: {} };
+        var nickname = pid ? ql.personaCache[pid] : null;
+
+        if (!pid) {
+          console.log('[QL] personaId를 찾을 수 없습니다. 글 상세 페이지에서 차단해주세요.');
+          return;
+        }
+
+        sendBlockMessage(pid, nickname || 'Unknown');
+      });
+
+      // 컨테이너의 첫 번째 자식 행에 버튼 추가
+      var firstRow = container.querySelector('a > div');
+      if (firstRow) {
+        firstRow.appendChild(btn);
+      } else {
+        container.appendChild(btn);
+      }
     });
   }
 
