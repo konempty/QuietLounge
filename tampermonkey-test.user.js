@@ -234,40 +234,38 @@
   }
 
   function injectButtons() {
-    if (!isActivePage()) return;
+    if (!isBlockButtonPage()) return;
 
     // 방법 A: data-slot="profile-name"이 있는 게시글 (피드, 글 상세)
-    // 홈(/)에서는 닉네임 자리에 라운지명이 표시되므로 스킵
-    if (isBlockButtonPage())
-      document.querySelectorAll(SEL.profileName).forEach((el) => {
-        if (el.querySelector('.ql-btn')) return;
+    document.querySelectorAll(SEL.profileName).forEach((el) => {
+      if (el.querySelector('.ql-btn')) return;
 
-        const btn = document.createElement('button');
-        btn.className = 'ql-btn';
-        btn.textContent = '\u2715';
-        btn.title = '이 유저 차단';
-        btn.style.cssText =
-          'margin-left:4px;cursor:pointer;opacity:0.3;font-size:11px;border:none;background:none;padding:0 2px;color:inherit;transition:opacity 0.15s;';
-        btn.onmouseenter = () => (btn.style.opacity = '0.8');
-        btn.onmouseleave = () => (btn.style.opacity = '0.3');
-        btn.onclick = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          const nickname = el
-            .querySelector('[data-slot="profile-name-label"] span.truncate')
-            ?.textContent?.trim();
-          if (!nickname) return;
-          const pid = findPersonaIdFromEl(el);
-          console.log(`[QL] 차단 시도: nickname="${nickname}", personaId="${pid}"`);
-          if (confirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
-            blockUser(pid, nickname);
-            filterAll();
-            injectButtons();
-          }
-        };
-        el.appendChild(btn);
-      });
+      const btn = document.createElement('button');
+      btn.className = 'ql-btn';
+      btn.textContent = '\u2715';
+      btn.title = '이 유저 차단';
+      btn.style.cssText =
+        'margin-left:4px;cursor:pointer;opacity:0.3;font-size:11px;border:none;background:none;padding:0 2px;color:inherit;transition:opacity 0.15s;';
+      btn.onmouseenter = () => (btn.style.opacity = '0.8');
+      btn.onmouseleave = () => (btn.style.opacity = '0.3');
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        const nickname = el
+          .querySelector('[data-slot="profile-name-label"] span.truncate')
+          ?.textContent?.trim();
+        if (!nickname) return;
+        const pid = findPersonaIdFromEl(el);
+        console.log(`[QL] 차단 시도: nickname="${nickname}", personaId="${pid}"`);
+        if (confirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
+          blockUser(pid, nickname);
+          filterAll();
+          injectButtons();
+        }
+      };
+      el.appendChild(btn);
+    });
 
     // 방법 B: data-slot="profile-name"이 없는 게시글 (주간 베스트 등)
     document.querySelectorAll(SEL.postContainer).forEach((container) => {

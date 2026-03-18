@@ -150,7 +150,8 @@ export class BlockList {
   }
 
   exportJSON(): string {
-    return JSON.stringify(this.data, null, 2);
+    const { personaCache: _, ...rest } = this.data;
+    return JSON.stringify(rest, null, 2);
   }
 
   async importJSON(json: string): Promise<void> {
@@ -158,6 +159,8 @@ export class BlockList {
     if (parsed.version !== 2) {
       throw new Error('Unsupported block list version');
     }
+    // 기존 personaCache 유지, 차단 목록만 덮어쓰기
+    parsed.personaCache = this.data.personaCache;
     this.data = parsed;
     await this.save();
   }

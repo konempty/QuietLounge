@@ -293,11 +293,10 @@ export function buildAfterScript(blockData: BlockListData, filterMode: FilterMod
   }
 
   function injectButtons() {
-    if (!isActivePage()) return;
+    if (!isBlockButtonPage()) return;
 
     // 방법 A: data-slot="profile-name"이 있는 게시글 (피드, 글 상세)
-    // 홈(/)에서는 닉네임 자리에 라운지명이 표시되므로 스킵
-    if (isBlockButtonPage()) document.querySelectorAll(SEL.profileName).forEach(function(el) {
+    document.querySelectorAll(SEL.profileName).forEach(function(el) {
       if (el.querySelector('.ql-btn')) return;
 
       var btn = createBlockBtn(function(e) {

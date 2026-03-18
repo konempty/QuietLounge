@@ -353,40 +353,38 @@
   }
 
   function injectBlockButtons() {
-    if (!isActivePage()) return;
+    if (!isBlockButtonPage()) return;
 
     // 방법 A: data-slot="profile-name"이 있는 게시글 (피드, 글 상세)
-    // 홈(/)에서는 닉네임 자리에 라운지명이 표시되므로 스킵
-    if (isBlockButtonPage())
-      document.querySelectorAll(SEL.profileName).forEach((el) => {
-        if (el.querySelector('.quiet-lounge-btn')) return;
+    document.querySelectorAll(SEL.profileName).forEach((el) => {
+      if (el.querySelector('.quiet-lounge-btn')) return;
 
-        const btn = createBlockBtn();
-        btn.addEventListener('click', async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
+      const btn = createBlockBtn();
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
 
-          const nickname = el
-            .querySelector('[data-slot="profile-name-label"] span.truncate')
-            ?.textContent?.trim();
-          if (!nickname) return;
+        const nickname = el
+          .querySelector('[data-slot="profile-name-label"] span.truncate')
+          ?.textContent?.trim();
+        if (!nickname) return;
 
-          const pid = findPersonaId(el);
+        const pid = findPersonaId(el);
 
-          console.log(
-            `[QuietLounge] 차단 시도: nickname="${nickname}", personaId="${pid}", personaMap.size=${personaMap.size}`,
-          );
+        console.log(
+          `[QuietLounge] 차단 시도: nickname="${nickname}", personaId="${pid}", personaMap.size=${personaMap.size}`,
+        );
 
-          if (confirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
-            await blockUser(pid, nickname, '');
-            filterAll();
-            injectBlockButtons();
-          }
-        });
-
-        el.appendChild(btn);
+        if (confirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
+          await blockUser(pid, nickname, '');
+          filterAll();
+          injectBlockButtons();
+        }
       });
+
+      el.appendChild(btn);
+    });
 
     // 방법 B: data-slot="profile-name"이 없는 게시글 (주간 베스트 등)
     document.querySelectorAll(SEL.postContainer).forEach((container) => {
