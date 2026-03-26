@@ -1,49 +1,72 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface MyStats {
   nickname: string;
   totalPosts: number;
   totalComments: number;
   monthlyPosts: number | string;
-  monthlyComments: string;
+  monthlyComments: number | string;
 }
 
 const API_BASE = 'https://api.lounge.naver.com';
 
-async function fetchMonthlyPosts(personaId: string, monthStart: Date): Promise<number> {
+async function fetchMonthlyCount(
+  personaId: string,
+  type: 'posts' | 'comments',
+  monthStart: Date,
+): Promise<number> {
   let count = 0;
   let cursor = '';
+  const isComments = type === 'comments';
 
   for (let page = 0; page < 50; page++) {
     try {
-      const url = `${API_BASE}/user-api/v1/personas/${personaId}/activities/posts?limit=100${cursor ? `&cursor=${cursor}` : ''}`;
-      const resp = await fetch(url, { credentials: 'include' });
-      if (!resp.ok) break;
-      const json = await resp.json();
-      const items = json.data?.items || [];
+      const actUrl = `${API_BASE}/user-api/v1/personas/${personaId}/activities/${type}?limit=100${cursor ? `&cursor=${cursor}` : ''}`;
+      const actResp = await fetch(actUrl, { credentials: 'include' });
+      if (!actResp.ok) break;
+      const actJson = await actResp.json();
+      const items = actJson.data?.items || [];
       if (items.length === 0) break;
 
-      const ids = items.map((item: { postId: string }) => item.postId);
-      const params = ids.map((id: string) => `postIds=${id}`).join('&');
-      const detailResp = await fetch(`${API_BASE}/content-api/v1/posts?${params}`, {
-        credentials: 'include',
-      });
+      let detailUrl: string;
+      if (isComments) {
+        const ids = items.map((item: { commentId: string }) => item.commentId);
+        detailUrl = `${API_BASE}/content-api/v1/comments?${ids.map((id: string) => `commentNoList=${id}`).join('&')}`;
+      } else {
+        const ids = items.map((item: { postId: string }) => item.postId);
+        detailUrl = `${API_BASE}/content-api/v1/posts?${ids.map((id: string) => `postIds=${id}`).join('&')}`;
+      }
+
+      const detailResp = await fetch(detailUrl, { credentials: 'include' });
       if (!detailResp.ok) break;
       const detailJson = await detailResp.json();
-      const details = Array.isArray(detailJson.data) ? detailJson.data : [];
 
       let hasThisMonth = false;
-      for (const item of details) {
-        const dateStr = item.createTime || '';
-        if (dateStr && new Date(dateStr) >= monthStart) {
-          count++;
-          hasThisMonth = true;
+      if (isComments) {
+        const raw = detailJson.data?.rawResponse;
+        const parsed = raw ? JSON.parse(raw) : null;
+        const commentList = parsed?.result?.commentList || [];
+        for (const comment of commentList) {
+          const dateStr = comment.regTimeGmt || '';
+          if (dateStr && new Date(dateStr) >= monthStart) {
+            count++;
+            hasThisMonth = true;
+          }
+        }
+      } else {
+        const details = Array.isArray(detailJson.data) ? detailJson.data : [];
+        for (const item of details) {
+          const dateStr = item.createTime || '';
+          if (dateStr && new Date(dateStr) >= monthStart) {
+            count++;
+            hasThisMonth = true;
+          }
         }
       }
 
       if (!hasThisMonth) break;
-      if (!json.data?.cursorInfo?.hasNext) break;
-      cursor = json.data?.cursorInfo?.endCursor || '';
+      if (!actJson.data?.cursorInfo?.hasNext) break;
+      cursor = actJson.data?.cursorInfo?.endCursor || '';
       if (!cursor) break;
     } catch {
       break;
@@ -55,6 +78,7 @@ async function fetchMonthlyPosts(personaId: string, monthStart: Date): Promise<n
 export function useMyStats() {
   const [stats, setStats] = useState<MyStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const statsRef = useRef<MyStats | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -93,13 +117,15 @@ export function useMyStats() {
       const totalComments = data.totalCommentCount || 0;
 
       // 총 수 먼저 반영
-      setStats({
+      const base: MyStats = {
         nickname: data.nickname || '',
         totalPosts,
         totalComments,
         monthlyPosts: '...',
-        monthlyComments: '-',
-      });
+        monthlyComments: '...',
+      };
+      statsRef.current = { ...base };
+      setStats({ ...base });
 
       // 이번달 카운트
       const now = new Date();
@@ -107,20 +133,24 @@ export function useMyStats() {
       const createTime = data.createTime ? new Date(data.createTime) : null;
       const createdThisMonth = createTime && createTime >= monthStart;
 
-      let monthlyPosts: number | string;
       if (createdThisMonth) {
-        monthlyPosts = totalPosts;
+        statsRef.current = { ...base, monthlyPosts: totalPosts, monthlyComments: totalComments };
+        setStats({ ...statsRef.current });
       } else {
-        monthlyPosts = await fetchMonthlyPosts(meData.personaId, monthStart);
+        // 독립적으로 로드, 먼저 완료되는 것부터 반영
+        fetchMonthlyCount(meData.personaId, 'posts', monthStart).then((count) => {
+          if (statsRef.current) {
+            statsRef.current = { ...statsRef.current, monthlyPosts: count };
+            setStats({ ...statsRef.current });
+          }
+        });
+        fetchMonthlyCount(meData.personaId, 'comments', monthStart).then((count) => {
+          if (statsRef.current) {
+            statsRef.current = { ...statsRef.current, monthlyComments: count };
+            setStats({ ...statsRef.current });
+          }
+        });
       }
-
-      setStats({
-        nickname: data.nickname || '',
-        totalPosts,
-        totalComments,
-        monthlyPosts,
-        monthlyComments: '-',
-      });
     } catch {
       setStats(null);
     } finally {

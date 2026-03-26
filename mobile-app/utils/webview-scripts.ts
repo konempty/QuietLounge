@@ -435,7 +435,7 @@ export function buildAfterScript(blockData: BlockListData, filterMode: FilterMod
     var mc = profileStatsCache.monthlyComments;
     var spinner = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:#1FAF63;border-radius:50%;animation:ql-spin 0.8s linear infinite;vertical-align:middle;"></span>';
     var monthlyPostsText = mp !== null ? mp : spinner;
-    var monthlyCommentsText = mc !== null && mc !== '-' ? mc : '-';
+    var monthlyCommentsText = mc !== null ? mc : spinner;
 
     return '<div style="font-weight:600;font-size:14px;margin-bottom:10px;color:#1FAF63;">활동 통계</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
@@ -501,29 +501,52 @@ export function buildAfterScript(blockData: BlockListData, filterMode: FilterMod
     if (profileStatsObserver2) { profileStatsObserver2.disconnect(); profileStatsObserver2 = null; }
   }
 
-  function fetchMonthlyPosts(personaId, monthStart) {
+  function fetchMonthlyCount(personaId, type, monthStart) {
     var count = 0;
     var cursor = '';
+    var isComments = type === 'comments';
 
     function fetchPage(page) {
       if (page >= 50) return Promise.resolve(count);
-      var url = 'https://api.lounge.naver.com/user-api/v1/personas/' + personaId + '/activities/posts?limit=100' + (cursor ? '&cursor=' + cursor : '');
-      return fetch(url, { credentials: 'include' }).then(function(resp) {
+      var actUrl = 'https://api.lounge.naver.com/user-api/v1/personas/' + personaId + '/activities/' + type + '?limit=100' + (cursor ? '&cursor=' + cursor : '');
+      return fetch(actUrl, { credentials: 'include' }).then(function(resp) {
         if (!resp.ok) return count;
         return resp.json().then(function(json) {
           var items = json.data && json.data.items ? json.data.items : [];
           if (items.length === 0) return count;
-          var ids = items.map(function(item) { return item.postId; });
-          var params = ids.map(function(id) { return 'postIds=' + id; }).join('&');
-          return fetch('https://api.lounge.naver.com/content-api/v1/posts?' + params, { credentials: 'include' }).then(function(dResp) {
+
+          var detailUrl, params;
+          if (isComments) {
+            var commentIds = items.map(function(item) { return item.commentId; });
+            params = commentIds.map(function(id) { return 'commentNoList=' + id; }).join('&');
+            detailUrl = 'https://api.lounge.naver.com/content-api/v1/comments?' + params;
+          } else {
+            var postIds = items.map(function(item) { return item.postId; });
+            params = postIds.map(function(id) { return 'postIds=' + id; }).join('&');
+            detailUrl = 'https://api.lounge.naver.com/content-api/v1/posts?' + params;
+          }
+
+          return fetch(detailUrl, { credentials: 'include' }).then(function(dResp) {
             if (!dResp.ok) return count;
             return dResp.json().then(function(dJson) {
-              var details = Array.isArray(dJson.data) ? dJson.data : [];
               var hasThisMonth = false;
-              for (var i = 0; i < details.length; i++) {
-                var dateStr = details[i].createTime || '';
-                if (dateStr && new Date(dateStr) >= monthStart) { count++; hasThisMonth = true; }
+
+              if (isComments) {
+                var raw = dJson.data && dJson.data.rawResponse ? dJson.data.rawResponse : null;
+                var parsed = raw ? JSON.parse(raw) : null;
+                var commentList = parsed && parsed.result ? parsed.result.commentList || [] : [];
+                for (var i = 0; i < commentList.length; i++) {
+                  var regDate = commentList[i].regTimeGmt || '';
+                  if (regDate && new Date(regDate) >= monthStart) { count++; hasThisMonth = true; }
+                }
+              } else {
+                var details = Array.isArray(dJson.data) ? dJson.data : [];
+                for (var j = 0; j < details.length; j++) {
+                  var dateStr = details[j].createTime || '';
+                  if (dateStr && new Date(dateStr) >= monthStart) { count++; hasThisMonth = true; }
+                }
               }
+
               if (!hasThisMonth) return count;
               if (!json.data.cursorInfo || !json.data.cursorInfo.hasNext) return count;
               cursor = json.data.cursorInfo.endCursor || '';
@@ -552,7 +575,7 @@ export function buildAfterScript(blockData: BlockListData, filterMode: FilterMod
       .then(function(json) {
         if (!json || !json.data) return;
         var stats = json.data;
-        profileStatsCache = { personaId: personaId, stats: stats, monthlyPosts: null, monthlyComments: '-' };
+        profileStatsCache = { personaId: personaId, stats: stats, monthlyPosts: null, monthlyComments: null };
 
         var now = new Date();
         var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -561,12 +584,17 @@ export function buildAfterScript(blockData: BlockListData, filterMode: FilterMod
 
         if (createdThisMonth) {
           profileStatsCache.monthlyPosts = stats.totalPostCount || 0;
-          profileStatsCache.monthlyComments = '-';
+          profileStatsCache.monthlyComments = stats.totalCommentCount || 0;
         } else {
-          fetchMonthlyPosts(personaId, monthStart).then(function(postsCount) {
-            profileStatsCache.monthlyPosts = postsCount;
-            var existing = document.getElementById('ql-profile-stats');
-            if (existing) existing.innerHTML = buildProfileStatsHtml();
+          fetchMonthlyCount(personaId, 'posts', monthStart).then(function(c) {
+            profileStatsCache.monthlyPosts = c;
+            var el = document.getElementById('ql-profile-stats');
+            if (el) el.innerHTML = buildProfileStatsHtml();
+          });
+          fetchMonthlyCount(personaId, 'comments', monthStart).then(function(c) {
+            profileStatsCache.monthlyComments = c;
+            var el = document.getElementById('ql-profile-stats');
+            if (el) el.innerHTML = buildProfileStatsHtml();
           });
         }
 

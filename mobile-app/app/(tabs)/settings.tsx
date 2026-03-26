@@ -123,9 +123,13 @@ export default function SettingsScreen() {
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>이번달 작성글</Text>
             </View>
             <View style={[styles.statBox, { backgroundColor: colors.card }]}>
-              <Text style={[styles.statValue, { color: colors.text }]}>
-                {myStats.monthlyComments}
-              </Text>
+              {myStats.monthlyComments === '...' ? (
+                <ActivityIndicator size="small" color={Colors.primary} style={{ height: 24 }} />
+              ) : (
+                <Text style={[styles.statValue, { color: colors.text }]}>
+                  {myStats.monthlyComments}
+                </Text>
+              )}
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>이번달 댓글</Text>
             </View>
           </View>
