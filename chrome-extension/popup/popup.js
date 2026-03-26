@@ -181,7 +181,64 @@ filterToggle.addEventListener('change', () => {
   updateFilterModeUI(mode);
 });
 
+// ── 내 활동 통계 ──
+// content script가 storage에 저장한 통계를 읽어서 표시
+function loadMyStats() {
+  const section = document.getElementById('my-stats-section');
+  const hint = document.getElementById('my-stats-hint');
+
+  chrome.storage.local.get('quiet_lounge_my_stats', (result) => {
+    const raw = result.quiet_lounge_my_stats;
+    section.style.display = 'block';
+
+    if (!raw) {
+      hint.textContent = '라운지에 접속하면 통계가 자동으로 갱신됩니다';
+      return;
+    }
+
+    try {
+      const stats = JSON.parse(raw);
+      document.getElementById('my-total-posts').textContent = stats.totalPosts ?? '-';
+      document.getElementById('my-total-comments').textContent = stats.totalComments ?? '-';
+      const mpEl = document.getElementById('my-monthly-posts');
+      const mcEl = document.getElementById('my-monthly-comments');
+      if (stats.monthlyPosts === '...') {
+        mpEl.innerHTML = '<span class="ql-spinner"></span>';
+      } else {
+        mpEl.textContent = stats.monthlyPosts ?? '-';
+      }
+      mcEl.textContent = stats.monthlyComments ?? '-';
+      hint.textContent = '';
+    } catch {
+      hint.textContent = '통계를 불러올 수 없습니다';
+    }
+  });
+}
+
+// storage 변경 시 팝업 자동 갱신
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.quiet_lounge_my_stats) {
+    loadMyStats();
+  }
+});
+
+// 갱신 버튼 — 라운지 탭의 content script에 갱신 요청
+document.getElementById('btn-refresh-stats').addEventListener('click', () => {
+  document.getElementById('my-stats-hint').textContent = '갱신 중...';
+  chrome.tabs.query({ url: 'https://lounge.naver.com/*' }, (tabs) => {
+    if (tabs.length > 0) {
+      chrome.tabs.sendMessage(tabs[0].id, { type: 'REFRESH_MY_STATS' });
+    } else {
+      document.getElementById('my-stats-hint').textContent =
+        '라운지 탭이 열려있어야 갱신할 수 있습니다';
+    }
+  });
+});
+
 // ── 초기화 ──
+// 내 통계는 독립적으로 즉시 로드
+loadMyStats();
+
 loadData().then(() => {
   render();
   chrome.storage.local.get(FILTER_MODE_KEY, (result) => {

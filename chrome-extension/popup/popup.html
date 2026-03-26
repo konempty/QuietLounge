@@ -28,6 +28,32 @@
       </div>
     </section>
 
+    <section class="my-stats" id="my-stats-section" style="display:none">
+      <div class="my-stats-header">
+        <h2>내 활동 통계</h2>
+        <button class="btn-refresh" id="btn-refresh-stats" title="통계 갱신">&#x21bb;</button>
+      </div>
+      <div class="my-stats-grid">
+        <div class="my-stat-item">
+          <span class="my-stat-value" id="my-total-posts">-</span>
+          <span class="my-stat-label">총 작성글</span>
+        </div>
+        <div class="my-stat-item">
+          <span class="my-stat-value" id="my-total-comments">-</span>
+          <span class="my-stat-label">총 댓글</span>
+        </div>
+        <div class="my-stat-item">
+          <span class="my-stat-value" id="my-monthly-posts">-</span>
+          <span class="my-stat-label">이번달 작성글</span>
+        </div>
+        <div class="my-stat-item">
+          <span class="my-stat-value" id="my-monthly-comments">-</span>
+          <span class="my-stat-label">이번달 댓글</span>
+        </div>
+      </div>
+      <p class="my-stats-hint" id="my-stats-hint"></p>
+    </section>
+
     <section class="block-list">
       <h2>차단 목록</h2>
       <div id="block-list-container">

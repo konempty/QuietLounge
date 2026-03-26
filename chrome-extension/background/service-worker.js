@@ -9,6 +9,4 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   }
 });
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('[QuietLounge] 확장 프로그램 설치됨');
-});
+chrome.runtime.onInstalled.addListener(() => {});

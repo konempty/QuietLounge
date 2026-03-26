@@ -140,8 +140,6 @@
         if (authorPid) personaMap.set(urlMatch[1], authorPid);
       }
     }
-
-    console.log(`[QL] 초기: ${personaMap.size} posts, ${personaCache.size} personas`);
   }
 
   // fetch monkey-patch (Tampermonkey는 page world 직접 접근 가능)
@@ -257,7 +255,6 @@
           ?.textContent?.trim();
         if (!nickname) return;
         const pid = findPersonaIdFromEl(el);
-        console.log(`[QL] 차단 시도: nickname="${nickname}", personaId="${pid}"`);
         if (confirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
           blockUser(pid, nickname);
           filterAll();
@@ -292,7 +289,6 @@
           alert('personaId를 찾을 수 없습니다. 글 상세 페이지에서 차단해주세요.');
           return;
         }
-        console.log(`[QL] 차단 시도 (베스트): personaId="${pid}", nickname="${nickname}"`);
         if (confirm(`"${nickname || pid}" 유저를 차단하시겠습니까?`)) {
           blockUser(pid, nickname || '');
           filterAll();
@@ -360,8 +356,4 @@
     childList: true,
     subtree: true,
   });
-
-  console.log(
-    `[QL] 초기화 완료 — 차단 ${Object.keys(data.blockedUsers).length + data.nicknameOnlyBlocks.length}명`,
-  );
 })();

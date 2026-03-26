@@ -1,4 +1,4 @@
-import type { BlockListData, FilterMode } from '../shared/types';
+import type { BlockListData, FilterMode } from '@shared/types';
 
 /**
  * fetch monkey-patch — injectedJavaScriptBeforeContentLoaded에 사용
@@ -116,7 +116,6 @@ export function buildBeforeScript(): string {
       }));
     }
 
-    console.log('[QL] 초기: ' + Object.keys(window.__QL.personaMap).length + ' posts, ' + Object.keys(window.__QL.personaCache).length + ' personas');
   });
 })();
 true;`;
@@ -283,7 +282,6 @@ export function buildAfterScript(blockData: BlockListData, filterMode: FilterMod
   }
 
   function sendBlockMessage(pid, nickname) {
-    console.log('[QL] 차단 시도: nickname="' + nickname + '", personaId="' + pid + '"');
     if (window.ReactNativeWebView) {
       window.ReactNativeWebView.postMessage(JSON.stringify({
         type: 'BLOCK_USER',
@@ -333,7 +331,6 @@ export function buildAfterScript(blockData: BlockListData, filterMode: FilterMod
         var nickname = pid ? ql.personaCache[pid] : null;
 
         if (!pid) {
-          console.log('[QL] personaId를 찾을 수 없습니다. 글 상세 페이지에서 차단해주세요.');
           return;
         }
 
@@ -416,7 +413,6 @@ export function buildAfterScript(blockData: BlockListData, filterMode: FilterMod
   var target = document.querySelector(SEL.scrollContainer) || document.body;
   new MutationObserver(debounced).observe(target, { childList: true, subtree: true });
 
-  console.log('[QL] 모바일 초기화 완료');
 })();
 true;`;
 }

@@ -52,9 +52,6 @@
         const data = await cloned.json();
         extractMappings(data);
         notifyContentScript();
-        console.log(
-          `[QuietLounge:MAIN] API 인터셉트 — ${Object.keys(personaMap).length}개 포스트 매핑`,
-        );
       }
     } catch {
       // 파싱 실패 무시
@@ -148,9 +145,6 @@
 
     if (found > 0 || profileLinks.length > 0) {
       notifyContentScript();
-      console.log(
-        `[QuietLounge:MAIN] 하이드레이션 파싱 — ${Object.keys(personaMap).length}개 포스트, ${Object.keys(personaCache).length}개 페르소나`,
-      );
     }
   }
 
@@ -167,6 +161,4 @@
   } else {
     parseHydrationData();
   }
-
-  console.log('[QuietLounge:MAIN] API 인터셉터 설치 완료 (document_start)');
 })();

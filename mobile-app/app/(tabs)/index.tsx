@@ -85,12 +85,11 @@ export default function LoungeScreen() {
             break;
           }
           case 'PAGE_CHANGED': {
-            console.log('[QL] Page changed:', msg.payload.path);
             break;
           }
         }
-      } catch (e) {
-        console.warn('[QL] Message parse error:', e);
+      } catch {
+        // message parse error
       }
     },
     [blockUser, updatePersonaCache],

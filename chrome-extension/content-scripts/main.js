@@ -139,10 +139,6 @@
         }
       }
 
-      console.log(
-        `[QuietLounge] 매핑 수신: ${personaMap.size}개 포스트, ${personaCache.size}개 페르소나`,
-      );
-
       filterAll();
       autoPromoteBlocks();
     });
@@ -365,10 +361,6 @@
 
         const pid = findPersonaId(el);
 
-        console.log(
-          `[QuietLounge] 차단 시도: nickname="${nickname}", personaId="${pid}", personaMap.size=${personaMap.size}`,
-        );
-
         if (confirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
           await blockUser(pid, nickname, '');
           filterAll();
@@ -400,8 +392,6 @@
           alert('personaId를 찾을 수 없습니다. 글 상세 페이지에서 차단해주세요.');
           return;
         }
-
-        console.log(`[QuietLounge] 차단 시도 (베스트): personaId="${pid}", nickname="${nickname}"`);
 
         if (confirm(`"${nickname || pid}" 유저를 차단하시겠습니까?`)) {
           await blockUser(pid, nickname || '', '');
@@ -445,14 +435,18 @@
     if (newPath === lastPath) return;
     lastPath = newPath;
 
-    console.log(`[QuietLounge] 페이지 전환: ${newPath}`);
+    // 페이지 전환 시 프로필 통계 캐시 리셋
+    profileStatsCache = { personaId: null, stats: null, monthlyPosts: null, monthlyComments: null };
+    stopProfileStatsGuard();
 
     if (isActivePage()) {
-      // 약간의 딜레이 후 DOM이 준비되면 필터링
       setTimeout(() => {
         filterAll();
         injectBlockButtons();
       }, 500);
+    }
+    if (isProfilePage()) {
+      setTimeout(() => injectProfileStats(), 500);
     }
   }
 
@@ -472,11 +466,351 @@
     }
   });
 
+  // ── 프로필 통계 ──
+  function isProfilePage() {
+    return window.location.pathname.startsWith('/profiles/');
+  }
+
+  function getProfilePersonaId() {
+    const match = window.location.pathname.match(/^\/profiles\/([^/?]+)/);
+    return match ? match[1] : null;
+  }
+
+  async function fetchPersonaStats(personaId) {
+    try {
+      const resp = await fetch(`https://api.lounge.naver.com/user-api/v1/personas/${personaId}`, {
+        credentials: 'include',
+      });
+      if (!resp.ok) return null;
+      const json = await resp.json();
+      return json.data;
+    } catch {
+      return null;
+    }
+  }
+
+  async function fetchMonthlyCount(personaId, type) {
+    // 댓글 content-api가 500 에러를 반환하므로 댓글은 현재 미지원
+    if (type === 'comments') return '-';
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // 페이지 단위로 postId 수집 → 날짜 확인 → 이전 달이면 조기 중단
+    let count = 0;
+    let cursor = '';
+
+    for (let page = 0; page < 20; page++) {
+      try {
+        const url = `https://api.lounge.naver.com/user-api/v1/personas/${personaId}/activities/posts?limit=100${cursor ? `&cursor=${cursor}` : ''}`;
+        const resp = await fetch(url, { credentials: 'include' });
+        if (!resp.ok) break;
+        const json = await resp.json();
+        const items = json.data?.items || [];
+        if (items.length === 0) break;
+
+        // postId로 날짜 조회
+        const ids = items.map((item) => item.postId);
+        const params = ids.map((id) => `postIds=${id}`).join('&');
+        const detailResp = await fetch(
+          `https://api.lounge.naver.com/content-api/v1/posts?${params}`,
+          { credentials: 'include' },
+        );
+        if (!detailResp.ok) break;
+        const detailJson = await detailResp.json();
+        const details = Array.isArray(detailJson.data) ? detailJson.data : [];
+
+        let hasThisMonth = false;
+        for (const item of details) {
+          const dateStr = item.createTime || '';
+          if (dateStr && new Date(dateStr) >= monthStart) {
+            count++;
+            hasThisMonth = true;
+          }
+        }
+
+        // 이 배치에 이번달 글이 하나도 없으면 이전 달이므로 중단
+        if (!hasThisMonth) break;
+        if (!json.data?.cursorInfo?.hasNext) break;
+        cursor = json.data?.cursorInfo?.endCursor || '';
+        if (!cursor) break;
+      } catch {
+        break;
+      }
+    }
+    return count;
+  }
+
+  // 프로필 통계 캐시 (SPA 리렌더링으로 DOM이 제거되어도 재삽입 시 API 재호출 방지)
+  let profileStatsCache = {
+    personaId: null,
+    stats: null,
+    monthlyPosts: null,
+    monthlyComments: null,
+  };
+
+  let profileStatsRafId = null;
+
+  function buildProfileStatsHtml() {
+    const stats = profileStatsCache.stats;
+    const totalPosts = stats.totalPostCount || 0;
+    const totalComments = stats.totalCommentCount || 0;
+    const mp = profileStatsCache.monthlyPosts;
+    const mc = profileStatsCache.monthlyComments;
+    const spinner =
+      '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:#1FAF63;border-radius:50%;animation:ql-spin 0.8s linear infinite;vertical-align:middle;"></span>';
+    const monthlyPostsText = mp !== null ? mp : spinner;
+    const monthlyCommentsText = mc !== null && mc !== '-' ? mc : '-';
+
+    return `<div style="font-weight:600;font-size:14px;margin-bottom:10px;color:#1FAF63;">활동 통계</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">
+<div style="font-size:20px;font-weight:700;">${totalPosts}</div>
+<div style="font-size:11px;opacity:0.7;margin-top:2px;">총 작성글</div></div>
+<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">
+<div style="font-size:20px;font-weight:700;">${totalComments}</div>
+<div style="font-size:11px;opacity:0.7;margin-top:2px;">총 댓글</div></div>
+<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">
+<div style="font-size:20px;font-weight:700;">${monthlyPostsText}</div>
+<div style="font-size:11px;opacity:0.7;margin-top:2px;">이번달 작성글</div></div>
+<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">
+<div style="font-size:20px;font-weight:700;">${monthlyCommentsText}</div>
+<div style="font-size:11px;opacity:0.7;margin-top:2px;">이번달 댓글</div></div></div>`;
+  }
+
+  // 스피너 애니메이션 CSS (1회만 주입)
+  if (!document.getElementById('ql-spinner-style')) {
+    const style = document.createElement('style');
+    style.id = 'ql-spinner-style';
+    style.textContent = '@keyframes ql-spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
+  }
+
+  function insertProfileStatsBox() {
+    if (document.getElementById('ql-profile-stats')) return;
+    const tabsEl = document.querySelector('[data-slot="tabs"]');
+    if (!tabsEl) return;
+    const box = document.createElement('div');
+    box.id = 'ql-profile-stats';
+    box.style.cssText =
+      'margin:12px 20px 0;padding:14px 16px;background:rgba(31,175,99,0.08);border:1px solid rgba(31,175,99,0.2);border-radius:10px;font-size:13px;color:var(--color-neutral-foreground-default,#e0e0e0);';
+    box.innerHTML = buildProfileStatsHtml();
+    tabsEl.before(box);
+  }
+
+  // 처음 3초간 rAF 폴링 (프로그레스 바 애니메이션 대응), 이후 debounced MutationObserver로 전환
+  let profileStatsObserver = null;
+
+  function startProfileStatsGuard() {
+    stopProfileStatsGuard();
+
+    // Phase 1: rAF 폴링 (3초간)
+    const startTime = Date.now();
+    function tick() {
+      if (!isProfilePage() || !profileStatsCache.stats) {
+        profileStatsRafId = null;
+        return;
+      }
+      insertProfileStatsBox();
+
+      if (Date.now() - startTime < 3000) {
+        profileStatsRafId = requestAnimationFrame(tick);
+      } else {
+        // Phase 2: MutationObserver로 전환
+        profileStatsRafId = null;
+        profileStatsObserver = new MutationObserver(
+          debounce(() => {
+            if (isProfilePage() && profileStatsCache.stats) {
+              insertProfileStatsBox();
+            }
+          }, 100),
+        );
+        profileStatsObserver.observe(document.body, { childList: true, subtree: true });
+      }
+    }
+    profileStatsRafId = requestAnimationFrame(tick);
+  }
+
+  function stopProfileStatsGuard() {
+    if (profileStatsRafId) {
+      cancelAnimationFrame(profileStatsRafId);
+      profileStatsRafId = null;
+    }
+    if (profileStatsObserver) {
+      profileStatsObserver.disconnect();
+      profileStatsObserver = null;
+    }
+  }
+
+  function injectProfileStats() {
+    if (!isProfilePage()) return;
+
+    const personaId = getProfilePersonaId();
+    if (!personaId) return;
+
+    // 캐시가 있으면 폴링 시작 (즉시 삽입 + 리렌더링 대응)
+    if (profileStatsCache.personaId === personaId && profileStatsCache.stats) {
+      startProfileStatsGuard();
+      return;
+    }
+
+    // 캐시 없으면 API 호출 (초기 1회)
+    fetchPersonaStats(personaId).then((stats) => {
+      if (!stats) return;
+
+      if (stats.isOwner) {
+        chrome.storage.local.set({ quiet_lounge_my_persona_id: personaId });
+      }
+
+      profileStatsCache = { personaId, stats, monthlyPosts: null, monthlyComments: null };
+
+      // 이번달 카운트 계산
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const createTime = stats.createTime ? new Date(stats.createTime) : null;
+      const createdThisMonth = createTime && createTime >= monthStart;
+
+      if (createdThisMonth) {
+        profileStatsCache.monthlyPosts = stats.totalPostCount || 0;
+        profileStatsCache.monthlyComments = '-';
+      } else {
+        Promise.all([
+          fetchMonthlyCount(personaId, 'posts'),
+          fetchMonthlyCount(personaId, 'comments'),
+        ]).then(([posts, comments]) => {
+          profileStatsCache.monthlyPosts = posts;
+          profileStatsCache.monthlyComments = comments;
+          const existing = document.getElementById('ql-profile-stats');
+          if (existing) existing.innerHTML = buildProfileStatsHtml();
+        });
+      }
+
+      startProfileStatsGuard();
+    });
+  }
+
+  // ── 내 통계 조회 → storage 저장 ──
+  function saveMyStats(statsObj) {
+    chrome.storage.local.set({
+      quiet_lounge_my_stats: JSON.stringify(statsObj),
+    });
+  }
+
+  async function fetchAndStoreMyStats() {
+    try {
+      // 1단계: me API로 personaId 확인
+      const meResp = await fetch('https://api.lounge.naver.com/user-api/v1/members/me/personas', {
+        credentials: 'include',
+      });
+      if (!meResp.ok) {
+        chrome.storage.local.remove('quiet_lounge_my_stats');
+        return;
+      }
+      const meJson = await meResp.json();
+      const meData = Array.isArray(meJson.data) ? meJson.data[0] : meJson.data;
+      if (!meData?.personaId) return;
+
+      const personaId = meData.personaId;
+      chrome.storage.local.set({ quiet_lounge_my_persona_id: personaId });
+
+      // 2단계: personas API로 총 글/댓글 수 조회
+      let totalPosts = 0;
+      let totalComments = 0;
+      let nickname = meData.nickname || '';
+      let createTime = meData.createTime ? new Date(meData.createTime) : null;
+
+      try {
+        const statsResp = await fetch(
+          `https://api.lounge.naver.com/user-api/v1/personas/${personaId}`,
+          { credentials: 'include' },
+        );
+        if (statsResp.ok) {
+          const statsJson = await statsResp.json();
+          const sData = statsJson.data;
+          if (sData) {
+            totalPosts = sData.totalPostCount || 0;
+            totalComments = sData.totalCommentCount || 0;
+            nickname = sData.nickname || nickname;
+            createTime = sData.createTime ? new Date(sData.createTime) : createTime;
+          }
+        }
+      } catch {
+        // personas API 실패 시 activities API로 총 수 조회
+        try {
+          const postsResp = await fetch(
+            `https://api.lounge.naver.com/user-api/v1/personas/${personaId}/activities/posts?limit=1`,
+            { credentials: 'include' },
+          );
+          if (postsResp.ok) {
+            const pJson = await postsResp.json();
+            totalPosts = pJson.data?.totalPostCount || 0;
+          }
+          const commentsResp = await fetch(
+            `https://api.lounge.naver.com/user-api/v1/personas/${personaId}/activities/comments?limit=1`,
+            { credentials: 'include' },
+          );
+          if (commentsResp.ok) {
+            const cJson = await commentsResp.json();
+            totalComments = cJson.data?.totalCommentCount || cJson.data?.totalCount || 0;
+          }
+        } catch {
+          // 둘 다 실패
+        }
+      }
+
+      const now = new Date();
+
+      // 총 수를 먼저 저장 (팝업에 바로 반영)
+      const stats = {
+        personaId,
+        nickname,
+        totalPosts,
+        totalComments,
+        monthlyPosts: '...',
+        monthlyComments: '-',
+        updatedAt: now.toISOString(),
+      };
+      saveMyStats(stats);
+
+      // 이번달 카운트 계산
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const createdThisMonth = createTime && createTime >= monthStart;
+
+      if (createdThisMonth) {
+        stats.monthlyPosts = totalPosts;
+        stats.monthlyComments = '-';
+      } else {
+        try {
+          const [mp, mc] = await Promise.all([
+            fetchMonthlyCount(personaId, 'posts'),
+            fetchMonthlyCount(personaId, 'comments'),
+          ]);
+          stats.monthlyPosts = mp;
+          stats.monthlyComments = mc;
+        } catch {
+          stats.monthlyPosts = '?';
+          stats.monthlyComments = '?';
+        }
+      }
+      saveMyStats(stats);
+    } catch {
+      // 조회 실패 무시
+    }
+  }
+
+  // 팝업 갱신 버튼 요청 수신
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === 'REFRESH_MY_STATS') {
+      fetchAndStoreMyStats();
+    }
+  });
+
   // ── 초기화 ──
   async function init() {
-    console.log('[QuietLounge] 초기화 시작');
-
     await loadBlockData();
+
+    // 내 통계 자동 갱신 (라운지 접속 시마다)
+    fetchAndStoreMyStats();
 
     // API 인터셉터는 모든 페이지에서 설치 (personaId 수집은 어디서든)
     installApiInterceptor();
@@ -497,6 +831,7 @@
       filterAll();
       injectBlockButtons();
     }
+    injectProfileStats();
 
     // MutationObserver는 항상 설치 (SPA 전환 후 DOM 변경 대응)
     const target = document.querySelector(SEL.scrollContainer) || document.body;
@@ -506,12 +841,11 @@
         filterAll();
         injectBlockButtons();
       }
+      injectProfileStats();
     }, 200);
 
     const observer = new MutationObserver(debouncedUpdate);
     observer.observe(target, { childList: true, subtree: true });
-
-    console.log('[QuietLounge] 초기화 완료');
   }
 
   init();
