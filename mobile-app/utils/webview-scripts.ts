@@ -413,6 +413,179 @@ export function buildAfterScript(blockData: BlockListData, filterMode: FilterMod
   var target = document.querySelector(SEL.scrollContainer) || document.body;
   new MutationObserver(debounced).observe(target, { childList: true, subtree: true });
 
+  // ── 프로필 통계 ──
+  var profileStatsCache = { personaId: null, stats: null, monthlyPosts: null, monthlyComments: null };
+  var profileStatsRafId = null;
+  var profileStatsObserver2 = null;
+
+  function isProfilePage() {
+    return window.location.pathname.startsWith('/profiles/');
+  }
+
+  function getProfilePersonaId() {
+    var match = window.location.pathname.match(/^\\/profiles\\/([^/?]+)/);
+    return match ? match[1] : null;
+  }
+
+  function buildProfileStatsHtml() {
+    var stats = profileStatsCache.stats;
+    var totalPosts = stats.totalPostCount || 0;
+    var totalComments = stats.totalCommentCount || 0;
+    var mp = profileStatsCache.monthlyPosts;
+    var mc = profileStatsCache.monthlyComments;
+    var spinner = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:#1FAF63;border-radius:50%;animation:ql-spin 0.8s linear infinite;vertical-align:middle;"></span>';
+    var monthlyPostsText = mp !== null ? mp : spinner;
+    var monthlyCommentsText = mc !== null && mc !== '-' ? mc : '-';
+
+    return '<div style="font-weight:600;font-size:14px;margin-bottom:10px;color:#1FAF63;">활동 통계</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
+      '<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">' +
+      '<div style="font-size:20px;font-weight:700;">' + totalPosts + '</div>' +
+      '<div style="font-size:11px;opacity:0.7;margin-top:2px;">총 작성글</div></div>' +
+      '<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">' +
+      '<div style="font-size:20px;font-weight:700;">' + totalComments + '</div>' +
+      '<div style="font-size:11px;opacity:0.7;margin-top:2px;">총 댓글</div></div>' +
+      '<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">' +
+      '<div style="font-size:20px;font-weight:700;">' + monthlyPostsText + '</div>' +
+      '<div style="font-size:11px;opacity:0.7;margin-top:2px;">이번달 작성글</div></div>' +
+      '<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">' +
+      '<div style="font-size:20px;font-weight:700;">' + monthlyCommentsText + '</div>' +
+      '<div style="font-size:11px;opacity:0.7;margin-top:2px;">이번달 댓글</div></div></div>';
+  }
+
+  function insertProfileStatsBox() {
+    if (document.getElementById('ql-profile-stats')) return;
+    var tabsEl = document.querySelector('[data-slot="tabs"]');
+    if (!tabsEl) return;
+    var box = document.createElement('div');
+    box.id = 'ql-profile-stats';
+    box.style.cssText = 'margin:12px 20px 0;padding:14px 16px;background:rgba(31,175,99,0.08);border:1px solid rgba(31,175,99,0.2);border-radius:10px;font-size:13px;color:var(--color-neutral-foreground-default,#e0e0e0);';
+    box.innerHTML = buildProfileStatsHtml();
+    tabsEl.before(box);
+  }
+
+  // 스피너 CSS
+  if (!document.getElementById('ql-spinner-style')) {
+    var style = document.createElement('style');
+    style.id = 'ql-spinner-style';
+    style.textContent = '@keyframes ql-spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
+  }
+
+  function profileDebounce(fn, delay) {
+    var t;
+    return function() { clearTimeout(t); t = setTimeout(fn, delay); };
+  }
+
+  function startProfileStatsGuard() {
+    stopProfileStatsGuard();
+    var startTime = Date.now();
+    function tick() {
+      if (!isProfilePage() || !profileStatsCache.stats) { profileStatsRafId = null; return; }
+      insertProfileStatsBox();
+      if (Date.now() - startTime < 3000) {
+        profileStatsRafId = requestAnimationFrame(tick);
+      } else {
+        profileStatsRafId = null;
+        profileStatsObserver2 = new MutationObserver(profileDebounce(function() {
+          if (isProfilePage() && profileStatsCache.stats) insertProfileStatsBox();
+        }, 100));
+        profileStatsObserver2.observe(document.body, { childList: true, subtree: true });
+      }
+    }
+    profileStatsRafId = requestAnimationFrame(tick);
+  }
+
+  function stopProfileStatsGuard() {
+    if (profileStatsRafId) { cancelAnimationFrame(profileStatsRafId); profileStatsRafId = null; }
+    if (profileStatsObserver2) { profileStatsObserver2.disconnect(); profileStatsObserver2 = null; }
+  }
+
+  function fetchMonthlyPosts(personaId, monthStart) {
+    var count = 0;
+    var cursor = '';
+
+    function fetchPage(page) {
+      if (page >= 50) return Promise.resolve(count);
+      var url = 'https://api.lounge.naver.com/user-api/v1/personas/' + personaId + '/activities/posts?limit=100' + (cursor ? '&cursor=' + cursor : '');
+      return fetch(url, { credentials: 'include' }).then(function(resp) {
+        if (!resp.ok) return count;
+        return resp.json().then(function(json) {
+          var items = json.data && json.data.items ? json.data.items : [];
+          if (items.length === 0) return count;
+          var ids = items.map(function(item) { return item.postId; });
+          var params = ids.map(function(id) { return 'postIds=' + id; }).join('&');
+          return fetch('https://api.lounge.naver.com/content-api/v1/posts?' + params, { credentials: 'include' }).then(function(dResp) {
+            if (!dResp.ok) return count;
+            return dResp.json().then(function(dJson) {
+              var details = Array.isArray(dJson.data) ? dJson.data : [];
+              var hasThisMonth = false;
+              for (var i = 0; i < details.length; i++) {
+                var dateStr = details[i].createTime || '';
+                if (dateStr && new Date(dateStr) >= monthStart) { count++; hasThisMonth = true; }
+              }
+              if (!hasThisMonth) return count;
+              if (!json.data.cursorInfo || !json.data.cursorInfo.hasNext) return count;
+              cursor = json.data.cursorInfo.endCursor || '';
+              if (!cursor) return count;
+              return fetchPage(page + 1);
+            });
+          });
+        });
+      }).catch(function() { return count; });
+    }
+    return fetchPage(0);
+  }
+
+  function injectProfileStats() {
+    if (!isProfilePage()) return;
+    var personaId = getProfilePersonaId();
+    if (!personaId) return;
+
+    if (profileStatsCache.personaId === personaId && profileStatsCache.stats) {
+      startProfileStatsGuard();
+      return;
+    }
+
+    fetch('https://api.lounge.naver.com/user-api/v1/personas/' + personaId, { credentials: 'include' })
+      .then(function(resp) { return resp.ok ? resp.json() : null; })
+      .then(function(json) {
+        if (!json || !json.data) return;
+        var stats = json.data;
+        profileStatsCache = { personaId: personaId, stats: stats, monthlyPosts: null, monthlyComments: '-' };
+
+        var now = new Date();
+        var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        var createTime = stats.createTime ? new Date(stats.createTime) : null;
+        var createdThisMonth = createTime && createTime >= monthStart;
+
+        if (createdThisMonth) {
+          profileStatsCache.monthlyPosts = stats.totalPostCount || 0;
+          profileStatsCache.monthlyComments = '-';
+        } else {
+          fetchMonthlyPosts(personaId, monthStart).then(function(postsCount) {
+            profileStatsCache.monthlyPosts = postsCount;
+            var existing = document.getElementById('ql-profile-stats');
+            if (existing) existing.innerHTML = buildProfileStatsHtml();
+          });
+        }
+
+        startProfileStatsGuard();
+      });
+  }
+
+  // SPA 네비게이션 시 프로필 통계 리셋
+  var origOnNavigate = onNavigate;
+  onNavigate = function() {
+    profileStatsCache = { personaId: null, stats: null, monthlyPosts: null, monthlyComments: null };
+    stopProfileStatsGuard();
+    origOnNavigate();
+    if (isProfilePage()) setTimeout(injectProfileStats, 500);
+  };
+
+  // 초기 실행
+  if (isProfilePage()) injectProfileStats();
+
 })();
 true;`;
 }

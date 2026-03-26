@@ -7,6 +7,7 @@ import {
   Alert,
   Switch,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -14,11 +15,13 @@ import * as DocumentPicker from 'expo-document-picker';
 
 import { useBlockList } from '@/hooks/useBlockList';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useMyStats } from '@/hooks/useMyStats';
 import Colors from '@/constants/Colors';
 
 export default function SettingsScreen() {
   const { exportJSON, importJSON, clearAll, allBlocked, filterMode, setFilterMode } = useBlockList();
   const { colors } = useThemeColors();
+  const { stats: myStats, loading: statsLoading, refresh: refreshStats } = useMyStats();
 
   const toggleFilterMode = async () => {
     await setFilterMode(filterMode === 'hide' ? 'blur' : 'hide');
@@ -85,6 +88,54 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* 내 활동 통계 */}
+      <View style={styles.section}>
+        <View style={styles.statsHeader}>
+          <Text style={styles.sectionTitle}>내 활동 통계</Text>
+          <TouchableOpacity onPress={refreshStats} style={styles.refreshBtn}>
+            {statsLoading ? (
+              <ActivityIndicator size="small" color={Colors.primary} />
+            ) : (
+              <Text style={styles.refreshText}>↻</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+        {myStats ? (
+          <View style={styles.statsGrid}>
+            <View style={[styles.statBox, { backgroundColor: colors.card }]}>
+              <Text style={[styles.statValue, { color: colors.text }]}>{myStats.totalPosts}</Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>총 작성글</Text>
+            </View>
+            <View style={[styles.statBox, { backgroundColor: colors.card }]}>
+              <Text style={[styles.statValue, { color: colors.text }]}>
+                {myStats.totalComments}
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>총 댓글</Text>
+            </View>
+            <View style={[styles.statBox, { backgroundColor: colors.card }]}>
+              {myStats.monthlyPosts === '...' ? (
+                <ActivityIndicator size="small" color={Colors.primary} style={{ height: 24 }} />
+              ) : (
+                <Text style={[styles.statValue, { color: colors.text }]}>
+                  {myStats.monthlyPosts}
+                </Text>
+              )}
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>이번달 작성글</Text>
+            </View>
+            <View style={[styles.statBox, { backgroundColor: colors.card }]}>
+              <Text style={[styles.statValue, { color: colors.text }]}>
+                {myStats.monthlyComments}
+              </Text>
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>이번달 댓글</Text>
+            </View>
+          </View>
+        ) : (
+          <Text style={[styles.statsHint, { color: colors.textSecondary }]}>
+            {statsLoading ? '로딩 중...' : '라운지에 로그인하면 통계가 표시됩니다'}
+          </Text>
+        )}
+      </View>
+
       {/* 필터 모드 */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>필터 모드</Text>
@@ -215,5 +266,49 @@ const styles = StyleSheet.create({
   },
   infoValue: {
     fontSize: 14,
+  },
+  statsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  refreshBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#555',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  refreshText: {
+    fontSize: 16,
+    color: '#aaa',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  statBox: {
+    width: '48%' as unknown as number,
+    flexGrow: 1,
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  statLabel: {
+    fontSize: 11,
+    marginTop: 4,
+  },
+  statsHint: {
+    textAlign: 'center',
+    fontSize: 13,
+    paddingVertical: 16,
   },
 });
