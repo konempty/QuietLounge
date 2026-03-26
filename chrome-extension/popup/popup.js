@@ -207,7 +207,11 @@ function loadMyStats() {
       } else {
         mpEl.textContent = stats.monthlyPosts ?? '-';
       }
-      mcEl.textContent = stats.monthlyComments ?? '-';
+      if (stats.monthlyComments === '...') {
+        mcEl.innerHTML = '<span class="ql-spinner"></span>';
+      } else {
+        mcEl.textContent = stats.monthlyComments ?? '-';
+      }
       hint.textContent = '';
     } catch {
       hint.textContent = '통계를 불러올 수 없습니다';

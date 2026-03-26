@@ -490,49 +490,70 @@
   }
 
   async function fetchMonthlyCount(personaId, type) {
-    // 댓글 content-api가 500 에러를 반환하므로 댓글은 현재 미지원
-    if (type === 'comments') return '-';
-
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    // 페이지 단위로 postId 수집 → 날짜 확인 → 이전 달이면 조기 중단
     let count = 0;
     let cursor = '';
+    const isComments = type === 'comments';
 
-    for (let page = 0; page < 20; page++) {
+    for (let page = 0; page < 50; page++) {
       try {
-        const url = `https://api.lounge.naver.com/user-api/v1/personas/${personaId}/activities/posts?limit=100${cursor ? `&cursor=${cursor}` : ''}`;
-        const resp = await fetch(url, { credentials: 'include' });
-        if (!resp.ok) break;
-        const json = await resp.json();
-        const items = json.data?.items || [];
+        // 1단계: activities API로 ID 목록
+        const actUrl = `https://api.lounge.naver.com/user-api/v1/personas/${personaId}/activities/${type}?limit=100${cursor ? `&cursor=${cursor}` : ''}`;
+        const actResp = await fetch(actUrl, { credentials: 'include' });
+        if (!actResp.ok) break;
+        const actJson = await actResp.json();
+        const items = actJson.data?.items || [];
         if (items.length === 0) break;
 
-        // postId로 날짜 조회
-        const ids = items.map((item) => item.postId);
-        const params = ids.map((id) => `postIds=${id}`).join('&');
-        const detailResp = await fetch(
-          `https://api.lounge.naver.com/content-api/v1/posts?${params}`,
-          { credentials: 'include' },
-        );
-        if (!detailResp.ok) break;
-        const detailJson = await detailResp.json();
-        const details = Array.isArray(detailJson.data) ? detailJson.data : [];
-
+        // 2단계: content API로 날짜 조회
         let hasThisMonth = false;
-        for (const item of details) {
-          const dateStr = item.createTime || '';
-          if (dateStr && new Date(dateStr) >= monthStart) {
-            count++;
-            hasThisMonth = true;
+
+        if (isComments) {
+          // 댓글: commentNoList 파라미터, rawResponse 안에 commentList
+          const ids = items.map((item) => item.commentId);
+          const params = ids.map((id) => `commentNoList=${id}`).join('&');
+          const detailResp = await fetch(
+            `https://api.lounge.naver.com/content-api/v1/comments?${params}`,
+            { credentials: 'include' },
+          );
+          if (!detailResp.ok) break;
+          const detailJson = await detailResp.json();
+          const raw = detailJson.data?.rawResponse;
+          const parsed = raw ? JSON.parse(raw) : null;
+          const commentList = parsed?.result?.commentList || [];
+
+          for (const comment of commentList) {
+            const dateStr = comment.regTimeGmt || '';
+            if (dateStr && new Date(dateStr) >= monthStart) {
+              count++;
+              hasThisMonth = true;
+            }
+          }
+        } else {
+          // 글: postIds 파라미터, data 배열
+          const ids = items.map((item) => item.postId);
+          const params = ids.map((id) => `postIds=${id}`).join('&');
+          const detailResp = await fetch(
+            `https://api.lounge.naver.com/content-api/v1/posts?${params}`,
+            { credentials: 'include' },
+          );
+          if (!detailResp.ok) break;
+          const detailJson = await detailResp.json();
+          const details = Array.isArray(detailJson.data) ? detailJson.data : [];
+
+          for (const item of details) {
+            const dateStr = item.createTime || '';
+            if (dateStr && new Date(dateStr) >= monthStart) {
+              count++;
+              hasThisMonth = true;
+            }
           }
         }
 
-        // 이 배치에 이번달 글이 하나도 없으면 이전 달이므로 중단
         if (!hasThisMonth) break;
-        if (!json.data?.cursorInfo?.hasNext) break;
-        cursor = json.data?.cursorInfo?.endCursor || '';
+        if (!actJson.data?.cursorInfo?.hasNext) break;
+        cursor = actJson.data?.cursorInfo?.endCursor || '';
         if (!cursor) break;
       } catch {
         break;
@@ -560,7 +581,7 @@
     const spinner =
       '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:#1FAF63;border-radius:50%;animation:ql-spin 0.8s linear infinite;vertical-align:middle;"></span>';
     const monthlyPostsText = mp !== null ? mp : spinner;
-    const monthlyCommentsText = mc !== null && mc !== '-' ? mc : '-';
+    const monthlyCommentsText = mc !== null ? mc : spinner;
 
     return `<div style="font-weight:600;font-size:14px;margin-bottom:10px;color:#1FAF63;">활동 통계</div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -672,16 +693,17 @@
 
       if (createdThisMonth) {
         profileStatsCache.monthlyPosts = stats.totalPostCount || 0;
-        profileStatsCache.monthlyComments = '-';
+        profileStatsCache.monthlyComments = stats.totalCommentCount || 0;
       } else {
-        Promise.all([
-          fetchMonthlyCount(personaId, 'posts'),
-          fetchMonthlyCount(personaId, 'comments'),
-        ]).then(([posts, comments]) => {
-          profileStatsCache.monthlyPosts = posts;
-          profileStatsCache.monthlyComments = comments;
-          const existing = document.getElementById('ql-profile-stats');
-          if (existing) existing.innerHTML = buildProfileStatsHtml();
+        fetchMonthlyCount(personaId, 'posts').then((count) => {
+          profileStatsCache.monthlyPosts = count;
+          const el = document.getElementById('ql-profile-stats');
+          if (el) el.innerHTML = buildProfileStatsHtml();
+        });
+        fetchMonthlyCount(personaId, 'comments').then((count) => {
+          profileStatsCache.monthlyComments = count;
+          const el = document.getElementById('ql-profile-stats');
+          if (el) el.innerHTML = buildProfileStatsHtml();
         });
       }
 
@@ -767,7 +789,7 @@
         totalPosts,
         totalComments,
         monthlyPosts: '...',
-        monthlyComments: '-',
+        monthlyComments: '...',
         updatedAt: now.toISOString(),
       };
       saveMyStats(stats);
@@ -778,21 +800,27 @@
 
       if (createdThisMonth) {
         stats.monthlyPosts = totalPosts;
-        stats.monthlyComments = '-';
+        stats.monthlyComments = totalComments;
+        saveMyStats(stats);
       } else {
-        try {
-          const [mp, mc] = await Promise.all([
-            fetchMonthlyCount(personaId, 'posts'),
-            fetchMonthlyCount(personaId, 'comments'),
-          ]);
-          stats.monthlyPosts = mp;
-          stats.monthlyComments = mc;
-        } catch {
-          stats.monthlyPosts = '?';
-          stats.monthlyComments = '?';
-        }
+        // 각각 독립적으로 로드하여 먼저 완료되는 것부터 반영
+        fetchMonthlyCount(personaId, 'posts')
+          .then((count) => {
+            stats.monthlyPosts = count;
+          })
+          .catch(() => {
+            stats.monthlyPosts = '?';
+          })
+          .finally(() => saveMyStats(stats));
+        fetchMonthlyCount(personaId, 'comments')
+          .then((count) => {
+            stats.monthlyComments = count;
+          })
+          .catch(() => {
+            stats.monthlyComments = '?';
+          })
+          .finally(() => saveMyStats(stats));
       }
-      saveMyStats(stats);
     } catch {
       // 조회 실패 무시
     }
