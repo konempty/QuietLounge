@@ -146,7 +146,7 @@ export function buildAfterScript(blockData: BlockListData, filterMode: FilterMod
   var SEL = {
     scrollContainer: '.infinite-scroll-component',
     postLink: 'a[href^="/posts/"]',
-    postContainer: 'div.relative[tabindex]',
+    postContainer: '.relative[tabindex]',
     nickname: '[data-slot="profile-name-label"] span.truncate',
     profileName: '[data-slot="profile-name"]',
     separator: '[data-slot="separator"]',
@@ -265,7 +265,7 @@ export function buildAfterScript(blockData: BlockListData, filterMode: FilterMod
     if (!pid) {
       var postLink = container.closest('a[href^="/posts/"]') ||
         container.querySelector('a[href^="/posts/"]') ||
-        container.closest('div.relative[tabindex]')?.querySelector('a[href^="/posts/"]');
+        container.closest('.relative[tabindex]')?.querySelector('a[href^="/posts/"]');
       if (postLink) {
         var postId = postLink.getAttribute('href')?.replace('/posts/', '');
         if (postId) pid = ql.personaMap[postId];
