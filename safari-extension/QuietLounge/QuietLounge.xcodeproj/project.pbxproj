@@ -1,0 +1,1019 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		C2C98C332F7A61E800588733 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C98C322F7A61E800588733 /* AppDelegate.swift */; };
+		C2C98C352F7A61E800588733 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C98C342F7A61E800588733 /* SceneDelegate.swift */; };
+		C2C98C382F7A61E800588733 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C362F7A61E800588733 /* LaunchScreen.storyboard */; };
+		C2C98C3B2F7A61E800588733 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C392F7A61E800588733 /* Main.storyboard */; };
+		C2C98C442F7A61E800588733 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C98C432F7A61E800588733 /* AppDelegate.swift */; };
+		C2C98C472F7A61E800588733 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C452F7A61E800588733 /* Main.storyboard */; };
+		C2C98C4E2F7A61E900588733 /* QuietLounge Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C2C98C4D2F7A61E900588733 /* QuietLounge Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C2C98C582F7A61E900588733 /* QuietLounge Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C2C98C572F7A61E900588733 /* QuietLounge Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C2C98C5D2F7A61E900588733 /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C222F7A61E700588733 /* Main.html */; };
+		C2C98C5E2F7A61E900588733 /* Main.html in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C222F7A61E700588733 /* Main.html */; };
+		C2C98C5F2F7A61E900588733 /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C242F7A61E700588733 /* Icon.png */; };
+		C2C98C602F7A61E900588733 /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C242F7A61E700588733 /* Icon.png */; };
+		C2C98C612F7A61E900588733 /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C252F7A61E700588733 /* Style.css */; };
+		C2C98C622F7A61E900588733 /* Style.css in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C252F7A61E700588733 /* Style.css */; };
+		C2C98C632F7A61E900588733 /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C262F7A61E700588733 /* Script.js */; };
+		C2C98C642F7A61E900588733 /* Script.js in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C262F7A61E700588733 /* Script.js */; };
+		C2C98C652F7A61E900588733 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C98C272F7A61E700588733 /* ViewController.swift */; };
+		C2C98C662F7A61E900588733 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C98C272F7A61E700588733 /* ViewController.swift */; };
+		C2C98C672F7A61E900588733 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C282F7A61E800588733 /* Assets.xcassets */; };
+		C2C98C682F7A61E900588733 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C282F7A61E800588733 /* Assets.xcassets */; };
+		C2C98C692F7A61E900588733 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C98C2A2F7A61E800588733 /* SafariWebExtensionHandler.swift */; };
+		C2C98C6A2F7A61E900588733 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C98C2A2F7A61E800588733 /* SafariWebExtensionHandler.swift */; };
+		C2C98C812F7A61E900588733 /* background in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7C2F7A61E900588733 /* background */; };
+		C2C98C822F7A61E900588733 /* popup in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7D2F7A61E900588733 /* popup */; };
+		C2C98C832F7A61E900588733 /* content-scripts in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7E2F7A61E900588733 /* content-scripts */; };
+		C2C98C842F7A61E900588733 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7F2F7A61E900588733 /* icons */; };
+		C2C98C852F7A61E900588733 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C802F7A61E900588733 /* manifest.json */; };
+		C2C98C862F7A61E900588733 /* background in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7C2F7A61E900588733 /* background */; };
+		C2C98C872F7A61E900588733 /* popup in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7D2F7A61E900588733 /* popup */; };
+		C2C98C882F7A61E900588733 /* content-scripts in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7E2F7A61E900588733 /* content-scripts */; };
+		C2C98C892F7A61E900588733 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7F2F7A61E900588733 /* icons */; };
+		C2C98C8A2F7A61E900588733 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C802F7A61E900588733 /* manifest.json */; };
+		C2D68CD12F7BBA6100033FEF /* WebViewScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CD02F7BBA6100033FEF /* WebViewScripts.swift */; };
+		C2D68CD22F7BBA6100033FEF /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCD2F7BBA6100033FEF /* SettingsViewController.swift */; };
+		C2D68CD32F7BBA6100033FEF /* BlockDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCB2F7BBA6100033FEF /* BlockDataManager.swift */; };
+		C2D68CD42F7BBA6100033FEF /* SplashViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCE2F7BBA6100033FEF /* SplashViewController.swift */; };
+		C2D68CD52F7BBA6100033FEF /* BlockListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCC2F7BBA6100033FEF /* BlockListViewController.swift */; };
+		C2D68CD62F7BBA6100033FEF /* WebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCF2F7BBA6100033FEF /* WebViewController.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C2C98C4F2F7A61E900588733 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C2C98C1C2F7A61E700588733 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C2C98C4C2F7A61E900588733;
+			remoteInfo = "QuietLounge Extension (iOS)";
+		};
+		C2C98C592F7A61E900588733 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C2C98C1C2F7A61E700588733 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C2C98C562F7A61E900588733;
+			remoteInfo = "QuietLounge Extension (macOS)";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		C2C98C702F7A61E900588733 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				C2C98C4E2F7A61E900588733 /* QuietLounge Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C2C98C772F7A61E900588733 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				C2C98C582F7A61E900588733 /* QuietLounge Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		C2C98C232F7A61E700588733 /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.html; name = Base; path = Base.lproj/Main.html; sourceTree = "<group>"; };
+		C2C98C242F7A61E700588733 /* Icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Icon.png; sourceTree = "<group>"; };
+		C2C98C252F7A61E700588733 /* Style.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = Style.css; sourceTree = "<group>"; };
+		C2C98C262F7A61E700588733 /* Script.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = Script.js; sourceTree = "<group>"; };
+		C2C98C272F7A61E700588733 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		C2C98C282F7A61E800588733 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C2C98C2A2F7A61E800588733 /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		C2C98C2F2F7A61E800588733 /* QuietLounge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuietLounge.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C2C98C322F7A61E800588733 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		C2C98C342F7A61E800588733 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		C2C98C372F7A61E800588733 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		C2C98C3A2F7A61E800588733 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		C2C98C3C2F7A61E800588733 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C2C98C412F7A61E800588733 /* QuietLounge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuietLounge.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C2C98C432F7A61E800588733 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		C2C98C462F7A61E800588733 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		C2C98C482F7A61E900588733 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C2C98C4D2F7A61E900588733 /* QuietLounge Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "QuietLounge Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C2C98C522F7A61E900588733 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C2C98C572F7A61E900588733 /* QuietLounge Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "QuietLounge Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C2C98C5C2F7A61E900588733 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C2C98C7C2F7A61E900588733 /* background */ = {isa = PBXFileReference; lastKnownFileType = folder; name = background; path = Resources/background; sourceTree = "<group>"; };
+		C2C98C7D2F7A61E900588733 /* popup */ = {isa = PBXFileReference; lastKnownFileType = folder; name = popup; path = Resources/popup; sourceTree = "<group>"; };
+		C2C98C7E2F7A61E900588733 /* content-scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "content-scripts"; path = "Resources/content-scripts"; sourceTree = "<group>"; };
+		C2C98C7F2F7A61E900588733 /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = Resources/icons; sourceTree = "<group>"; };
+		C2C98C802F7A61E900588733 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = Resources/manifest.json; sourceTree = "<group>"; };
+		C2D68CCB2F7BBA6100033FEF /* BlockDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockDataManager.swift; sourceTree = "<group>"; };
+		C2D68CCC2F7BBA6100033FEF /* BlockListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockListViewController.swift; sourceTree = "<group>"; };
+		C2D68CCD2F7BBA6100033FEF /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
+		C2D68CCE2F7BBA6100033FEF /* SplashViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashViewController.swift; sourceTree = "<group>"; };
+		C2D68CCF2F7BBA6100033FEF /* WebViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewController.swift; sourceTree = "<group>"; };
+		C2D68CD02F7BBA6100033FEF /* WebViewScripts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewScripts.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C2C98C2C2F7A61E800588733 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C2C98C3E2F7A61E800588733 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C2C98C4A2F7A61E900588733 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C2C98C542F7A61E900588733 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C2C98C1B2F7A61E700588733 = {
+			isa = PBXGroup;
+			children = (
+				C2C98C202F7A61E700588733 /* Shared (App) */,
+				C2C98C292F7A61E800588733 /* Shared (Extension) */,
+				C2C98C312F7A61E800588733 /* iOS (App) */,
+				C2C98C422F7A61E800588733 /* macOS (App) */,
+				C2C98C512F7A61E900588733 /* iOS (Extension) */,
+				C2C98C5B2F7A61E900588733 /* macOS (Extension) */,
+				C2C98C302F7A61E800588733 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C2C98C202F7A61E700588733 /* Shared (App) */ = {
+			isa = PBXGroup;
+			children = (
+				C2C98C272F7A61E700588733 /* ViewController.swift */,
+				C2C98C282F7A61E800588733 /* Assets.xcassets */,
+				C2C98C212F7A61E700588733 /* Resources */,
+			);
+			path = "Shared (App)";
+			sourceTree = "<group>";
+		};
+		C2C98C212F7A61E700588733 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				C2C98C222F7A61E700588733 /* Main.html */,
+				C2C98C242F7A61E700588733 /* Icon.png */,
+				C2C98C252F7A61E700588733 /* Style.css */,
+				C2C98C262F7A61E700588733 /* Script.js */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		C2C98C292F7A61E800588733 /* Shared (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				C2C98C7B2F7A61E900588733 /* Resources */,
+				C2C98C2A2F7A61E800588733 /* SafariWebExtensionHandler.swift */,
+			);
+			path = "Shared (Extension)";
+			sourceTree = "<group>";
+		};
+		C2C98C302F7A61E800588733 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C2C98C2F2F7A61E800588733 /* QuietLounge.app */,
+				C2C98C412F7A61E800588733 /* QuietLounge.app */,
+				C2C98C4D2F7A61E900588733 /* QuietLounge Extension.appex */,
+				C2C98C572F7A61E900588733 /* QuietLounge Extension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C2C98C312F7A61E800588733 /* iOS (App) */ = {
+			isa = PBXGroup;
+			children = (
+				C2D68CCB2F7BBA6100033FEF /* BlockDataManager.swift */,
+				C2D68CCC2F7BBA6100033FEF /* BlockListViewController.swift */,
+				C2D68CCD2F7BBA6100033FEF /* SettingsViewController.swift */,
+				C2D68CCE2F7BBA6100033FEF /* SplashViewController.swift */,
+				C2D68CCF2F7BBA6100033FEF /* WebViewController.swift */,
+				C2D68CD02F7BBA6100033FEF /* WebViewScripts.swift */,
+				C2C98C322F7A61E800588733 /* AppDelegate.swift */,
+				C2C98C342F7A61E800588733 /* SceneDelegate.swift */,
+				C2C98C362F7A61E800588733 /* LaunchScreen.storyboard */,
+				C2C98C392F7A61E800588733 /* Main.storyboard */,
+				C2C98C3C2F7A61E800588733 /* Info.plist */,
+			);
+			path = "iOS (App)";
+			sourceTree = "<group>";
+		};
+		C2C98C422F7A61E800588733 /* macOS (App) */ = {
+			isa = PBXGroup;
+			children = (
+				C2C98C432F7A61E800588733 /* AppDelegate.swift */,
+				C2C98C452F7A61E800588733 /* Main.storyboard */,
+				C2C98C482F7A61E900588733 /* Info.plist */,
+			);
+			path = "macOS (App)";
+			sourceTree = "<group>";
+		};
+		C2C98C512F7A61E900588733 /* iOS (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				C2C98C522F7A61E900588733 /* Info.plist */,
+			);
+			path = "iOS (Extension)";
+			sourceTree = "<group>";
+		};
+		C2C98C5B2F7A61E900588733 /* macOS (Extension) */ = {
+			isa = PBXGroup;
+			children = (
+				C2C98C5C2F7A61E900588733 /* Info.plist */,
+			);
+			path = "macOS (Extension)";
+			sourceTree = "<group>";
+		};
+		C2C98C7B2F7A61E900588733 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				C2C98C7C2F7A61E900588733 /* background */,
+				C2C98C7D2F7A61E900588733 /* popup */,
+				C2C98C7E2F7A61E900588733 /* content-scripts */,
+				C2C98C7F2F7A61E900588733 /* icons */,
+				C2C98C802F7A61E900588733 /* manifest.json */,
+			);
+			name = Resources;
+			path = "Shared (Extension)";
+			sourceTree = SOURCE_ROOT;
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C2C98C2E2F7A61E800588733 /* QuietLounge (iOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C2C98C712F7A61E900588733 /* Build configuration list for PBXNativeTarget "QuietLounge (iOS)" */;
+			buildPhases = (
+				C2C98C2B2F7A61E800588733 /* Sources */,
+				C2C98C2C2F7A61E800588733 /* Frameworks */,
+				C2C98C2D2F7A61E800588733 /* Resources */,
+				C2C98C702F7A61E900588733 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C2C98C502F7A61E900588733 /* PBXTargetDependency */,
+			);
+			name = "QuietLounge (iOS)";
+			packageProductDependencies = (
+			);
+			productName = "QuietLounge (iOS)";
+			productReference = C2C98C2F2F7A61E800588733 /* QuietLounge.app */;
+			productType = "com.apple.product-type.application";
+		};
+		C2C98C402F7A61E800588733 /* QuietLounge (macOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C2C98C782F7A61E900588733 /* Build configuration list for PBXNativeTarget "QuietLounge (macOS)" */;
+			buildPhases = (
+				C2C98C3D2F7A61E800588733 /* Sources */,
+				C2C98C3E2F7A61E800588733 /* Frameworks */,
+				C2C98C3F2F7A61E800588733 /* Resources */,
+				C2C98C772F7A61E900588733 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C2C98C5A2F7A61E900588733 /* PBXTargetDependency */,
+			);
+			name = "QuietLounge (macOS)";
+			packageProductDependencies = (
+			);
+			productName = "QuietLounge (macOS)";
+			productReference = C2C98C412F7A61E800588733 /* QuietLounge.app */;
+			productType = "com.apple.product-type.application";
+		};
+		C2C98C4C2F7A61E900588733 /* QuietLounge Extension (iOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C2C98C6D2F7A61E900588733 /* Build configuration list for PBXNativeTarget "QuietLounge Extension (iOS)" */;
+			buildPhases = (
+				C2C98C492F7A61E900588733 /* Sources */,
+				C2C98C4A2F7A61E900588733 /* Frameworks */,
+				C2C98C4B2F7A61E900588733 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "QuietLounge Extension (iOS)";
+			packageProductDependencies = (
+			);
+			productName = "QuietLounge Extension (iOS)";
+			productReference = C2C98C4D2F7A61E900588733 /* QuietLounge Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		C2C98C562F7A61E900588733 /* QuietLounge Extension (macOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C2C98C742F7A61E900588733 /* Build configuration list for PBXNativeTarget "QuietLounge Extension (macOS)" */;
+			buildPhases = (
+				C2C98C532F7A61E900588733 /* Sources */,
+				C2C98C542F7A61E900588733 /* Frameworks */,
+				C2C98C552F7A61E900588733 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "QuietLounge Extension (macOS)";
+			packageProductDependencies = (
+			);
+			productName = "QuietLounge Extension (macOS)";
+			productReference = C2C98C572F7A61E900588733 /* QuietLounge Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C2C98C1C2F7A61E700588733 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2640;
+				LastUpgradeCheck = 2640;
+				TargetAttributes = {
+					C2C98C2E2F7A61E800588733 = {
+						CreatedOnToolsVersion = 26.4;
+					};
+					C2C98C402F7A61E800588733 = {
+						CreatedOnToolsVersion = 26.4;
+					};
+					C2C98C4C2F7A61E900588733 = {
+						CreatedOnToolsVersion = 26.4;
+					};
+					C2C98C562F7A61E900588733 = {
+						CreatedOnToolsVersion = 26.4;
+					};
+				};
+			};
+			buildConfigurationList = C2C98C1F2F7A61E700588733 /* Build configuration list for PBXProject "QuietLounge" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = C2C98C1B2F7A61E700588733;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = C2C98C302F7A61E800588733 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C2C98C2E2F7A61E800588733 /* QuietLounge (iOS) */,
+				C2C98C402F7A61E800588733 /* QuietLounge (macOS) */,
+				C2C98C4C2F7A61E900588733 /* QuietLounge Extension (iOS) */,
+				C2C98C562F7A61E900588733 /* QuietLounge Extension (macOS) */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C2C98C2D2F7A61E800588733 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C2C98C5F2F7A61E900588733 /* Icon.png in Resources */,
+				C2C98C382F7A61E800588733 /* LaunchScreen.storyboard in Resources */,
+				C2C98C5D2F7A61E900588733 /* Main.html in Resources */,
+				C2C98C632F7A61E900588733 /* Script.js in Resources */,
+				C2C98C672F7A61E900588733 /* Assets.xcassets in Resources */,
+				C2C98C3B2F7A61E800588733 /* Main.storyboard in Resources */,
+				C2C98C612F7A61E900588733 /* Style.css in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C2C98C3F2F7A61E800588733 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C2C98C602F7A61E900588733 /* Icon.png in Resources */,
+				C2C98C622F7A61E900588733 /* Style.css in Resources */,
+				C2C98C472F7A61E800588733 /* Main.storyboard in Resources */,
+				C2C98C642F7A61E900588733 /* Script.js in Resources */,
+				C2C98C682F7A61E900588733 /* Assets.xcassets in Resources */,
+				C2C98C5E2F7A61E900588733 /* Main.html in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C2C98C4B2F7A61E900588733 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C2C98C862F7A61E900588733 /* background in Resources */,
+				C2C98C892F7A61E900588733 /* icons in Resources */,
+				C2C98C8A2F7A61E900588733 /* manifest.json in Resources */,
+				C2C98C882F7A61E900588733 /* content-scripts in Resources */,
+				C2C98C872F7A61E900588733 /* popup in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C2C98C552F7A61E900588733 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C2C98C812F7A61E900588733 /* background in Resources */,
+				C2C98C842F7A61E900588733 /* icons in Resources */,
+				C2C98C852F7A61E900588733 /* manifest.json in Resources */,
+				C2C98C832F7A61E900588733 /* content-scripts in Resources */,
+				C2C98C822F7A61E900588733 /* popup in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C2C98C2B2F7A61E800588733 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C2D68CD12F7BBA6100033FEF /* WebViewScripts.swift in Sources */,
+				C2D68CD22F7BBA6100033FEF /* SettingsViewController.swift in Sources */,
+				C2D68CD32F7BBA6100033FEF /* BlockDataManager.swift in Sources */,
+				C2D68CD42F7BBA6100033FEF /* SplashViewController.swift in Sources */,
+				C2D68CD52F7BBA6100033FEF /* BlockListViewController.swift in Sources */,
+				C2D68CD62F7BBA6100033FEF /* WebViewController.swift in Sources */,
+				C2C98C652F7A61E900588733 /* ViewController.swift in Sources */,
+				C2C98C332F7A61E800588733 /* AppDelegate.swift in Sources */,
+				C2C98C352F7A61E800588733 /* SceneDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C2C98C3D2F7A61E800588733 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C2C98C662F7A61E900588733 /* ViewController.swift in Sources */,
+				C2C98C442F7A61E800588733 /* AppDelegate.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C2C98C492F7A61E900588733 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C2C98C692F7A61E900588733 /* SafariWebExtensionHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C2C98C532F7A61E900588733 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C2C98C6A2F7A61E900588733 /* SafariWebExtensionHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C2C98C502F7A61E900588733 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C2C98C4C2F7A61E900588733 /* QuietLounge Extension (iOS) */;
+			targetProxy = C2C98C4F2F7A61E900588733 /* PBXContainerItemProxy */;
+		};
+		C2C98C5A2F7A61E900588733 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C2C98C562F7A61E900588733 /* QuietLounge Extension (macOS) */;
+			targetProxy = C2C98C592F7A61E900588733 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		C2C98C222F7A61E700588733 /* Main.html */ = {
+			isa = PBXVariantGroup;
+			children = (
+				C2C98C232F7A61E700588733 /* Base */,
+			);
+			name = Main.html;
+			sourceTree = "<group>";
+		};
+		C2C98C362F7A61E800588733 /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				C2C98C372F7A61E800588733 /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		C2C98C392F7A61E800588733 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				C2C98C3A2F7A61E800588733 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+		C2C98C452F7A61E800588733 /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				C2C98C462F7A61E800588733 /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		C2C98C6B2F7A61E900588733 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		C2C98C6C2F7A61E900588733 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		C2C98C6E2F7A61E900588733 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q3X65N3243;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "QuietLounge Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.konempty.quietlounge.safari;
+				PRODUCT_NAME = "QuietLounge Extension";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C2C98C6F2F7A61E900588733 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q3X65N3243;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "QuietLounge Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.konempty.quietlounge.safari;
+				PRODUCT_NAME = "QuietLounge Extension";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		C2C98C722F7A61E900588733 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q3X65N3243;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = QuietLounge;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.konempty.quietlounge;
+				PRODUCT_NAME = QuietLounge;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C2C98C732F7A61E900588733 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q3X65N3243;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = QuietLounge;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.konempty.quietlounge;
+				PRODUCT_NAME = QuietLounge;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		C2C98C752F7A61E900588733 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q3X65N3243;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "QuietLounge Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.konempty.quietlounge.safari;
+				PRODUCT_NAME = "QuietLounge Extension";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		C2C98C762F7A61E900588733 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q3X65N3243;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "QuietLounge Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.konempty.quietlounge.safari;
+				PRODUCT_NAME = "QuietLounge Extension";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		C2C98C792F7A61E900588733 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q3X65N3243;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = QuietLounge;
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.konempty.quietlounge;
+				PRODUCT_NAME = QuietLounge;
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		C2C98C7A2F7A61E900588733 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = Q3X65N3243;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = QuietLounge;
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = kr.konempty.quietlounge;
+				PRODUCT_NAME = QuietLounge;
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C2C98C1F2F7A61E700588733 /* Build configuration list for PBXProject "QuietLounge" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C2C98C6B2F7A61E900588733 /* Debug */,
+				C2C98C6C2F7A61E900588733 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C2C98C6D2F7A61E900588733 /* Build configuration list for PBXNativeTarget "QuietLounge Extension (iOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C2C98C6E2F7A61E900588733 /* Debug */,
+				C2C98C6F2F7A61E900588733 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C2C98C712F7A61E900588733 /* Build configuration list for PBXNativeTarget "QuietLounge (iOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C2C98C722F7A61E900588733 /* Debug */,
+				C2C98C732F7A61E900588733 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C2C98C742F7A61E900588733 /* Build configuration list for PBXNativeTarget "QuietLounge Extension (macOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C2C98C752F7A61E900588733 /* Debug */,
+				C2C98C762F7A61E900588733 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C2C98C782F7A61E900588733 /* Build configuration list for PBXNativeTarget "QuietLounge (macOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C2C98C792F7A61E900588733 /* Debug */,
+				C2C98C7A2F7A61E900588733 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C2C98C1C2F7A61E700588733 /* Project object */;
+}

@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "QuietLounge",
+  "description": "네이버 라운지에서 특정 유저의 게시글을 차단(숨김)합니다",
+  "version": "1.0.0",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["https://lounge.naver.com/*", "https://api.lounge.naver.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://lounge.naver.com/*"],
+      "js": ["content-scripts/injector.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://lounge.naver.com/*"],
+      "js": ["content-scripts/main.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["content-scripts/api-interceptor.js"],
+      "matches": ["https://lounge.naver.com/*"]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

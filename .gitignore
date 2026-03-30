@@ -4,3 +4,7 @@ QuietLounge.md
 /.claude/
 /node_modules/
 *.keystore
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
