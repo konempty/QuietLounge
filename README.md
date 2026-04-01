@@ -2,6 +2,8 @@
 
 네이버 라운지(`lounge.naver.com`)에서 특정 유저의 게시글을 숨기는 클라이언트 사이드 차단 도구.
 
+[![개발자에게 커피 한 잔 사주기](https://img.shields.io/badge/☕_커피_한_잔_사주기-카카오페이-FFCD00?style=for-the-badge&logoColor=000)](https://qr.kakaopay.com/FG31jvTdV)
+
 ---
 
 ## 왜 만들었나

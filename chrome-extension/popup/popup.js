@@ -239,6 +239,19 @@ document.getElementById('btn-refresh-stats').addEventListener('click', () => {
   });
 });
 
+// ── QR 모달 ──
+document.getElementById('btn-support').addEventListener('click', () => {
+  document.getElementById('qr-modal').classList.add('active');
+});
+document.getElementById('qr-modal-close').addEventListener('click', () => {
+  document.getElementById('qr-modal').classList.remove('active');
+});
+document.getElementById('qr-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) {
+    e.currentTarget.classList.remove('active');
+  }
+});
+
 // ── 초기화 ──
 // 내 통계는 독립적으로 즉시 로드
 loadMyStats();

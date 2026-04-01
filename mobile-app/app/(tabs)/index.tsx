@@ -112,7 +112,7 @@ export default function LoungeScreen() {
         allowsBackForwardNavigationGestures={true}
         pullToRefreshEnabled={true}
         startInLoadingState={true}
-        decelerationRate="normal"
+
       />
     </SafeAreaView>
   );

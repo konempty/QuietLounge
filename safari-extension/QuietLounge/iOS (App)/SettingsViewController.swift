@@ -64,14 +64,15 @@ class SettingsViewController: UITableViewController {
 
     // MARK: - Table View
 
-    override func numberOfSections(in tableView: UITableView) -> Int { 4 }
+    override func numberOfSections(in tableView: UITableView) -> Int { 5 }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         switch section {
         case 0: return "내 활동 통계"
         case 1: return "필터 모드"
         case 2: return "데이터 관리"
-        case 3: return "정보"
+        case 3: return "후원"
+        case 4: return "정보"
         default: return nil
         }
     }
@@ -82,6 +83,7 @@ class SettingsViewController: UITableViewController {
         case 1: return 1
         case 2: return 3
         case 3: return 2
+        case 4: return 2
         default: return 0
         }
     }
@@ -133,7 +135,24 @@ class SettingsViewController: UITableViewController {
             }
             cell.selectionStyle = .default
 
-        case 3: // 정보
+        case 3: // 후원
+            if indexPath.row == 0 {
+                config.text = "QuietLounge는 무료이며, 개발·운영 비용은 모두 개발자가 부담하고 있습니다.\n응원하시고 싶으시다면 커피 한 잔으로 응원해 주세요!"
+                config.textProperties.color = .secondaryLabel
+                config.textProperties.font = .systemFont(ofSize: 13)
+                config.textProperties.numberOfLines = 0
+            } else {
+                config.text = "☕ 개발자에게 커피 한 잔 사주기"
+                config.textProperties.color = UIColor { trait in
+                    trait.userInterfaceStyle == .dark
+                        ? UIColor(red: 210/255, green: 170/255, blue: 120/255, alpha: 1)
+                        : UIColor(red: 111/255, green: 78/255, blue: 55/255, alpha: 1)
+                }
+                cell.accessoryType = .disclosureIndicator
+                cell.selectionStyle = .default
+            }
+
+        case 4: // 정보
             if indexPath.row == 0 {
                 config.text = "버전"
                 config.secondaryText = "1.0.0"
@@ -154,6 +173,14 @@ class SettingsViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
+
+        if indexPath.section == 3 && indexPath.row == 1 {
+            if let url = URL(string: "https://qr.kakaopay.com/FG31jvTdV") {
+                UIApplication.shared.open(url)
+            }
+            return
+        }
+
         guard indexPath.section == 2 else { return }
 
         switch indexPath.row {

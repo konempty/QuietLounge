@@ -262,6 +262,25 @@ document.getElementById('btn-refresh-stats').addEventListener('click', async () 
   }, 3000);
 });
 
+// ── iOS 감지 ──
+if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+  const mobileLink = document.getElementById('qr-modal-mobile-link');
+  if (mobileLink) mobileLink.style.display = '';
+}
+
+// ── QR 모달 ──
+document.getElementById('btn-support').addEventListener('click', () => {
+  document.getElementById('qr-modal').classList.add('active');
+});
+document.getElementById('qr-modal-close').addEventListener('click', () => {
+  document.getElementById('qr-modal').classList.remove('active');
+});
+document.getElementById('qr-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) {
+    e.currentTarget.classList.remove('active');
+  }
+});
+
 // ── 초기화 ──
 // 내 통계는 독립적으로 즉시 로드
 loadMyStats();

@@ -8,6 +8,7 @@ import {
   Switch,
   ScrollView,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -194,6 +195,20 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* 후원 */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>후원</Text>
+        <Text style={[styles.supportDesc, { color: colors.textSecondary }]}>
+          QuietLounge는 무료이며, 개발·운영 비용은 모두 개발자가 부담하고 있습니다.
+          응원하시고 싶으시다면 커피 한 잔으로 응원해 주세요!
+        </Text>
+        <TouchableOpacity
+          style={[styles.button, styles.supportButton]}
+          onPress={() => Linking.openURL('https://qr.kakaopay.com/FG31jvTdV')}>
+          <Text style={styles.supportText}>&#9749; 개발자에게 커피 한 잔 사주기</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* 정보 */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>정보</Text>
@@ -253,6 +268,20 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 15,
     fontWeight: '500',
+  },
+  supportDesc: {
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  supportButton: {
+    backgroundColor: '#6F4E37',
+    alignItems: 'center',
+  },
+  supportText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
   },
   buttonDesc: {
     fontSize: 13,
