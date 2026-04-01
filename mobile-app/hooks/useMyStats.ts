@@ -78,10 +78,12 @@ async function fetchMonthlyCount(
 export function useMyStats() {
   const [stats, setStats] = useState<MyStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [attempted, setAttempted] = useState(false);
   const statsRef = useRef<MyStats | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setAttempted(true);
     try {
       // 1단계: me API로 personaId
       const meResp = await fetch(`${API_BASE}/user-api/v1/members/me/personas`, {
@@ -162,5 +164,5 @@ export function useMyStats() {
     refresh();
   }, [refresh]);
 
-  return { stats, loading, refresh };
+  return { stats, loading, attempted, refresh };
 }

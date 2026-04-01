@@ -312,6 +312,48 @@
     return pid;
   }
 
+  // ── 커스텀 확인 다이얼로그 (iOS Safari에서 confirm() 억제 대응) ──
+  function qlConfirm(message) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;';
+
+      const dialog = document.createElement('div');
+      dialog.style.cssText = 'background:#1a1a1a;color:#e0e0e0;border-radius:14px;padding:20px;max-width:300px;width:90%;text-align:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 4px 24px rgba(0,0,0,0.4);';
+
+      const msg = document.createElement('p');
+      msg.textContent = message;
+      msg.style.cssText = 'font-size:15px;margin:0 0 18px;line-height:1.4;';
+
+      const btnRow = document.createElement('div');
+      btnRow.style.cssText = 'display:flex;gap:10px;';
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.textContent = '취소';
+      cancelBtn.style.cssText = 'flex:1;padding:10px;border:1px solid #444;background:transparent;color:#aaa;border-radius:8px;font-size:14px;cursor:pointer;';
+
+      const confirmBtn = document.createElement('button');
+      confirmBtn.textContent = '차단';
+      confirmBtn.style.cssText = 'flex:1;padding:10px;border:none;background:#e74c3c;color:#fff;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;';
+
+      function close(result) {
+        overlay.remove();
+        resolve(result);
+      }
+
+      cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); close(false); });
+      confirmBtn.addEventListener('click', (e) => { e.stopPropagation(); close(true); });
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
+
+      btnRow.appendChild(cancelBtn);
+      btnRow.appendChild(confirmBtn);
+      dialog.appendChild(msg);
+      dialog.appendChild(btnRow);
+      overlay.appendChild(dialog);
+      document.body.appendChild(overlay);
+    });
+  }
+
   function createBlockBtn() {
     const btn = document.createElement('button');
     btn.className = 'quiet-lounge-btn';
@@ -352,14 +394,20 @@
     return btn;
   }
 
+  // 살아있는 핸들러가 있는 버튼 추적 (bfcache 복원 시 WeakSet은 초기화됨)
+  const liveButtons = new WeakSet();
+
   function injectBlockButtons() {
     if (!isBlockButtonPage()) return;
 
     // 방법 A: data-slot="profile-name"이 있는 게시글 (피드, 글 상세)
     document.querySelectorAll(SEL.profileName).forEach((el) => {
-      if (el.querySelector('.quiet-lounge-btn')) return;
+      const existing = el.querySelector('.quiet-lounge-btn');
+      if (existing && liveButtons.has(existing)) return; // 핸들러 살아있음
+      if (existing) existing.remove(); // bfcache로 복원된 죽은 버튼
 
       const btn = createBlockBtn();
+      liveButtons.add(btn);
       btn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -372,7 +420,7 @@
 
         const pid = findPersonaId(el);
 
-        if (confirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
+        if (await qlConfirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
           await blockUser(pid, nickname, '');
           filterAll();
           injectBlockButtons();
@@ -384,13 +432,17 @@
 
     // 방법 B: data-slot="profile-name"이 없는 게시글 (주간 베스트 등)
     document.querySelectorAll(SEL.postContainer).forEach((container) => {
-      if (container.querySelector('.quiet-lounge-btn')) return;
       if (container.querySelector(SEL.profileName)) return; // 방법 A에서 처리됨
+
+      const existing = container.querySelector('.quiet-lounge-btn');
+      if (existing && liveButtons.has(existing)) return;
+      if (existing) existing.remove();
 
       const postLink = container.querySelector(SEL.postLink) || container.closest(SEL.postLink);
       if (!postLink) return;
 
       const btn = createBlockBtn();
+      liveButtons.add(btn);
       btn.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -400,11 +452,11 @@
         const nickname = pid ? personaCache.get(pid) : null;
 
         if (!pid) {
-          alert('personaId를 찾을 수 없습니다. 글 상세 페이지에서 차단해주세요.');
+          await qlConfirm('personaId를 찾을 수 없습니다. 글 상세 페이지에서 차단해주세요.');
           return;
         }
 
-        if (confirm(`"${nickname || pid}" 유저를 차단하시겠습니까?`)) {
+        if (await qlConfirm(`"${nickname || pid}" 유저를 차단하시겠습니까?`)) {
           await blockUser(pid, nickname || '', '');
           filterAll();
           injectBlockButtons();
@@ -427,6 +479,14 @@
   function watchNavigation() {
     // popstate (뒤로/앞으로)
     window.addEventListener('popstate', onNavigate);
+
+    // bfcache 복원 감지 (iOS Safari)
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted) {
+        lastPath = '';
+        onNavigate();
+      }
+    });
 
     // pushState / replaceState 감시
     const origPushState = history.pushState;

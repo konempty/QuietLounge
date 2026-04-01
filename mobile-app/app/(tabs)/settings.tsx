@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -13,6 +13,7 @@ import {
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { useBlockList } from '@/hooks/useBlockList';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -22,7 +23,16 @@ import Colors from '@/constants/Colors';
 export default function SettingsScreen() {
   const { exportJSON, importJSON, clearAll, allBlocked, filterMode, setFilterMode } = useBlockList();
   const { colors } = useThemeColors();
-  const { stats: myStats, loading: statsLoading, refresh: refreshStats } = useMyStats();
+  const { stats: myStats, loading: statsLoading, attempted: statsAttempted, refresh: refreshStats } =
+    useMyStats();
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!myStats && !statsLoading && !statsAttempted) {
+        refreshStats();
+      }
+    }, [myStats, statsLoading, statsAttempted, refreshStats]),
+  );
 
   const toggleFilterMode = async () => {
     await setFilterMode(filterMode === 'hide' ? 'blur' : 'hide');
@@ -89,6 +99,34 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* 차단 통계 */}
+      <View style={styles.section}>
+        <View style={styles.blockStatsRow}>
+          <View style={[styles.blockStatBox, { backgroundColor: colors.card }]}>
+            <Text style={[styles.blockStatValue, { color: colors.text }]}>
+              {allBlocked.byPersona.length + allBlocked.byNickname.length}
+            </Text>
+            <Text style={[styles.blockStatLabel, { color: colors.textSecondary }]}>총 차단 유저</Text>
+          </View>
+          <View style={[styles.blockStatBox, { backgroundColor: colors.card }]}>
+            <Text style={[styles.blockStatValue, { color: colors.text }]}>
+              {allBlocked.byPersona.length}
+            </Text>
+            <Text style={[styles.blockStatLabel, { color: colors.textSecondary }]}>
+              ID 확보된 유저
+            </Text>
+          </View>
+          <View style={[styles.blockStatBox, { backgroundColor: colors.card }]}>
+            <Text style={[styles.blockStatValue, { color: colors.text }]}>
+              {allBlocked.byNickname.length}
+            </Text>
+            <Text style={[styles.blockStatLabel, { color: colors.textSecondary }]}>
+              닉네임만 확보
+            </Text>
+          </View>
+        </View>
+      </View>
+
       {/* 내 활동 통계 */}
       <View style={styles.section}>
         <View style={styles.statsHeader}>
@@ -209,20 +247,7 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 정보 */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>정보</Text>
-        <View style={[styles.infoRow, { backgroundColor: colors.card }]}>
-          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>버전</Text>
-          <Text style={[styles.infoValue, { color: colors.text }]}>1.0.0</Text>
-        </View>
-        <View style={[styles.infoRow, { backgroundColor: colors.card }]}>
-          <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>차단 수</Text>
-          <Text style={[styles.infoValue, { color: colors.text }]}>
-            {allBlocked.byPersona.length + allBlocked.byNickname.length}명
-          </Text>
-        </View>
-      </View>
+      <Text style={styles.versionText}>v1.0.0</Text>
     </ScrollView>
   );
 }
@@ -287,18 +312,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 8,
-  },
-  infoLabel: {
-    fontSize: 14,
-  },
-  infoValue: {
-    fontSize: 14,
+  versionText: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#555',
+    marginTop: 16,
+    marginBottom: 24,
   },
   statsHeader: {
     flexDirection: 'row',
@@ -343,5 +362,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 13,
     paddingVertical: 16,
+  },
+  blockStatsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  blockStatBox: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 8,
+  },
+  blockStatValue: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  blockStatLabel: {
+    fontSize: 11,
+    marginTop: 2,
   },
 });
