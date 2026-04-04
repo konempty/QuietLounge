@@ -58,13 +58,14 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
             webView.topAnchor.constraint(equalTo: view.topAnchor),
             webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
 
         webView.load(URLRequest(url: URL(string: "https://lounge.naver.com")!))
 
         NotificationCenter.default.addObserver(self, selector: #selector(blockDataChanged), name: .blockDataChanged, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(filterModeChanged), name: .filterModeChanged, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(navigateToPost(_:)), name: .navigateToPost, object: nil)
     }
 
     private func setupOfflineView() {
@@ -116,7 +117,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
             offlineView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             offlineView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             stack.centerXAnchor.constraint(equalTo: offlineView.centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: offlineView.centerYAnchor),
+            stack.centerYAnchor.constraint(equalTo: offlineView.centerYAnchor)
         ])
     }
 
@@ -163,6 +164,12 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
     @objc private func filterModeChanged() {
         let mode = BlockDataManager.shared.filterMode
         webView.evaluateJavaScript("if(window.__QL_setFilterMode) window.__QL_setFilterMode('\(mode)'); true;")
+    }
+
+    @objc private func navigateToPost(_ notification: Notification) {
+        guard let postId = notification.userInfo?["postId"] as? String else { return }
+        let url = "https://lounge.naver.com/posts/\(postId)"
+        webView.evaluateJavaScript("window.location.href = '\(url)'; true;")
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {

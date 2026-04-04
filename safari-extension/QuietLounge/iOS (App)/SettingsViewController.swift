@@ -3,11 +3,11 @@ internal import UniformTypeIdentifiers
 
 class SettingsViewController: UITableViewController {
 
-    private var stats: [String: Any]? = nil
-    private var monthlyPosts: Int? = nil
-    private var monthlyComments: Int? = nil
+    private var stats: [String: Any]?
+    private var monthlyPosts: Int?
+    private var monthlyComments: Int?
     private var isLoadingStats = false
-    private var personaId: String? = nil
+    private var personaId: String?
 
     // 그리드 내부 라벨 참조 (갱신 시 라벨만 업데이트)
     private var totalPostsLabel: UILabel?
@@ -22,6 +22,7 @@ class SettingsViewController: UITableViewController {
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
 
         NotificationCenter.default.addObserver(self, selector: #selector(reloadData), name: .blockDataChanged, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(reloadData), name: .keywordAlertsChanged, object: nil)
         loadStats()
     }
 
@@ -275,7 +276,7 @@ class SettingsViewController: UITableViewController {
         NSLayoutConstraint.activate([
             stack.centerXAnchor.constraint(equalTo: box.centerXAnchor),
             stack.topAnchor.constraint(equalTo: box.topAnchor, constant: 12),
-            stack.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -12),
+            stack.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -12)
         ])
 
         return (box, vl)
@@ -316,7 +317,7 @@ class SettingsViewController: UITableViewController {
             NSLayoutConstraint.activate([
                 stack.centerXAnchor.constraint(equalTo: box.centerXAnchor),
                 stack.topAnchor.constraint(equalTo: box.topAnchor, constant: 10),
-                stack.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -10),
+                stack.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -10)
             ])
 
             return box
@@ -325,7 +326,7 @@ class SettingsViewController: UITableViewController {
         let row = UIStackView(arrangedSubviews: [
             makeBox(value: totalCount, label: "총 차단 유저"),
             makeBox(value: personaCount, label: "ID 확보된 유저"),
-            makeBox(value: nicknameCount, label: "닉네임만 확보"),
+            makeBox(value: nicknameCount, label: "닉네임만 확보")
         ])
         row.distribution = .fillEqually
         row.spacing = 8
@@ -335,9 +336,35 @@ class SettingsViewController: UITableViewController {
 
     // MARK: - Table View
 
-    override func numberOfSections(in tableView: UITableView) -> Int { 5 }
+    override func numberOfSections(in tableView: UITableView) -> Int { 6 }
 
     override func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
+        if section == 3 {
+            let header = UIView()
+            let label = UILabel()
+            label.text = "키워드 알림"
+            label.font = .preferredFont(forTextStyle: .footnote)
+            label.textColor = .secondaryLabel
+            label.translatesAutoresizingMaskIntoConstraints = false
+
+            let btn = UIButton(type: .system)
+            btn.setTitle("+ 추가", for: .normal)
+            btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .medium)
+            btn.tintColor = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
+            btn.translatesAutoresizingMaskIntoConstraints = false
+            btn.addTarget(self, action: #selector(addKeywordAlert), for: .touchUpInside)
+
+            header.addSubview(label)
+            header.addSubview(btn)
+            NSLayoutConstraint.activate([
+                label.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: 20),
+                label.bottomAnchor.constraint(equalTo: header.bottomAnchor, constant: -8),
+                btn.trailingAnchor.constraint(equalTo: header.trailingAnchor, constant: -20),
+                btn.bottomAnchor.constraint(equalTo: header.bottomAnchor, constant: -4)
+            ])
+            return header
+        }
+
         guard section == 1 else { return nil }
 
         let header = UIView()
@@ -367,34 +394,38 @@ class SettingsViewController: UITableViewController {
             btn.trailingAnchor.constraint(equalTo: header.trailingAnchor, constant: -20),
             btn.bottomAnchor.constraint(equalTo: header.bottomAnchor, constant: -4),
             btn.widthAnchor.constraint(equalToConstant: 28),
-            btn.heightAnchor.constraint(equalToConstant: 28),
+            btn.heightAnchor.constraint(equalToConstant: 28)
         ])
 
         return header
     }
 
     override func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
-        section == 1 ? 44 : UITableView.automaticDimension
+        (section == 1 || section == 3) ? 44 : UITableView.automaticDimension
     }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         switch section {
-        case 0: return nil // no header for block stats
-        case 1: return nil // custom header
+        case 0: return nil
+        case 1: return nil
         case 2: return "필터 모드"
-        case 3: return "데이터 관리"
-        case 4: return "후원"
+        case 3: return nil
+        case 4: return "데이터 관리"
+        case 5: return "후원"
         default: return nil
         }
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         switch section {
-        case 0: return 1 // block stats
-        case 1: return 1 // my stats
+        case 0: return 1
+        case 1: return 1
         case 2: return 1
-        case 3: return 3
-        case 4: return 2
+        case 3: // 키워드 알림
+            let count = KeywordAlertManager.shared.alerts.count
+            return count == 0 ? 2 : count + 1 // interval row + alerts (or empty message)
+        case 4: return 3
+        case 5: return 2
         default: return 0
         }
     }
@@ -419,7 +450,7 @@ class SettingsViewController: UITableViewController {
                 row.topAnchor.constraint(equalTo: cell.contentView.topAnchor, constant: 8),
                 row.bottomAnchor.constraint(equalTo: cell.contentView.bottomAnchor, constant: -8),
                 row.leadingAnchor.constraint(equalTo: cell.contentView.leadingAnchor, constant: 8),
-                row.trailingAnchor.constraint(equalTo: cell.contentView.trailingAnchor, constant: -8),
+                row.trailingAnchor.constraint(equalTo: cell.contentView.trailingAnchor, constant: -8)
             ])
             return cell
 
@@ -435,7 +466,7 @@ class SettingsViewController: UITableViewController {
                 NSLayoutConstraint.activate([
                     spinner.centerXAnchor.constraint(equalTo: cell.contentView.centerXAnchor),
                     spinner.topAnchor.constraint(equalTo: cell.contentView.topAnchor, constant: 20),
-                    spinner.bottomAnchor.constraint(equalTo: cell.contentView.bottomAnchor, constant: -20),
+                    spinner.bottomAnchor.constraint(equalTo: cell.contentView.bottomAnchor, constant: -20)
                 ])
             } else if stats != nil {
                 let grid = makeStatsGrid()
@@ -446,7 +477,7 @@ class SettingsViewController: UITableViewController {
                     grid.topAnchor.constraint(equalTo: cell.contentView.topAnchor, constant: 8),
                     grid.bottomAnchor.constraint(equalTo: cell.contentView.bottomAnchor, constant: -8),
                     grid.leadingAnchor.constraint(equalTo: cell.contentView.leadingAnchor, constant: 8),
-                    grid.trailingAnchor.constraint(equalTo: cell.contentView.trailingAnchor, constant: -8),
+                    grid.trailingAnchor.constraint(equalTo: cell.contentView.trailingAnchor, constant: -8)
                 ])
             } else {
                 var config = cell.defaultContentConfiguration()
@@ -471,9 +502,68 @@ class SettingsViewController: UITableViewController {
             cell.accessoryView = toggle
             cell.contentConfiguration = config
 
-        case 3: // 데이터 관리
+        case 3: // 키워드 알림
+            let kwAlerts = KeywordAlertManager.shared.alerts
+            if indexPath.row == 0 {
+                // 확인 주기 row
+                var config = cell.defaultContentConfiguration()
+                config.text = "확인 주기"
+                cell.contentConfiguration = config
+                let stepper = UIStepper()
+                stepper.minimumValue = 1
+                stepper.maximumValue = 60
+                stepper.value = Double(KeywordAlertManager.shared.interval)
+                stepper.addTarget(self, action: #selector(intervalStepperChanged(_:)), for: .valueChanged)
+                let label = UILabel()
+                label.text = "\(KeywordAlertManager.shared.interval)분"
+                label.font = .systemFont(ofSize: 14)
+                label.textColor = .secondaryLabel
+                label.tag = 888
+                let stack = UIStackView(arrangedSubviews: [label, stepper])
+                stack.spacing = 8
+                stack.alignment = .center
+                stack.sizeToFit()
+                stack.frame.size = stack.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
+                cell.accessoryView = stack
+                cell.selectionStyle = .none
+                if KeywordAlertManager.shared.interval < 3 {
+                    config.secondaryText = "주기가 짧으면 네트워크 사용량이 늘어날 수 있습니다"
+                    config.secondaryTextProperties.color = .systemOrange
+                    config.secondaryTextProperties.font = .systemFont(ofSize: 11)
+                    cell.contentConfiguration = config
+                }
+            } else if kwAlerts.isEmpty {
+                // 빈 상태
+                var config = cell.defaultContentConfiguration()
+                config.text = "등록된 키워드 알림이 없습니다"
+                config.textProperties.color = .secondaryLabel
+                config.textProperties.font = .systemFont(ofSize: 13)
+                config.textProperties.alignment = .center
+                cell.contentConfiguration = config
+            } else {
+                // 알림 항목
+                let alert = kwAlerts[indexPath.row - 1]
+                let channelName = alert["channelName"] as? String ?? ""
+                let keywords = alert["keywords"] as? [String] ?? []
+                let enabled = alert["enabled"] as? Bool ?? true
+                var config = cell.defaultContentConfiguration()
+                config.text = channelName
+                config.secondaryText = keywords.joined(separator: ", ")
+                config.secondaryTextProperties.color = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
+                config.secondaryTextProperties.font = .systemFont(ofSize: 12)
+                cell.contentConfiguration = config
+                let toggle = UISwitch()
+                toggle.isOn = enabled
+                toggle.onTintColor = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
+                toggle.tag = indexPath.row - 1
+                toggle.addTarget(self, action: #selector(keywordAlertToggled(_:)), for: .valueChanged)
+                cell.accessoryView = toggle
+            }
+            return cell
+
+        case 4: // 데이터 관리
             var config = cell.defaultContentConfiguration()
-            let titles = ["차단 목록 내보내기", "차단 목록 가져오기", "전체 삭제"]
+            let titles = ["데이터 내보내기", "데이터 가져오기", "전체 삭제"]
             config.text = titles[indexPath.row]
             if indexPath.row == 2 {
                 config.textProperties.color = .systemRed
@@ -481,7 +571,7 @@ class SettingsViewController: UITableViewController {
             cell.selectionStyle = .default
             cell.contentConfiguration = config
 
-        case 4: // 후원
+        case 5: // 후원
             var config = cell.defaultContentConfiguration()
             if indexPath.row == 0 {
                 config.text = "QuietLounge는 무료이며, 개발·운영 비용은 모두 개발자가 부담하고 있습니다.\n응원하시고 싶으시다면 커피 한 잔으로 응원해 주세요!"
@@ -509,14 +599,14 @@ class SettingsViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
 
-        if indexPath.section == 4 && indexPath.row == 1 {
+        if indexPath.section == 5 && indexPath.row == 1 {
             if let url = URL(string: "https://qr.kakaopay.com/FG31jvTdV") {
                 UIApplication.shared.open(url)
             }
             return
         }
 
-        guard indexPath.section == 3 else { return }
+        guard indexPath.section == 4 else { return }
 
         switch indexPath.row {
         case 0: exportJSON()
@@ -526,8 +616,15 @@ class SettingsViewController: UITableViewController {
         }
     }
 
+    override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
+        if section == 3 {
+            return "앱 사용 중에는 설정한 주기마다 키워드를 확인합니다. 앱을 닫았다가 다시 열면 그동안의 새 글을 확인하여 알림을 한번에 보내드립니다."
+        }
+        return nil
+    }
+
     override func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? {
-        guard section == 4 else { return nil }
+        guard section == 5 else { return nil }
         let label = UILabel()
         label.text = "v1.0.0"
         label.font = .systemFont(ofSize: 11)
@@ -537,7 +634,7 @@ class SettingsViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
-        section == 4 ? 30 : UITableView.automaticDimension
+        section == 5 ? 30 : UITableView.automaticDimension
     }
 
     // MARK: - Actions
@@ -552,8 +649,152 @@ class SettingsViewController: UITableViewController {
         tableView.reloadRows(at: [IndexPath(row: 0, section: 2)], with: .none)
     }
 
+    @objc private func intervalStepperChanged(_ sender: UIStepper) {
+        let val = Int(sender.value)
+        KeywordAlertManager.shared.interval = val
+        KeywordAlertManager.shared.restartTimer()
+        // 라벨 업데이트
+        if let stack = sender.superview as? UIStackView,
+           let label = stack.viewWithTag(888) as? UILabel {
+            label.text = "\(val)분"
+        }
+        tableView.reloadRows(at: [IndexPath(row: 0, section: 3)], with: .none)
+    }
+
+    @objc private func keywordAlertToggled(_ sender: UISwitch) {
+        KeywordAlertManager.shared.toggleAlert(at: sender.tag, enabled: sender.isOn)
+        KeywordAlertManager.shared.restartTimer()
+    }
+
+    @objc private func addKeywordAlert() {
+        showCategoryPicker()
+    }
+
+    // MARK: - 키워드 알림 추가 플로우
+
+    private func showCategoryPicker() {
+        let alert = UIAlertController(title: "카테고리 선택", message: "불러오는 중...", preferredStyle: .actionSheet)
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        present(alert, animated: true)
+
+        Task {
+            let url = URL(string: "https://api.lounge.naver.com/content-api/v1/categories?depth=2")!
+            guard let (data, _) = try? await URLSession.shared.data(from: url),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let dataObj = json["data"] as? [String: Any],
+                  let items = dataObj["items"] as? [[String: Any]] else {
+                await MainActor.run {
+                    alert.dismiss(animated: true) {
+                        self.showAlert(title: "오류", message: "카테고리를 불러올 수 없습니다.")
+                    }
+                }
+                return
+            }
+
+            await MainActor.run {
+                alert.dismiss(animated: true) {
+                    let picker = UIAlertController(title: "카테고리 선택", message: nil, preferredStyle: .actionSheet)
+                    for item in items {
+                        guard let name = item["name"] as? String,
+                              let catId = item["categoryId"] as? Int else { continue }
+                        picker.addAction(UIAlertAction(title: name, style: .default) { _ in
+                            self.showChannelPicker(categoryId: catId)
+                        })
+                    }
+                    picker.addAction(UIAlertAction(title: "취소", style: .cancel))
+                    self.present(picker, animated: true)
+                }
+            }
+        }
+    }
+
+    private func showChannelPicker(categoryId: Int) {
+        let loading = UIAlertController(title: "채널 목록", message: "불러오는 중...", preferredStyle: .alert)
+        present(loading, animated: true)
+
+        Task {
+            var channels: [[String: Any]] = []
+            var page = 1
+            var hasMore = true
+            while hasMore {
+                let url = URL(string: "https://api.lounge.naver.com/content-api/v1/channels?categoryId=\(categoryId)&page=\(page)&size=50")!
+                guard let (data, _) = try? await URLSession.shared.data(from: url),
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let dataObj = json["data"] as? [String: Any],
+                      let items = dataObj["items"] as? [[String: Any]] else { break }
+                channels.append(contentsOf: items)
+                let pageInfo = dataObj["page"] as? [String: Any]
+                let total = pageInfo?["totalElements"] as? Int ?? 0
+                if page * 50 >= total { hasMore = false } else { page += 1 }
+            }
+
+            await MainActor.run {
+                loading.dismiss(animated: true) {
+                    let picker = UIAlertController(title: "채널 선택", message: nil, preferredStyle: .actionSheet)
+                    for ch in channels {
+                        guard let name = ch["name"] as? String,
+                              let chId = ch["finalChannelId"] as? String else { continue }
+                        picker.addAction(UIAlertAction(title: name, style: .default) { _ in
+                            self.showKeywordInput(channelId: chId, channelName: name)
+                        })
+                    }
+                    picker.addAction(UIAlertAction(title: "취소", style: .cancel))
+                    self.present(picker, animated: true)
+                }
+            }
+        }
+    }
+
+    private func showKeywordInput(channelId: String, channelName: String) {
+        let alert = UIAlertController(title: "키워드 입력", message: "\(channelName)\n쉼표로 구분하여 여러 키워드를 입력하세요", preferredStyle: .alert)
+        alert.addTextField { tf in
+            tf.placeholder = "예: 공지, 업데이트, 이벤트"
+        }
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
+        alert.addAction(UIAlertAction(title: "등록", style: .default) { _ in
+            guard let text = alert.textFields?.first?.text, !text.isEmpty else { return }
+            let keywords = text.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            guard !keywords.isEmpty else { return }
+
+            KeywordAlertManager.shared.requestNotificationPermission { granted in
+                if granted {
+                    KeywordAlertManager.shared.addAlert(channelId: channelId, channelName: channelName, keywords: keywords)
+                    KeywordAlertManager.shared.restartTimer()
+                    self.tableView.reloadSections(IndexSet(integer: 3), with: .automatic)
+                } else {
+                    self.showAlert(title: "알림 권한 필요", message: "설정에서 알림 권한을 허용해 주세요.")
+                }
+            }
+        })
+        present(alert, animated: true)
+    }
+
+    // 스와이프 삭제
+    override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+        indexPath.section == 3 && indexPath.row > 0 && !KeywordAlertManager.shared.alerts.isEmpty
+    }
+
+    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        guard editingStyle == .delete, indexPath.section == 3, indexPath.row > 0 else { return }
+        KeywordAlertManager.shared.removeAlert(at: indexPath.row - 1)
+        KeywordAlertManager.shared.restartTimer()
+        tableView.reloadSections(IndexSet(integer: 3), with: .automatic)
+    }
+
     private func exportJSON() {
-        let json = BlockDataManager.shared.exportJSON()
+        var data = BlockDataManager.shared.load()
+        data.removeValue(forKey: "personaCache")
+
+        // 키워드 알림 데이터 포함
+        if let kwData = KeywordAlertManager.shared.exportData() {
+            for (key, value) in kwData {
+                data[key] = value
+            }
+        }
+
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: data, options: .prettyPrinted),
+              let json = String(data: jsonData, encoding: .utf8) else { return }
+
         let fileName = "quietlounge_backup_\(ISO8601DateFormatter().string(from: Date()).prefix(10)).json"
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
         try? json.write(to: tempURL, atomically: true, encoding: .utf8)
@@ -597,8 +838,16 @@ extension SettingsViewController: UIDocumentPickerDelegate {
 
         do {
             let json = try String(contentsOf: url, encoding: .utf8)
+
+            // 키워드 알림 데이터 분리
+            if let jsonData = json.data(using: .utf8),
+               let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                KeywordAlertManager.shared.importData(parsed)
+            }
+
             try BlockDataManager.shared.importJSON(json)
-            showAlert(title: "완료", message: "차단 목록을 가져왔습니다.")
+            tableView.reloadData()
+            showAlert(title: "완료", message: "데이터를 가져왔습니다.")
         } catch {
             showAlert(title: "오류", message: error.localizedDescription)
         }

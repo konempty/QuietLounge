@@ -46,6 +46,12 @@ class MainTabViewController: UIViewController {
         setupContainerView()
         setupButtonBar()
         showViewController(at: 0)
+
+        NotificationCenter.default.addObserver(self, selector: #selector(handleNavigateToPost), name: .navigateToPost, object: nil)
+    }
+
+    @objc private func handleNavigateToPost() {
+        showViewController(at: 0)
     }
 
     private func setupContainerView() {
@@ -57,7 +63,7 @@ class MainTabViewController: UIViewController {
         let items: [(String, String)] = [
             ("globe", "라운지"),
             ("person.crop.circle.badge.xmark", "차단 목록"),
-            ("gearshape", "설정"),
+            ("gearshape", "설정")
         ]
 
         let separator = UIView()
@@ -115,7 +121,7 @@ class MainTabViewController: UIViewController {
             containerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             containerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             containerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            containerView.bottomAnchor.constraint(equalTo: separator.topAnchor),
+            containerView.bottomAnchor.constraint(equalTo: separator.topAnchor)
         ])
     }
 

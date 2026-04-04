@@ -42,7 +42,7 @@ class SplashViewController: UIViewController {
             logoLabel.centerYAnchor.constraint(equalTo: logoBox.centerYAnchor),
 
             nameLabel.topAnchor.constraint(equalTo: logoBox.bottomAnchor, constant: 16),
-            nameLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            nameLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor)
         ])
     }
 }

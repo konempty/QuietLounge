@@ -21,7 +21,7 @@ class BlockListViewController: UIViewController, UITableViewDataSource, UITableV
             tableView.topAnchor.constraint(equalTo: view.topAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
 
         NotificationCenter.default.addObserver(self, selector: #selector(reload), name: .blockDataChanged, object: nil)

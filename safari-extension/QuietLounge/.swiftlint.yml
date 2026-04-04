@@ -1,0 +1,16 @@
+disabled_rules:
+  - trailing_comma
+  - line_length
+  - type_body_length
+  - function_body_length
+  - identifier_name
+  - force_cast
+  - implicit_optional_initialization
+  - control_statement
+  - cyclomatic_complexity
+
+file_length:
+  warning: 1000
+
+excluded:
+  - Pods

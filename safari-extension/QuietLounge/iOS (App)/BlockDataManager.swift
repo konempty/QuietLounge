@@ -3,6 +3,7 @@ import Foundation
 extension Notification.Name {
     static let blockDataChanged = Notification.Name("QLBlockDataChanged")
     static let filterModeChanged = Notification.Name("QLFilterModeChanged")
+    static let navigateToPost = Notification.Name("QLNavigateToPost")
 }
 
 class BlockDataManager {
@@ -56,7 +57,7 @@ class BlockDataManager {
                 "nickname": nickname,
                 "previousNicknames": prevNicknames,
                 "blockedAt": existing?["blockedAt"] ?? ISO8601DateFormatter().string(from: Date()),
-                "reason": existing?["reason"] ?? "",
+                "reason": existing?["reason"] ?? ""
             ]
             nicks.removeAll { ($0["nickname"] as? String) == nickname }
         } else {
@@ -66,7 +67,7 @@ class BlockDataManager {
                 nicks.append([
                     "nickname": nickname,
                     "blockedAt": ISO8601DateFormatter().string(from: Date()),
-                    "reason": "",
+                    "reason": ""
                 ])
             }
         }
@@ -130,7 +131,7 @@ class BlockDataManager {
             "version": 2,
             "blockedUsers": [String: Any](),
             "nicknameOnlyBlocks": [[String: Any]](),
-            "personaCache": [String: Any](),
+            "personaCache": [String: Any]()
         ]
     }
 }
