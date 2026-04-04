@@ -117,8 +117,22 @@ function escapeHtml(text) {
 }
 
 // ── Export/Import ──
-document.getElementById('btn-export').addEventListener('click', () => {
-  const json = JSON.stringify(blockData, null, 2);
+document.getElementById('btn-export').addEventListener('click', async () => {
+  const alertResult = await new Promise((resolve) => {
+    chrome.storage.local.get([KEYWORD_ALERTS_KEY, ALERT_INTERVAL_KEY], resolve);
+  });
+
+  const exportData = { ...blockData };
+  const alerts = alertResult[KEYWORD_ALERTS_KEY] ? JSON.parse(alertResult[KEYWORD_ALERTS_KEY]) : [];
+  if (alerts.length > 0) {
+    exportData.keywordAlerts = alerts;
+  }
+  const interval = alertResult[ALERT_INTERVAL_KEY];
+  if (interval) {
+    exportData.alertInterval = interval;
+  }
+
+  const json = JSON.stringify(exportData, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -143,10 +157,29 @@ document.getElementById('file-import').addEventListener('change', async (e) => {
       alert('지원하지 않는 형식입니다.');
       return;
     }
+
+    // 키워드 알림 데이터 분리 후 복원
+    const importedAlerts = parsed.keywordAlerts;
+    const importedInterval = parsed.alertInterval;
+    delete parsed.keywordAlerts;
+    delete parsed.alertInterval;
+
     blockData = parsed;
     await saveData();
     render();
-    alert('차단 목록을 가져왔습니다.');
+
+    if (importedAlerts && importedAlerts.length > 0) {
+      keywordAlerts = importedAlerts;
+      await saveKeywordAlerts();
+      renderKeywordAlerts();
+    }
+    if (importedInterval) {
+      document.getElementById('alert-interval').value = importedInterval;
+      updateIntervalWarning(importedInterval);
+      chrome.storage.local.set({ [ALERT_INTERVAL_KEY]: importedInterval });
+    }
+
+    alert('데이터를 가져왔습니다.');
   } catch {
     alert('올바른 JSON 파일이 아닙니다.');
   }
@@ -252,6 +285,380 @@ document.getElementById('qr-modal').addEventListener('click', (e) => {
   }
 });
 
+// ── 키워드 알림 ──
+const KEYWORD_ALERTS_KEY = 'quiet_lounge_keyword_alerts';
+const ALERT_INTERVAL_KEY = 'quiet_lounge_alert_interval';
+
+let keywordAlerts = [];
+let pendingKeywords = [];
+let selectedChannel = null;
+
+async function loadKeywordAlerts() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get([KEYWORD_ALERTS_KEY, ALERT_INTERVAL_KEY], (result) => {
+      keywordAlerts = result[KEYWORD_ALERTS_KEY] ? JSON.parse(result[KEYWORD_ALERTS_KEY]) : [];
+      const interval = result[ALERT_INTERVAL_KEY] || 5;
+      document.getElementById('alert-interval').value = interval;
+      updateIntervalWarning(interval);
+      resolve();
+    });
+  });
+}
+
+async function saveKeywordAlerts() {
+  return new Promise((resolve) => {
+    chrome.storage.local.set({ [KEYWORD_ALERTS_KEY]: JSON.stringify(keywordAlerts) }, resolve);
+  });
+}
+
+function renderKeywordAlerts() {
+  const container = document.getElementById('keyword-alerts-list');
+
+  if (keywordAlerts.length === 0) {
+    container.innerHTML = '<p class="empty-message">등록된 키워드 알림이 없습니다</p>';
+    return;
+  }
+
+  let html = '';
+  keywordAlerts.forEach((alert, idx) => {
+    html += `
+      <div class="alert-item ${alert.enabled ? '' : 'alert-disabled'}">
+        <div class="alert-item-info">
+          <div class="alert-item-channel">${escapeHtml(alert.channelName)}</div>
+          <div class="alert-item-keywords">${alert.keywords.map((k) => `<span class="alert-keyword-tag">${escapeHtml(k)}</span>`).join('')}</div>
+        </div>
+        <div class="alert-item-actions">
+          <label class="toggle toggle-sm">
+            <input type="checkbox" class="alert-toggle" data-idx="${idx}" ${alert.enabled ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+          <button class="btn-delete-alert" data-idx="${idx}" title="삭제">&times;</button>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+
+  // 토글 이벤트
+  container.querySelectorAll('.alert-toggle').forEach((toggle) => {
+    toggle.addEventListener('change', async () => {
+      const idx = parseInt(toggle.dataset.idx);
+      keywordAlerts[idx].enabled = toggle.checked;
+      await saveKeywordAlerts();
+      renderKeywordAlerts();
+    });
+  });
+
+  // 삭제 이벤트
+  container.querySelectorAll('.btn-delete-alert').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const idx = parseInt(btn.dataset.idx);
+      keywordAlerts.splice(idx, 1);
+      await saveKeywordAlerts();
+      renderKeywordAlerts();
+    });
+  });
+}
+
+// 주기 설정
+const intervalInput = document.getElementById('alert-interval');
+const intervalWarning = document.getElementById('interval-warning');
+
+function updateIntervalWarning(val) {
+  intervalWarning.style.display = val < 3 ? 'block' : 'none';
+}
+
+intervalInput.addEventListener('change', () => {
+  let val = parseInt(intervalInput.value);
+  if (isNaN(val) || val < 1) val = 1;
+  if (val > 60) val = 60;
+  intervalInput.value = val;
+  updateIntervalWarning(val);
+  chrome.storage.local.set({ [ALERT_INTERVAL_KEY]: val });
+});
+
+// ── 알림 추가 모달 ──
+const alertModal = document.getElementById('alert-modal');
+const stepCategory = document.getElementById('step-category');
+const stepChannel = document.getElementById('step-channel');
+const stepKeywords = document.getElementById('step-keywords');
+
+function openAlertModal() {
+  alertModal.classList.add('active');
+  showStep('category');
+  loadCategories();
+}
+
+function closeAlertModal() {
+  alertModal.classList.remove('active');
+  pendingKeywords = [];
+  selectedChannel = null;
+}
+
+function showStep(step) {
+  stepCategory.style.display = step === 'category' ? 'block' : 'none';
+  stepChannel.style.display = step === 'channel' ? 'block' : 'none';
+  stepKeywords.style.display = step === 'keywords' ? 'block' : 'none';
+
+  const titles = { category: '카테고리 선택', channel: '채널 선택', keywords: '키워드 입력' };
+  document.getElementById('alert-modal-title').textContent = titles[step];
+}
+
+// 카테고리 로드
+function loadCategories() {
+  const list = document.getElementById('category-list');
+  list.innerHTML = '<p class="loading-message">불러오는 중...</p>';
+
+  chrome.runtime.sendMessage({ type: 'FETCH_CATEGORIES' }, (resp) => {
+    if (resp?.error || !resp?.data) {
+      list.innerHTML = '<p class="error-message">불러오기 실패</p>';
+      return;
+    }
+
+    const items = resp.data.items || [];
+    window.__qlCategories = items;
+    renderCategoryList(items);
+  });
+}
+
+function renderCategoryList(items) {
+  const list = document.getElementById('category-list');
+  if (items.length === 0) {
+    list.innerHTML = '<p class="empty-message">카테고리가 없습니다</p>';
+    return;
+  }
+
+  list.innerHTML = items
+    .map(
+      (c) => `
+      <div class="select-item" data-category-id="${c.categoryId}">
+        <span class="select-item-name">${escapeHtml(c.name)}</span>
+      </div>
+    `,
+    )
+    .join('');
+
+  list.querySelectorAll('.select-item').forEach((el) => {
+    el.addEventListener('click', () => {
+      const catId = el.dataset.categoryId;
+      const catName = el.querySelector('.select-item-name').textContent;
+      showStep('channel');
+      loadChannels(catId, catName);
+    });
+  });
+}
+
+// 카테고리 검색
+document.getElementById('category-search').addEventListener('input', (e) => {
+  const query = e.target.value.toLowerCase();
+  const items = (window.__qlCategories || []).filter((c) => c.name.toLowerCase().includes(query));
+  renderCategoryList(items);
+});
+
+// 채널 로드
+function loadChannels(categoryId) {
+  const list = document.getElementById('channel-list');
+  list.innerHTML = '<p class="loading-message">불러오는 중...</p>';
+
+  chrome.runtime.sendMessage({ type: 'FETCH_CHANNELS', categoryId }, (resp) => {
+    if (resp?.error || !resp?.data) {
+      list.innerHTML = '<p class="error-message">불러오기 실패</p>';
+      return;
+    }
+
+    window.__qlChannels = resp.data;
+    renderChannelList(resp.data);
+  });
+}
+
+function renderChannelList(items) {
+  const list = document.getElementById('channel-list');
+  if (items.length === 0) {
+    list.innerHTML = '<p class="empty-message">채널이 없습니다</p>';
+    return;
+  }
+
+  list.innerHTML = items
+    .map(
+      (ch) => `
+      <div class="select-item" data-channel-id="${ch.finalChannelId}" data-channel-name="${escapeHtml(ch.name)}">
+        <span class="select-item-name">${escapeHtml(ch.name)}</span>
+      </div>
+    `,
+    )
+    .join('');
+
+  list.querySelectorAll('.select-item').forEach((el) => {
+    el.addEventListener('click', () => {
+      selectedChannel = {
+        channelId: el.dataset.channelId,
+        channelName: el.dataset.channelName,
+      };
+      document.getElementById('selected-channel-info').textContent = selectedChannel.channelName;
+      pendingKeywords = [];
+      renderPendingKeywords();
+      document.getElementById('btn-save-alert').disabled = true;
+      showStep('keywords');
+    });
+  });
+}
+
+// 채널 검색
+document.getElementById('channel-search').addEventListener('input', (e) => {
+  const query = e.target.value.toLowerCase();
+  const items = (window.__qlChannels || []).filter((c) => c.name.toLowerCase().includes(query));
+  renderChannelList(items);
+});
+
+// 키워드 입력
+const keywordInput = document.getElementById('keyword-input');
+const btnAddKeyword = document.getElementById('btn-add-keyword');
+
+function addPendingKeyword() {
+  const kw = keywordInput.value.trim();
+  if (!kw) return;
+  if (pendingKeywords.includes(kw)) {
+    keywordInput.value = '';
+    return;
+  }
+  pendingKeywords.push(kw);
+  keywordInput.value = '';
+  renderPendingKeywords();
+  document.getElementById('btn-save-alert').disabled = pendingKeywords.length === 0;
+}
+
+keywordInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addPendingKeyword();
+  }
+});
+btnAddKeyword.addEventListener('click', addPendingKeyword);
+
+function renderPendingKeywords() {
+  const container = document.getElementById('keyword-tags');
+  container.innerHTML = pendingKeywords
+    .map(
+      (kw, i) =>
+        `<span class="keyword-tag">${escapeHtml(kw)}<button class="keyword-tag-remove" data-idx="${i}">&times;</button></span>`,
+    )
+    .join('');
+
+  container.querySelectorAll('.keyword-tag-remove').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      pendingKeywords.splice(parseInt(btn.dataset.idx), 1);
+      renderPendingKeywords();
+      document.getElementById('btn-save-alert').disabled = pendingKeywords.length === 0;
+    });
+  });
+}
+
+// 알림 저장
+const PENDING_ALERT_KEY = 'quiet_lounge_pending_alert';
+
+async function saveAlertEntry() {
+  keywordAlerts.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    channelId: selectedChannel.channelId,
+    channelName: selectedChannel.channelName,
+    keywords: [...pendingKeywords],
+    enabled: true,
+    createdAt: new Date().toISOString(),
+  });
+  await saveKeywordAlerts();
+  renderKeywordAlerts();
+  closeAlertModal();
+}
+
+document.getElementById('btn-save-alert').addEventListener('click', async () => {
+  if (!selectedChannel || pendingKeywords.length === 0) return;
+
+  const hasPermission = await new Promise((resolve) => {
+    chrome.permissions.contains({ permissions: ['notifications'] }, resolve);
+  });
+
+  if (hasPermission) {
+    await saveAlertEntry();
+    return;
+  }
+
+  // 권한 요청 시 팝업이 닫힐 수 있으므로, 임시 저장 후 요청
+  const pendingAlert = {
+    channelId: selectedChannel.channelId,
+    channelName: selectedChannel.channelName,
+    keywords: [...pendingKeywords],
+  };
+  await new Promise((resolve) => {
+    chrome.storage.local.set({ [PENDING_ALERT_KEY]: JSON.stringify(pendingAlert) }, resolve);
+  });
+
+  chrome.permissions.request({ permissions: ['notifications'] }, async (granted) => {
+    // 팝업이 안 닫힌 경우 여기로 옴
+    await chrome.storage.local.remove(PENDING_ALERT_KEY);
+    if (granted) {
+      await saveAlertEntry();
+    } else {
+      alert('알림 권한이 필요합니다. 권한을 허용해 주세요.');
+    }
+  });
+});
+
+// 팝업 열릴 때 임시 저장된 알림이 있으면 자동 완료
+async function finalizePendingAlert() {
+  const result = await new Promise((resolve) => {
+    chrome.storage.local.get(PENDING_ALERT_KEY, resolve);
+  });
+  const raw = result[PENDING_ALERT_KEY];
+  if (!raw) return;
+
+  const hasPermission = await new Promise((resolve) => {
+    chrome.permissions.contains({ permissions: ['notifications'] }, resolve);
+  });
+
+  await chrome.storage.local.remove(PENDING_ALERT_KEY);
+
+  if (!hasPermission) return;
+
+  const pending = JSON.parse(raw);
+  keywordAlerts.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    channelId: pending.channelId,
+    channelName: pending.channelName,
+    keywords: pending.keywords,
+    enabled: true,
+    createdAt: new Date().toISOString(),
+  });
+  await saveKeywordAlerts();
+  renderKeywordAlerts();
+}
+
+// 모달 버튼 이벤트
+document.getElementById('btn-add-alert').addEventListener('click', openAlertModal);
+document.getElementById('alert-modal-close').addEventListener('click', closeAlertModal);
+alertModal.addEventListener('click', (e) => {
+  if (e.target === alertModal) closeAlertModal();
+});
+
+document.getElementById('btn-back-category').addEventListener('click', () => {
+  showStep('category');
+  document.getElementById('channel-search').value = '';
+});
+document.getElementById('btn-back-channel').addEventListener('click', () => {
+  showStep('channel');
+  document.getElementById('keyword-input').value = '';
+});
+
+// 스토리지 변경 감지
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes[KEYWORD_ALERTS_KEY]) {
+    keywordAlerts = changes[KEYWORD_ALERTS_KEY].newValue
+      ? JSON.parse(changes[KEYWORD_ALERTS_KEY].newValue)
+      : [];
+    renderKeywordAlerts();
+  }
+});
+
 // ── 초기화 ──
 // 내 통계는 독립적으로 즉시 로드
 loadMyStats();
@@ -261,4 +668,9 @@ loadData().then(() => {
   chrome.storage.local.get(FILTER_MODE_KEY, (result) => {
     updateFilterModeUI(result[FILTER_MODE_KEY] || 'hide');
   });
+});
+
+loadKeywordAlerts().then(async () => {
+  renderKeywordAlerts();
+  await finalizePendingAlert();
 });
