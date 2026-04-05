@@ -2,6 +2,7 @@ import React, { useRef, useCallback, useEffect } from 'react';
 import { StyleSheet, BackHandler, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import * as Notifications from 'expo-notifications';
 
 import { useBlockList } from '@/hooks/useBlockList';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -37,6 +38,19 @@ export default function LoungeScreen() {
       webViewRef.current.injectJavaScript(buildFilterModeScript(filterMode));
     }
   }, [filterMode]);
+
+  // 알림 클릭 시 해당 글로 이동
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const postId = response.notification.request.content.data?.postId;
+      if (postId && webViewRef.current) {
+        webViewRef.current.injectJavaScript(
+          `window.location.href = 'https://lounge.naver.com/posts/${postId}'; true;`,
+        );
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   // Android 뒤로가기 처리
   useEffect(() => {

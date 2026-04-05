@@ -8,6 +8,9 @@ import 'react-native-reanimated';
 
 import { BlockListContext } from '@/hooks/useBlockList';
 import { useBlockListProvider } from '@/hooks/useBlockList';
+import { KeywordAlertsContext, useKeywordAlertsProvider } from '@/hooks/useKeywordAlerts';
+import '@/utils/background-task'; // setNotificationHandler 등록
+import { setupNotificationChannel } from '@/utils/background-task';
 import Colors from '@/constants/Colors';
 
 export { ErrorBoundary } from 'expo-router';
@@ -54,6 +57,10 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
+  useEffect(() => {
+    setupNotificationChannel();
+  }, []);
+
   if (!loaded) {
     return null;
   }
@@ -64,14 +71,17 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const blockListValue = useBlockListProvider();
+  const keywordAlertsValue = useKeywordAlertsProvider();
 
   return (
     <BlockListContext.Provider value={blockListValue}>
-      <ThemeProvider value={colorScheme === 'dark' ? QLDarkTheme : QLLightTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
-      </ThemeProvider>
+      <KeywordAlertsContext.Provider value={keywordAlertsValue}>
+        <ThemeProvider value={colorScheme === 'dark' ? QLDarkTheme : QLLightTheme}>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          </Stack>
+        </ThemeProvider>
+      </KeywordAlertsContext.Provider>
     </BlockListContext.Provider>
   );
 }
