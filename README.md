@@ -14,7 +14,7 @@ QuietLounge는 이 문제를 **클라이언트 단에서** 해결한다.
 
 - 네이버 서버를 거치지 않는다. 로그인 세션이나 개인정보가 외부로 나가지 않는다.
 - 닉네임이 아닌 **personaId**(고유 ID)로 차단하므로, 닉네임을 바꿔도 차단이 유지된다.
-- 현재는 Chrome 확장 프로그램과 Android 앱만 배포한다.
+- Chrome 확장 프로그램, Safari 확장 프로그램(macOS/iOS), Android 앱으로 배포한다.
 
 ---
 
@@ -22,10 +22,11 @@ QuietLounge는 이 문제를 **클라이언트 단에서** 해결한다.
 
 [Releases](https://github.com/konempty/QuietLounge/releases)에서 최신 버전을 다운로드할 수 있다.
 
-| 플랫폼           | 파일                                | 비고                     |
-|---------------|-----------------------------------|------------------------|
-| PC (Chrome 등) | `QuietLounge-ChromeExtension.zip` | Chromium 계열 브라우저 모두 지원 |
-| Android       | `QuietLounge-Android.apk`         | Android 8.0 이상         |
+| 플랫폼              | 파일                                | 비고                     |
+|------------------|-----------------------------------|------------------------|
+| PC (Chrome 등)    | `QuietLounge-ChromeExtension.zip` | Chromium 계열 브라우저 모두 지원 |
+| macOS/iOS Safari | Xcode 빌드 필요                       | Safari Web Extension   |
+| Android          | `QuietLounge-Android.apk`         | Android 8.0 이상         |
 
 ---
 
@@ -65,6 +66,46 @@ QuietLounge가 목록에 나타나면 설치 완료.
 크롬 툴바의 QuietLounge 아이콘을 클릭하면 차단 목록 확인, 해제, 필터 모드 변경(완전 숨김/흐림 처리), 내보내기/가져오기가 가능하다.
 
 ![팝업 UI](docs/images/chrome-popup.png)
+
+---
+
+## Safari 설치 방법 (macOS / iOS)
+
+Safari 확장 프로그램은 Xcode를 통해 직접 빌드하여 설치한다.
+
+### 1. 요구 사항
+
+- macOS + Xcode (최신 버전 권장)
+- iOS 기기 배포 시 Apple Developer 계정 필요
+
+### 2. 빌드
+
+```bash
+cd safari-extension/QuietLounge
+open QuietLounge.xcodeproj
+```
+
+Xcode에서 프로젝트를 열고, 타겟을 선택한 뒤 빌드한다.
+
+- **macOS**: `QuietLounge (macOS)` 타겟 선택 → Run
+- **iOS**: `QuietLounge (iOS)` 타겟 선택 → 기기 연결 후 Run
+
+### 3. 확장 프로그램 활성화
+
+**macOS**:
+1. Safari → 설정 → 확장 프로그램
+2. QuietLounge 체크박스 활성화
+
+**iOS**:
+1. 설정 → Safari → 확장 프로그램
+2. QuietLounge 활성화
+3. 모든 웹사이트 허용 또는 `lounge.naver.com` 허용
+
+### 4. 사용
+
+Chrome 확장 프로그램과 동일하게 네이버 라운지에서 자동으로 동작한다.
+
+iOS 앱에는 내장 브라우저(라운지 탭), 차단 목록, 설정 화면이 포함되어 있어 Safari 없이도 사용할 수 있다.
 
 ---
 
@@ -143,6 +184,25 @@ chrome-extension/                Chrome Extension (Manifest V3)
 ├── background/service-worker.js 뱃지 업데이트
 └── icons/
 
+safari-extension/                Safari Web Extension (macOS + iOS)
+└── QuietLounge/
+    ├── Shared (Extension)/
+    │   └── Resources/
+    │       ├── manifest.json    Safari용 매니페스트
+    │       ├── content-scripts/
+    │       │   ├── main.js      콘텐츠 스크립트 (Safari 대응)
+    │       │   ├── api-interceptor.js
+    │       │   └── injector.js  MAIN world 주입 (Safari는 world:"MAIN" 미지원)
+    │       ├── popup/           팝업 UI
+    │       └── background/      서비스 워커
+    ├── iOS (App)/               iOS 컨테이너 앱 (WebView + 탭)
+    │   ├── WebViewController.swift
+    │   ├── BlockListViewController.swift
+    │   ├── SettingsViewController.swift
+    │   ├── BlockDataManager.swift
+    │   └── WebViewScripts.swift
+    └── Shared (App)/            macOS 컨테이너 앱
+
 mobile-app/                      Android 앱 (Expo + React Native)
 ├── app/
 │   ├── _layout.tsx              BlockListProvider + 테마
@@ -153,13 +213,12 @@ mobile-app/                      Android 앱 (Expo + React Native)
 │       └── settings.tsx         설정
 ├── hooks/
 │   ├── useBlockList.ts          차단 목록 상태관리 (shared/ import)
+│   ├── useMyStats.ts            내 활동 통계 조회
 │   └── useThemeColors.ts        라이트/다크 테마 컬러
 ├── utils/
 │   └── webview-scripts.ts       injectable JS 문자열 생성
 └── constants/
     └── Colors.ts                테마 컬러 정의
-
-tampermonkey-test.user.js        Tampermonkey 스크립트 (개발/테스트용)
 
 .github/workflows/build.yml     GitHub Actions 빌드 (수동 실행)
 ```
