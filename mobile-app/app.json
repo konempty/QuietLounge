@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.quietlounge"
+      "bundleIdentifier": "kr.konempty.quietlounge"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +24,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.quietlounge"
+      "package": "kr.konempty.quietlounge"
     },
     "web": {
       "bundler": "metro",

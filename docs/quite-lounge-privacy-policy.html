@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuietLounge 개인정보처리방침</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9f9f9; color: #333; line-height: 1.7; }
+    .container { max-width: 720px; margin: 0 auto; padding: 40px 20px; }
+    h1 { font-size: 24px; margin-bottom: 8px; }
+    .date { font-size: 13px; color: #888; margin-bottom: 32px; }
+    h2 { font-size: 18px; margin-top: 28px; margin-bottom: 8px; color: #222; }
+    p, li { font-size: 15px; color: #444; }
+    ul { padding-left: 20px; margin-bottom: 12px; }
+    li { margin-bottom: 4px; }
+    .highlight { background: #eaf7ef; border-left: 3px solid #1FAF63; padding: 12px 16px; border-radius: 4px; margin: 16px 0; font-size: 14px; }
+    footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 13px; color: #999; }
+    a { color: #1FAF63; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>QuietLounge 개인정보처리방침</h1>
+    <p class="date">시행일: 2026년 4월 7일</p>
+
+    <div class="highlight">
+      QuietLounge는 사용자의 개인정보를 수집하거나 외부 서버에 전송하지 않습니다.<br>
+      모든 데이터는 사용자의 기기에만 저장됩니다.
+    </div>
+
+    <h2>1. 수집하는 개인정보</h2>
+    <p>QuietLounge는 어떠한 개인정보도 수집하지 않습니다.</p>
+    <ul>
+      <li>로그인 정보를 수집하지 않습니다.</li>
+      <li>사용자 활동을 추적하지 않습니다.</li>
+      <li>분석, 광고, 마케팅 도구를 사용하지 않습니다.</li>
+    </ul>
+
+    <h2>2. 로컬에 저장되는 데이터</h2>
+    <p>다음 데이터는 사용자의 브라우저 또는 기기 로컬 저장소에만 저장되며, 외부로 전송되지 않습니다.</p>
+    <ul>
+      <li>차단한 유저 목록 (personaId, 닉네임, 차단 일시)</li>
+      <li>필터 모드 설정 (숨김/흐림)</li>
+      <li>키워드 알림 설정 (채널, 키워드, 확인 주기)</li>
+      <li>내 활동 통계 캐시</li>
+    </ul>
+
+    <h2>3. 네트워크 통신</h2>
+    <p>QuietLounge는 다음 목적으로만 네이버 라운지 API와 통신합니다.</p>
+    <ul>
+      <li>게시글 작성자 식별 (personaId 매핑)</li>
+      <li>내 활동 통계 조회</li>
+      <li>키워드 알림을 위한 새 글 확인</li>
+    </ul>
+    <p>이 통신은 사용자의 브라우저/앱에서 네이버 서버로 직접 이루어지며, QuietLounge의 자체 서버는 존재하지 않습니다. 어떤 데이터도 제3자에게 전송되지 않습니다.</p>
+
+    <h2>4. 데이터 내보내기/가져오기</h2>
+    <p>사용자가 직접 차단 목록을 JSON 파일로 내보내거나 가져올 수 있습니다. 이 파일은 사용자의 기기에 로컬로 저장되며, QuietLounge가 자동으로 업로드하거나 전송하지 않습니다.</p>
+
+    <h2>5. 권한 사용 목적</h2>
+    <ul>
+      <li><strong>storage</strong>: 차단 목록, 설정, 키워드 알림 데이터를 로컬에 저장</li>
+      <li><strong>tabs</strong>: 차단된 게시글 수 뱃지 표시 및 콘텐츠 스크립트 통신</li>
+      <li><strong>alarms</strong>: 키워드 알림 주기적 확인</li>
+      <li><strong>notifications</strong>: 키워드 매칭 시 알림 표시 (선택적 권한)</li>
+      <li><strong>호스트 권한</strong>: lounge.naver.com 및 api.lounge.naver.com에서만 동작</li>
+    </ul>
+
+    <h2>6. 아동 개인정보</h2>
+    <p>QuietLounge는 만 13세 미만의 아동을 대상으로 하지 않으며, 아동의 개인정보를 의도적으로 수집하지 않습니다.</p>
+
+    <h2>7. 변경 사항</h2>
+    <p>본 개인정보처리방침이 변경될 경우, 이 페이지를 통해 공지합니다.</p>
+
+    <h2>8. 문의</h2>
+    <p>개인정보 관련 문의는 아래로 연락해 주세요.</p>
+    <ul>
+      <li>GitHub: <a href="https://github.com/konempty/QuietLounge/issues" target="_blank">github.com/konempty/QuietLounge/issues</a></li>
+    </ul>
+
+    <footer>
+      &copy; 2026 QuietLounge. 오픈소스 프로젝트 (<a href="https://github.com/konempty/QuietLounge" target="_blank">GitHub</a>)
+    </footer>
+  </div>
+</body>
+</html>
