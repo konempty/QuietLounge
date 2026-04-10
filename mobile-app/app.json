@@ -23,7 +23,6 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
       "package": "kr.konempty.quietlounge"
     },
     "web": {
@@ -34,6 +33,7 @@
     "plugins": [
       "expo-router",
       "expo-sharing",
+      "./plugins/withProguard",
       [
         "expo-notifications",
         {

@@ -251,7 +251,7 @@ class SettingsViewController: UITableViewController {
 
     private func makeStatBox(value: String, label: String) -> (UIView, UILabel) {
         let box = UIView()
-        box.backgroundColor = .tertiarySystemGroupedBackground
+        box.backgroundColor = .secondarySystemGroupedBackground
         box.layer.cornerRadius = 10
 
         let stack = UIStackView()
@@ -292,7 +292,7 @@ class SettingsViewController: UITableViewController {
 
         func makeBox(value: Int, label: String) -> UIView {
             let box = UIView()
-            box.backgroundColor = .tertiarySystemGroupedBackground
+            box.backgroundColor = .secondarySystemGroupedBackground
             box.layer.cornerRadius = 8
 
             let stack = UIStackView()

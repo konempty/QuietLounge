@@ -42,10 +42,10 @@
 		C2D68CD12F7BBA6100033FEF /* WebViewScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CD02F7BBA6100033FEF /* WebViewScripts.swift */; };
 		C2D68CD22F7BBA6100033FEF /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCD2F7BBA6100033FEF /* SettingsViewController.swift */; };
 		C2D68CD32F7BBA6100033FEF /* BlockDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCB2F7BBA6100033FEF /* BlockDataManager.swift */; };
-		C2D68CDA2F7BBA6100033FEF /* KeywordAlertManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CD92F7BBA6100033FEF /* KeywordAlertManager.swift */; };
 		C2D68CD42F7BBA6100033FEF /* SplashViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCE2F7BBA6100033FEF /* SplashViewController.swift */; };
 		C2D68CD52F7BBA6100033FEF /* BlockListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCC2F7BBA6100033FEF /* BlockListViewController.swift */; };
 		C2D68CD62F7BBA6100033FEF /* WebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCF2F7BBA6100033FEF /* WebViewController.swift */; };
+		C2D68CDA2F7BBA6100033FEF /* KeywordAlertManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CD92F7BBA6100033FEF /* KeywordAlertManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -118,12 +118,12 @@
 		C2C98C7F2F7A61E900588733 /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = Resources/icons; sourceTree = "<group>"; };
 		C2C98C802F7A61E900588733 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = Resources/manifest.json; sourceTree = "<group>"; };
 		C2D68CCB2F7BBA6100033FEF /* BlockDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockDataManager.swift; sourceTree = "<group>"; };
-		C2D68CD92F7BBA6100033FEF /* KeywordAlertManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeywordAlertManager.swift; sourceTree = "<group>"; };
 		C2D68CCC2F7BBA6100033FEF /* BlockListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockListViewController.swift; sourceTree = "<group>"; };
 		C2D68CCD2F7BBA6100033FEF /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
 		C2D68CCE2F7BBA6100033FEF /* SplashViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashViewController.swift; sourceTree = "<group>"; };
 		C2D68CCF2F7BBA6100033FEF /* WebViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewController.swift; sourceTree = "<group>"; };
 		C2D68CD02F7BBA6100033FEF /* WebViewScripts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewScripts.swift; sourceTree = "<group>"; };
+		C2D68CD92F7BBA6100033FEF /* KeywordAlertManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeywordAlertManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -762,12 +762,16 @@
 				PRODUCT_NAME = QuietLounge;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -803,12 +807,16 @@
 				PRODUCT_NAME = QuietLounge;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;

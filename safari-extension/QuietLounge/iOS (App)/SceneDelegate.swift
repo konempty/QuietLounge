@@ -110,11 +110,11 @@ class MainTabViewController: UIViewController {
 
             bar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             bar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            bar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            bar.heightAnchor.constraint(equalToConstant: 72),
+            bar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
             stack.topAnchor.constraint(equalTo: bar.topAnchor),
-            stack.bottomAnchor.constraint(equalTo: bar.bottomAnchor),
+            stack.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            stack.heightAnchor.constraint(equalToConstant: 56),
             stack.leadingAnchor.constraint(equalTo: bar.leadingAnchor, constant: 8),
             stack.trailingAnchor.constraint(equalTo: bar.trailingAnchor, constant: -8),
 
