@@ -23,7 +23,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "package": "kr.konempty.quietlounge"
+      "package": "kr.konempty.quietlounge",
+      "versionCode": 2
     },
     "web": {
       "bundler": "metro",
