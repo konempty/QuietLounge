@@ -631,7 +631,8 @@ class SettingsViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? {
         guard section == 5 else { return nil }
         let label = UILabel()
-        label.text = "v1.0.0"
+        let version = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "?"
+        label.text = "v\(version)"
         label.font = .systemFont(ofSize: 11)
         label.textColor = .tertiaryLabel
         label.textAlignment = .center

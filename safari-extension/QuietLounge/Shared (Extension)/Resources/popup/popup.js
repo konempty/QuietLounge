@@ -3,6 +3,17 @@
 const STORAGE_KEY = 'quiet_lounge_data';
 const FILTER_MODE_KEY = 'quiet_lounge_filter_mode';
 
+// 푸터 버전 표시 (manifest.json의 version)
+try {
+  const manifest = browser.runtime.getManifest();
+  const versionEl = document.getElementById('app-version');
+  if (versionEl && manifest?.version) {
+    versionEl.textContent = `v${manifest.version}`;
+  }
+} catch {
+  // 무시
+}
+
 // Safari Web Extension에서는 storage-bridge.js가 __QL_storage를 노출.
 // 있으면 그쪽을 우선 사용 (App Group 공유), 없으면 기본 storage 사용.
 const QLStorage =

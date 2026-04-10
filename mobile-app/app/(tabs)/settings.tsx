@@ -15,7 +15,10 @@ import {
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
+import Constants from 'expo-constants';
 import { useFocusEffect } from '@react-navigation/native';
+
+const APP_VERSION = Constants.expoConfig?.version ?? '?';
 
 import { useBlockList } from '@/hooks/useBlockList';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -360,7 +363,7 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.versionText}>v1.0.0</Text>
+      <Text style={styles.versionText}>v{APP_VERSION}</Text>
     </ScrollView>
   );
 }

@@ -3,6 +3,17 @@
 const STORAGE_KEY = 'quiet_lounge_data';
 const FILTER_MODE_KEY = 'quiet_lounge_filter_mode';
 
+// 푸터 버전 표시 (manifest.json의 version)
+try {
+  const manifest = chrome.runtime.getManifest();
+  const versionEl = document.getElementById('app-version');
+  if (versionEl && manifest?.version) {
+    versionEl.textContent = `v${manifest.version}`;
+  }
+} catch {
+  // 무시
+}
+
 function createEmptyData() {
   return {
     version: 2,
