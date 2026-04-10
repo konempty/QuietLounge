@@ -288,19 +288,19 @@ let keywordAlerts = [];
 let pendingKeywords = [];
 let selectedChannel = null;
 
-// macOS Safari에서는 키워드 알림 기능을 지원하지 않으므로 섹션 자체를 숨김.
-// (macOS 네이티브 앱에 keyword alert manager가 없음)
-const isMac = /Macintosh/.test(navigator.userAgent);
+// 플랫폼별 키워드 알림 동작:
+// - iOS: storage bridge → App Group → iOS 네이티브 KeywordAlertManager
+// - macOS: background page의 browser.alarms + browser.notifications (self-contained)
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-const keywordSectionEl = document.querySelector('.keyword-alerts');
-if (isMac && !isIOS && keywordSectionEl) {
-  keywordSectionEl.style.display = 'none';
-}
+const isMac = /Macintosh/.test(navigator.userAgent) && !isIOS;
 
 const keywordHintEl = document.getElementById('keyword-alerts-hint');
 if (keywordHintEl) {
   if (isIOS) {
     keywordHintEl.textContent = 'iOS 앱이 포그라운드에 있을 때만 알림이 동작합니다.';
+  } else if (isMac) {
+    keywordHintEl.textContent =
+      '라운지 탭이 열려 있어야 알림이 동작합니다. 알림이 자동으로 사라지면 시스템 설정 → 알림 → Safari에서 스타일을 "알림"으로 바꿔주세요.';
   } else {
     keywordHintEl.style.display = 'none';
   }
@@ -576,6 +576,7 @@ function renderPendingKeywords() {
 // 알림 등록
 document.getElementById('btn-save-alert').addEventListener('click', async () => {
   if (!selectedChannel || pendingKeywords.length === 0) return;
+
   keywordAlerts.push({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     channelId: selectedChannel.channelId,
@@ -587,6 +588,31 @@ document.getElementById('btn-save-alert').addEventListener('click', async () => 
   await saveKeywordAlerts();
   renderKeywordAlerts();
   closeAlertModal();
+
+  // macOS Safari: 등록 직후 즉시 한 번 체크 (interval 안 기다리고)
+  // + 라운지 탭에 권한 요청 배너 강제 표시 (첫 알림이 가야할 시점에 권한 받지 못하는
+  //   문제 회피)
+  if (isMac) {
+    try {
+      browser.runtime.sendMessage({ type: 'QL_KEYWORD_CHECK_NOW' }, (resp) => {
+        console.log('[QL][popup] CHECK_NOW response', resp, browser.runtime.lastError);
+      });
+    } catch (e) {
+      console.warn('[QL][popup] CHECK_NOW failed', e);
+    }
+    try {
+      browser.runtime.sendMessage({ type: 'QL_PROMPT_NOTIF_PERM' }, (resp) => {
+        console.log('[QL][popup] PROMPT_NOTIF_PERM response', resp);
+        if (resp && resp.ok && resp.tabCount === 0) {
+          alert(
+            '키워드 알림을 사용하려면 lounge.naver.com 페이지에서 알림 권한을 한 번 허용해야 합니다.\n라운지 탭을 열고 다시 시도해 주세요.',
+          );
+        }
+      });
+    } catch (e) {
+      console.warn('[QL][popup] PROMPT_NOTIF_PERM failed', e);
+    }
+  }
 });
 
 // 모달 버튼 이벤트
@@ -634,11 +660,8 @@ async function refreshAll() {
   } catch {
     // 로드 실패 무시
   }
-  // macOS Safari에선 키워드 알림 미지원 → 로드 스킵
-  if (!isMac || isIOS) {
-    await loadKeywordAlerts();
-    renderKeywordAlerts();
-  }
+  await loadKeywordAlerts();
+  renderKeywordAlerts();
   loadMyStats();
 }
 

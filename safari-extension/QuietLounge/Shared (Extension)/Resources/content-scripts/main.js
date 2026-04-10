@@ -917,10 +917,187 @@
     }
   }
 
-  // 팝업 갱신 버튼 요청 수신
-  browser.runtime.onMessage.addListener((message) => {
+  // ── 키워드 알림 (macOS Safari 전용) ──
+  // Safari Web Extension은 browser.notifications API 미구현, popup origin은
+  // Notification.requestPermission()을 거부. 대신 lounge.naver.com (HTTPS top-level)
+  // origin에서 Web Notification API를 사용한다. 권한도 여기서 받는다.
+  const QL_UA = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  const QL_MAX_TOUCH = (typeof navigator !== 'undefined' && navigator.maxTouchPoints) || 0;
+  const QL_IS_IOS = /iPhone|iPad|iPod/.test(QL_UA) || (/Mac/.test(QL_UA) && QL_MAX_TOUCH > 1);
+  const QL_IS_MAC = /Macintosh/.test(QL_UA) && !QL_IS_IOS;
+  const NOTIF_BANNER_DISMISSED_KEY = 'quiet_lounge_notif_banner_dismissed';
+  const KEYWORD_ALERTS_KEY_CS = 'quiet_lounge_keyword_alerts';
+
+  function showNotificationFromContent(payload) {
+    if (typeof Notification === 'undefined') return false;
+    if (Notification.permission !== 'granted') {
+      // 권한 없으면 배너를 띄워서 사용자에게 다음 기회 제공
+      maybeShowPermissionBanner(true);
+      return false;
+    }
+    try {
+      const tag = `ql_kw_${payload.postId}_${Date.now()}`;
+      const url = `https://lounge.naver.com/posts/${payload.postId}`;
+      const title = payload.titleB64 ? base64ToUtf8(payload.titleB64) : payload.title || '';
+      const body = payload.bodyB64 ? base64ToUtf8(payload.bodyB64) : payload.body || '';
+      console.log('[QL][cs] notification', { title, body });
+      const n = new Notification(title, {
+        body,
+        icon: payload.icon,
+        tag,
+        requireInteraction: true,
+      });
+      n.onclick = () => {
+        try {
+          window.focus();
+          window.open(url, '_blank');
+        } catch {
+          // 무시
+        }
+        n.close();
+      };
+      return true;
+    } catch (e) {
+      console.warn('[QL][cs] notification create failed', e);
+      return false;
+    }
+  }
+
+  function base64ToUtf8(b64) {
+    try {
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return new TextDecoder().decode(bytes);
+    } catch {
+      return '';
+    }
+  }
+
+  async function maybeShowPermissionBanner(force) {
+    if (!QL_IS_MAC) return;
+    if (typeof Notification === 'undefined') return;
+    if (Notification.permission === 'granted') return;
+
+    if (!force) {
+      try {
+        const result = await QLStorage.get([KEYWORD_ALERTS_KEY_CS, NOTIF_BANNER_DISMISSED_KEY]);
+        if (result[NOTIF_BANNER_DISMISSED_KEY]) return;
+        const alerts = result[KEYWORD_ALERTS_KEY_CS]
+          ? JSON.parse(result[KEYWORD_ALERTS_KEY_CS])
+          : [];
+        if (!alerts.some((a) => a.enabled)) return;
+      } catch {
+        return;
+      }
+    }
+
+    // 이미 떠 있으면 새로 안 만듦
+    const existing = document.getElementById('ql-notif-banner');
+    if (existing) existing.remove();
+
+    const isDenied = Notification.permission === 'denied';
+    const banner = document.createElement('div');
+    banner.id = 'ql-notif-banner';
+    banner.style.cssText = [
+      'position:fixed',
+      'top:16px',
+      'right:16px',
+      'z-index:2147483647',
+      'background:#1FAF63',
+      'color:#fff',
+      'padding:12px 16px',
+      'border-radius:8px',
+      'box-shadow:0 4px 12px rgba(0,0,0,0.3)',
+      'font-family:-apple-system,BlinkMacSystemFont,sans-serif',
+      'font-size:13px',
+      'max-width:340px',
+      'display:flex',
+      'gap:12px',
+      'align-items:center',
+    ].join(';');
+
+    const message = isDenied
+      ? 'QuietLounge \uD0A4\uC6CC\uB4DC \uC54C\uB9BC \uAD8C\uD55C\uC774 \uAC70\uBD80\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC0AC\uD30C\uB9AC \uC124\uC815 \u2192 \uC6F9\uC0AC\uC774\uD2B8 \u2192 \uC54C\uB9BC\uC5D0\uC11C lounge.naver.com\uC744 \uD5C8\uC6A9\uC73C\uB85C \uBC14\uAFB8\uC138\uC694.'
+      : 'QuietLounge \uD0A4\uC6CC\uB4DC \uC54C\uB9BC\uC744 \uBC1B\uC73C\uB824\uBA74 \uC54C\uB9BC \uAD8C\uD55C\uC744 \uD5C8\uC6A9\uD574 \uC8FC\uC138\uC694.';
+    const allowLabel = '\uD5C8\uC6A9';
+    const closeLabel = '\uB2EB\uAE30';
+
+    const msgSpan = document.createElement('span');
+    msgSpan.style.cssText = 'flex:1';
+    msgSpan.textContent = message;
+    const allowBtn = document.createElement('button');
+    allowBtn.id = 'ql-notif-allow';
+    allowBtn.style.cssText =
+      'background:#fff;color:#1FAF63;border:none;padding:6px 12px;border-radius:4px;font-weight:600;cursor:pointer';
+    allowBtn.textContent = allowLabel;
+    if (isDenied) allowBtn.style.display = 'none';
+    const closeBtn = document.createElement('button');
+    closeBtn.id = 'ql-notif-dismiss';
+    closeBtn.style.cssText =
+      'background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.5);padding:6px 10px;border-radius:4px;cursor:pointer';
+    closeBtn.textContent = closeLabel;
+
+    banner.appendChild(msgSpan);
+    banner.appendChild(allowBtn);
+    banner.appendChild(closeBtn);
+    document.body.appendChild(banner);
+
+    allowBtn.addEventListener('click', () => {
+      try {
+        const ret = Notification.requestPermission((perm) => {
+          handlePermResult(perm);
+        });
+        if (ret && typeof ret.then === 'function') {
+          ret.then(handlePermResult).catch(() => {});
+        }
+      } catch {
+        // 무시
+      }
+    });
+    closeBtn.addEventListener('click', () => {
+      banner.remove();
+      QLStorage.set({ [NOTIF_BANNER_DISMISSED_KEY]: true });
+    });
+
+    function handlePermResult(perm) {
+      if (perm === 'granted') {
+        try {
+          // "키워드 알림이 활성화되었습니다"
+          new Notification('QuietLounge', {
+            body: '\uD0A4\uC6CC\uB4DC \uC54C\uB9BC\uC774 \uD65C\uC131\uD654\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
+          });
+        } catch {
+          // 무시
+        }
+      }
+      banner.remove();
+      QLStorage.set({ [NOTIF_BANNER_DISMISSED_KEY]: true });
+    }
+  }
+
+  // 팝업 갱신 + 키워드 알림 메시지 수신
+  browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'REFRESH_MY_STATS') {
       fetchAndStoreMyStats();
+      return;
+    }
+    if (message.type === 'QL_SHOW_NOTIFICATION') {
+      const ok = showNotificationFromContent(message.payload || {});
+      sendResponse({ ok });
+      return true;
+    }
+    if (message.type === 'QL_PROMPT_NOTIF_PERM') {
+      // 키워드 등록 직후 background가 강제 트리거 — dismissed flag 무시하고 표시
+      // dismissed flag도 함께 클리어해서 user가 다시 볼 수 있게.
+      QLStorage.remove(NOTIF_BANNER_DISMISSED_KEY).then(() => {
+        maybeShowPermissionBanner(true);
+      });
+      sendResponse({
+        ok: true,
+        permission: typeof Notification !== 'undefined' ? Notification.permission : 'unsupported',
+      });
+      return true;
     }
   });
 
@@ -1005,6 +1182,7 @@
       injectBlockButtons();
     }
     injectProfileStats();
+    maybeShowPermissionBanner();
 
     // MutationObserver는 항상 설치 (SPA 전환 후 DOM 변경 대응)
     const target = document.querySelector(SEL.scrollContainer) || document.body;
