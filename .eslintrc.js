@@ -23,8 +23,8 @@ module.exports = {
   },
   overrides: [
     {
-      // chrome-extension은 JS 파일
-      files: ['chrome-extension/**/*.js'],
+      // chrome-extension / safari-extension JS 파일
+      files: ['chrome-extension/**/*.js', 'safari-extension/**/*.js'],
       parser: 'espree',
       parserOptions: {
         ecmaVersion: 2020,
@@ -37,7 +37,7 @@ module.exports = {
       rules: {
         '@typescript-eslint/no-explicit-any': 'off',
         '@typescript-eslint/no-unused-vars': 'off',
-        'no-undef': 'off', // chrome API
+        'no-undef': 'off', // browser/chrome API
       },
     },
     {

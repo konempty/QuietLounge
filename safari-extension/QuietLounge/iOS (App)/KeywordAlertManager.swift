@@ -7,10 +7,29 @@ class KeywordAlertManager {
     private let alertsKey = "quiet_lounge_keyword_alerts"
     private let intervalKey = "quiet_lounge_alert_interval"
     private let lastCheckedKey = "quiet_lounge_alert_last_checked"
-    private let defaults = UserDefaults.standard
+    private let migrationKey = "quiet_lounge_keyword_alerts_migrated"
+    private let defaults: UserDefaults
 
     private var timer: Timer?
     private var lastCheckTime: Date?
+
+    init() {
+        self.defaults = UserDefaults(suiteName: AppGroup.identifier) ?? .standard
+        migrateFromStandardIfNeeded()
+    }
+
+    private func migrateFromStandardIfNeeded() {
+        guard defaults !== UserDefaults.standard else { return }
+        if defaults.bool(forKey: migrationKey) { return }
+        let standard = UserDefaults.standard
+        for key in [alertsKey, intervalKey, lastCheckedKey] {
+            if defaults.object(forKey: key) == nil,
+               let value = standard.object(forKey: key) {
+                defaults.set(value, forKey: key)
+            }
+        }
+        defaults.set(true, forKey: migrationKey)
+    }
 
     var alerts: [[String: Any]] {
         get {

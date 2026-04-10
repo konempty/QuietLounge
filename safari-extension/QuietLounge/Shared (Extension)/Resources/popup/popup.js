@@ -3,6 +3,13 @@
 const STORAGE_KEY = 'quiet_lounge_data';
 const FILTER_MODE_KEY = 'quiet_lounge_filter_mode';
 
+// Safari Web Extension에서는 storage-bridge.js가 __QL_storage를 노출.
+// 있으면 그쪽을 우선 사용 (App Group 공유), 없으면 기본 storage 사용.
+const QLStorage =
+  typeof globalThis.__QL_storage !== 'undefined' && globalThis.__QL_storage._ready
+    ? globalThis.__QL_storage
+    : browser.storage.local;
+
 function createEmptyData() {
   return {
     version: 2,
@@ -17,7 +24,7 @@ let blockData = createEmptyData();
 // ── 데이터 로드/저장 ──
 async function loadData() {
   try {
-    const result = await browser.storage.local.get(STORAGE_KEY);
+    const result = await QLStorage.get(STORAGE_KEY);
     if (result[STORAGE_KEY]) {
       blockData = JSON.parse(result[STORAGE_KEY]);
     }
@@ -36,8 +43,8 @@ async function saveData() {
   };
   const value = JSON.stringify(toSave);
   // Safari quota 버그 대응: 기존 키 삭제 후 저장
-  await browser.storage.local.remove(STORAGE_KEY);
-  await browser.storage.local.set({ [STORAGE_KEY]: value });
+  await QLStorage.remove(STORAGE_KEY);
+  await QLStorage.set({ [STORAGE_KEY]: value });
 }
 
 // ── UI 렌더링 ──
@@ -182,7 +189,7 @@ function updateFilterModeUI(mode) {
 
 filterToggle.addEventListener('change', () => {
   const mode = filterToggle.checked ? 'blur' : 'hide';
-  browser.storage.local.set({ [FILTER_MODE_KEY]: mode });
+  QLStorage.set({ [FILTER_MODE_KEY]: mode });
   updateFilterModeUI(mode);
 });
 
@@ -192,7 +199,7 @@ function loadMyStats() {
   const section = document.getElementById('my-stats-section');
   const hint = document.getElementById('my-stats-hint');
 
-  browser.storage.local.get('quiet_lounge_my_stats', (result) => {
+  Promise.resolve(QLStorage.get('quiet_lounge_my_stats')).then((result) => {
     const raw = result.quiet_lounge_my_stats;
     section.style.display = 'block';
 
@@ -239,14 +246,14 @@ let refreshPollTimer = null;
 document.getElementById('btn-refresh-stats').addEventListener('click', async () => {
   const hint = document.getElementById('my-stats-hint');
   // 기존 통계가 없으면 갱신 불가
-  const check = await browser.storage.local.get('quiet_lounge_my_stats');
+  const check = await QLStorage.get('quiet_lounge_my_stats');
   if (!check.quiet_lounge_my_stats) {
     hint.textContent = '라운지에 접속하면 통계가 자동으로 갱신됩니다';
     return;
   }
   hint.textContent = '갱신 중...';
-  await browser.storage.local.remove('quiet_lounge_refresh_stats');
-  await browser.storage.local.set({ quiet_lounge_refresh_stats: Date.now() });
+  await QLStorage.remove('quiet_lounge_refresh_stats');
+  await QLStorage.set({ quiet_lounge_refresh_stats: Date.now() });
 
   // iOS Safari 대응: onChanged가 안 되므로 폴링으로 결과 감지
   if (refreshPollTimer) clearInterval(refreshPollTimer);
@@ -281,13 +288,30 @@ document.getElementById('qr-modal').addEventListener('click', (e) => {
   }
 });
 
-// ── 초기화 ──
-// 내 통계는 독립적으로 즉시 로드
-loadMyStats();
-
-loadData().then(() => {
+// ── 초기화 / 재활성화 시 재로드 ──
+async function refreshAll() {
+  await loadData();
   render();
-  browser.storage.local.get(FILTER_MODE_KEY, (result) => {
+  try {
+    const result = await QLStorage.get(FILTER_MODE_KEY);
     updateFilterModeUI(result[FILTER_MODE_KEY] || 'hide');
-  });
+  } catch {
+    // 로드 실패 무시
+  }
+  loadMyStats();
+}
+
+// 팝업이 백그라운드(다른 앱으로 전환) 상태였다가 다시 보일 때 강제 재로드.
+// iOS Safari extension에서는 visibilitychange / pageshow / focus 중 하나가 발생.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshAll();
 });
+window.addEventListener('pageshow', () => {
+  refreshAll();
+});
+window.addEventListener('focus', () => {
+  refreshAll();
+});
+
+// 최초 진입
+refreshAll();

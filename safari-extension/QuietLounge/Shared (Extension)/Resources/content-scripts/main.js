@@ -1,8 +1,16 @@
 // QuietLounge — Content Script (Chrome Extension)
 
 (function () {
-  const browser = globalThis.browser || globalThis.chrome;
   'use strict';
+
+  const browser = globalThis.browser || globalThis.chrome;
+
+  // Safari Web Extension에서는 storage-bridge.js가 __QL_storage를 노출.
+  // 있으면 그쪽을 우선 사용 (App Group 공유), 없으면 기본 storage 사용.
+  const QLStorage =
+    typeof globalThis.__QL_storage !== 'undefined' && globalThis.__QL_storage._ready
+      ? globalThis.__QL_storage
+      : browser.storage.local;
 
   // ── URL 체크 ──
   function isActivePage() {
@@ -57,8 +65,8 @@
   // Safari quota 버그 대응: 기존 키 삭제 후 저장
   async function safariSet(data) {
     try {
-      await browser.storage.local.remove(Object.keys(data));
-      await browser.storage.local.set(data);
+      await QLStorage.remove(Object.keys(data));
+      await QLStorage.set(data);
     } catch {
       // 저장 실패 무시
     }
@@ -66,7 +74,7 @@
 
   async function loadBlockData() {
     try {
-      const result = await browser.storage.local.get([STORAGE_KEY, FILTER_MODE_KEY]);
+      const result = await QLStorage.get([STORAGE_KEY, FILTER_MODE_KEY]);
       if (result[STORAGE_KEY]) {
         blockData = JSON.parse(result[STORAGE_KEY]);
       }
@@ -316,10 +324,12 @@
   function qlConfirm(message) {
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
-      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;';
+      overlay.style.cssText =
+        'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;';
 
       const dialog = document.createElement('div');
-      dialog.style.cssText = 'background:#1a1a1a;color:#e0e0e0;border-radius:14px;padding:20px;max-width:300px;width:90%;text-align:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 4px 24px rgba(0,0,0,0.4);';
+      dialog.style.cssText =
+        'background:#1a1a1a;color:#e0e0e0;border-radius:14px;padding:20px;max-width:300px;width:90%;text-align:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 4px 24px rgba(0,0,0,0.4);';
 
       const msg = document.createElement('p');
       msg.textContent = message;
@@ -330,20 +340,30 @@
 
       const cancelBtn = document.createElement('button');
       cancelBtn.textContent = '취소';
-      cancelBtn.style.cssText = 'flex:1;padding:10px;border:1px solid #444;background:transparent;color:#aaa;border-radius:8px;font-size:14px;cursor:pointer;';
+      cancelBtn.style.cssText =
+        'flex:1;padding:10px;border:1px solid #444;background:transparent;color:#aaa;border-radius:8px;font-size:14px;cursor:pointer;';
 
       const confirmBtn = document.createElement('button');
       confirmBtn.textContent = '차단';
-      confirmBtn.style.cssText = 'flex:1;padding:10px;border:none;background:#e74c3c;color:#fff;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;';
+      confirmBtn.style.cssText =
+        'flex:1;padding:10px;border:none;background:#e74c3c;color:#fff;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;';
 
       function close(result) {
         overlay.remove();
         resolve(result);
       }
 
-      cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); close(false); });
-      confirmBtn.addEventListener('click', (e) => { e.stopPropagation(); close(true); });
-      overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
+      cancelBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        close(false);
+      });
+      confirmBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        close(true);
+      });
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close(false);
+      });
 
       btnRow.appendChild(cancelBtn);
       btnRow.appendChild(confirmBtn);
@@ -796,7 +816,7 @@
         credentials: 'include',
       });
       if (!meResp.ok) {
-        browser.storage.local.remove('quiet_lounge_my_stats');
+        QLStorage.remove('quiet_lounge_my_stats');
         return;
       }
       const meJson = await meResp.json();
@@ -912,7 +932,11 @@
     if (pollTimer) return;
     pollTimer = setInterval(async () => {
       try {
-        const result = await browser.storage.local.get([STORAGE_KEY, 'quiet_lounge_refresh_stats']);
+        const result = await QLStorage.get([
+          STORAGE_KEY,
+          FILTER_MODE_KEY,
+          'quiet_lounge_refresh_stats',
+        ]);
 
         // 차단 목록 변경 감지
         const raw = result[STORAGE_KEY] || '';
@@ -922,9 +946,16 @@
           if (isActivePage()) filterAll();
         }
 
+        // 필터 모드 변경 감지 (네이티브 앱이 바꾼 경우)
+        const newMode = result[FILTER_MODE_KEY];
+        if (newMode && newMode !== filterMode) {
+          filterMode = newMode;
+          if (isActivePage()) filterAll();
+        }
+
         // 통계 갱신 요청 감지
         if (result.quiet_lounge_refresh_stats) {
-          await browser.storage.local.remove('quiet_lounge_refresh_stats');
+          await QLStorage.remove('quiet_lounge_refresh_stats');
           fetchAndStoreMyStats();
         }
       } catch {
@@ -934,7 +965,10 @@
   }
 
   function stopBlockDataPolling() {
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
   }
 
   document.addEventListener('visibilitychange', () => {

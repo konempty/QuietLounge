@@ -6,15 +6,78 @@ extension Notification.Name {
     static let navigateToPost = Notification.Name("QLNavigateToPost")
 }
 
+enum AppGroup {
+    static let identifier = "group.kr.konempty.quietlounge"
+    static let darwinNotification: CFString = "kr.konempty.quietlounge.dataChanged" as CFString
+    static let darwinFilterModeNotification: CFString = "kr.konempty.quietlounge.filterModeChanged" as CFString
+}
+
 class BlockDataManager {
     static let shared = BlockDataManager()
     private let storageKey = "quiet_lounge_data"
     private let filterModeKey = "quiet_lounge_filter_mode"
-    private let defaults = UserDefaults.standard
+    private let migrationKey = "quiet_lounge_migrated_to_group"
+    private let defaults: UserDefaults
+
+    init() {
+        self.defaults = UserDefaults(suiteName: AppGroup.identifier) ?? .standard
+        migrateFromStandardIfNeeded()
+        registerDarwinObserver()
+    }
+
+    private func migrateFromStandardIfNeeded() {
+        guard defaults !== UserDefaults.standard else { return }
+        if defaults.bool(forKey: migrationKey) { return }
+        let standard = UserDefaults.standard
+        for key in [storageKey, filterModeKey] {
+            if defaults.object(forKey: key) == nil,
+               let value = standard.object(forKey: key) {
+                defaults.set(value, forKey: key)
+            }
+        }
+        defaults.set(true, forKey: migrationKey)
+    }
+
+    private func registerDarwinObserver() {
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        let observer = Unmanaged.passUnretained(self).toOpaque()
+        CFNotificationCenterAddObserver(
+            center, observer,
+            { _, _, _, _, _ in
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .blockDataChanged, object: nil)
+                }
+            },
+            AppGroup.darwinNotification, nil, .deliverImmediately
+        )
+        CFNotificationCenterAddObserver(
+            center, observer,
+            { _, _, _, _, _ in
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .filterModeChanged, object: nil)
+                }
+            },
+            AppGroup.darwinFilterModeNotification, nil, .deliverImmediately
+        )
+    }
+
+    private func postDarwin(_ name: CFString) {
+        CFNotificationCenterPostNotification(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            CFNotificationName(name), nil, nil, true
+        )
+    }
 
     var filterMode: String {
-        get { defaults.string(forKey: filterModeKey) ?? "hide" }
-        set { defaults.set(newValue, forKey: filterModeKey) }
+        get {
+            // 다른 프로세스(사파리 익스텐션)가 쓴 값이 캐시에 반영 안 됐을 수 있으므로 강제 동기화
+            defaults.synchronize()
+            return defaults.string(forKey: filterModeKey) ?? "hide"
+        }
+        set {
+            defaults.set(newValue, forKey: filterModeKey)
+            postDarwin(AppGroup.darwinFilterModeNotification)
+        }
     }
 
     var totalBlockedCount: Int {
@@ -25,6 +88,8 @@ class BlockDataManager {
     }
 
     func load() -> [String: Any] {
+        // 다른 프로세스(사파리 익스텐션)가 쓴 값이 캐시에 반영 안 됐을 수 있으므로 강제 동기화
+        defaults.synchronize()
         guard let raw = defaults.string(forKey: storageKey),
               let data = raw.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
@@ -39,6 +104,7 @@ class BlockDataManager {
             defaults.set(str, forKey: storageKey)
         }
         NotificationCenter.default.post(name: .blockDataChanged, object: nil)
+        postDarwin(AppGroup.darwinNotification)
     }
 
     func blockUser(personaId: String?, nickname: String) {

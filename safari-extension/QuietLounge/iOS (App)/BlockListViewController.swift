@@ -25,6 +25,10 @@ class BlockListViewController: UIViewController, UITableViewDataSource, UITableV
         ])
 
         NotificationCenter.default.addObserver(self, selector: #selector(reload), name: .blockDataChanged, object: nil)
+        // 백그라운드 → 포그라운드 복귀 시 강제 재로드
+        // (앱 suspended 상태에서 외부 프로세스가 데이터를 바꿨을 경우 Darwin notification이 드롭됨)
+        NotificationCenter.default.addObserver(self, selector: #selector(reload), name: UIScene.didActivateNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(reload), name: UIApplication.didBecomeActiveNotification, object: nil)
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -58,20 +62,19 @@ class BlockListViewController: UIViewController, UITableViewDataSource, UITableV
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let total = personaBlocked.count + nicknameBlocked.count
-        if total == 0 {
-            let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
-            cell.textLabel?.text = "차단된 유저가 없습니다"
-            cell.textLabel?.textColor = .secondaryLabel
-            cell.textLabel?.textAlignment = .center
-            cell.selectionStyle = .none
-            return cell
-        }
-
         let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
         cell.selectionStyle = .none
 
         var config = cell.defaultContentConfiguration()
+        let total = personaBlocked.count + nicknameBlocked.count
+        if total == 0 {
+            config.text = "차단된 유저가 없습니다"
+            config.textProperties.color = .secondaryLabel
+            config.textProperties.alignment = .center
+            cell.contentConfiguration = config
+            return cell
+        }
+
         if indexPath.row < personaBlocked.count {
             let user = personaBlocked[indexPath.row]
             let nickname = user["nickname"] as? String ?? ""

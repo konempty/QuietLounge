@@ -23,6 +23,11 @@ class SettingsViewController: UITableViewController {
 
         NotificationCenter.default.addObserver(self, selector: #selector(reloadData), name: .blockDataChanged, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(reloadData), name: .keywordAlertsChanged, object: nil)
+        // 흐림 모드 변경(외부 프로세스 포함) 동기화
+        NotificationCenter.default.addObserver(self, selector: #selector(reloadData), name: .filterModeChanged, object: nil)
+        // 백그라운드 → 포그라운드 복귀 시 강제 재로드 (외부 프로세스 변경분 반영)
+        NotificationCenter.default.addObserver(self, selector: #selector(reloadData), name: UIScene.didActivateNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(reloadData), name: UIApplication.didBecomeActiveNotification, object: nil)
         loadStats()
     }
 
