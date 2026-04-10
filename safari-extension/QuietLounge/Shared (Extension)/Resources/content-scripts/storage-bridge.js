@@ -2,11 +2,26 @@
 // 모든 storage I/O를 background service-worker → SafariWebExtensionHandler →
 // App Group(group.kr.konempty.quietlounge) UserDefaults로 위임한다.
 // content script는 sendNativeMessage 직접 호출이 불가능하므로 background를 거친다.
+//
+// macOS Safari는 native 앱과 공유할 데이터가 없으므로 bridge를 비활성화하고
+// sandboxed browser.storage.local만 사용한다. 그러면 nativeMessaging 호출 자체가
+// 발생하지 않아 매 세션 떠 오는 권한 prompt를 회피할 수 있다.
 
 (function () {
   const browser = globalThis.browser || globalThis.chrome;
   if (!browser?.runtime?.sendMessage) {
     return; // 환경 미지원
+  }
+
+  // ── macOS Safari 감지 → bridge 비활성화 ──
+  // 현대 iPadOS는 Request Desktop Site가 기본이라 navigator.userAgent가 Macintosh를
+  // 포함하므로 maxTouchPoints로 iPad와 진짜 Mac을 구분한다.
+  const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  const maxTouch = (typeof navigator !== 'undefined' && navigator.maxTouchPoints) || 0;
+  const isAppleMobile = /iPhone|iPad|iPod/.test(ua) || (/Mac/.test(ua) && maxTouch > 1);
+  const isMacOS = /Macintosh/.test(ua) && !isAppleMobile;
+  if (isMacOS) {
+    return; // __QL_storage 미노출 → popup/content script가 browser.storage.local 직접 사용
   }
 
   // 오버라이드 직전의 원본 storage.local 메서드 — legacy 마이그레이션용

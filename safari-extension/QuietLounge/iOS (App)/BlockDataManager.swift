@@ -10,6 +10,7 @@ enum AppGroup {
     static let identifier = "group.kr.konempty.quietlounge"
     static let darwinNotification: CFString = "kr.konempty.quietlounge.dataChanged" as CFString
     static let darwinFilterModeNotification: CFString = "kr.konempty.quietlounge.filterModeChanged" as CFString
+    static let darwinKeywordAlertsNotification: CFString = "kr.konempty.quietlounge.keywordAlertsChanged" as CFString
 }
 
 class BlockDataManager {

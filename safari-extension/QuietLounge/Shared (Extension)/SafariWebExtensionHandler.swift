@@ -11,6 +11,7 @@ private enum SharedStorage {
     static let appGroupId = "group.kr.konempty.quietlounge"
     static let darwinDataChanged: CFString = "kr.konempty.quietlounge.dataChanged" as CFString
     static let darwinFilterModeChanged: CFString = "kr.konempty.quietlounge.filterModeChanged" as CFString
+    static let darwinKeywordAlertsChanged: CFString = "kr.konempty.quietlounge.keywordAlertsChanged" as CFString
 
     static var defaults: UserDefaults? {
         UserDefaults(suiteName: appGroupId)
@@ -65,12 +66,15 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
             for (key, value) in items {
                 defaults.set(value, forKey: key)
             }
-            // 네이티브 앱에 변경 통지 (블록 데이터/필터 모드 분리)
+            // 네이티브 앱에 변경 통지
             if items["quiet_lounge_data"] != nil {
                 postDarwin(SharedStorage.darwinDataChanged)
             }
             if items["quiet_lounge_filter_mode"] != nil {
                 postDarwin(SharedStorage.darwinFilterModeChanged)
+            }
+            if items["quiet_lounge_keyword_alerts"] != nil || items["quiet_lounge_alert_interval"] != nil {
+                postDarwin(SharedStorage.darwinKeywordAlertsChanged)
             }
             return ["ok": true]
 
@@ -81,6 +85,9 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
             }
             if keys.contains("quiet_lounge_data") {
                 postDarwin(SharedStorage.darwinDataChanged)
+            }
+            if keys.contains("quiet_lounge_keyword_alerts") || keys.contains("quiet_lounge_alert_interval") {
+                postDarwin(SharedStorage.darwinKeywordAlertsChanged)
             }
             return ["ok": true]
 

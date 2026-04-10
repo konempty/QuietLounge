@@ -269,6 +269,331 @@ document.getElementById('btn-refresh-stats').addEventListener('click', async () 
   }, 3000);
 });
 
+// ── 키워드 알림 ──
+const KEYWORD_ALERTS_KEY = 'quiet_lounge_keyword_alerts';
+const ALERT_INTERVAL_KEY = 'quiet_lounge_alert_interval';
+
+let keywordAlerts = [];
+let pendingKeywords = [];
+let selectedChannel = null;
+
+// macOS Safari에서는 키워드 알림 기능을 지원하지 않으므로 섹션 자체를 숨김.
+// (macOS 네이티브 앱에 keyword alert manager가 없음)
+const isMac = /Macintosh/.test(navigator.userAgent);
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const keywordSectionEl = document.querySelector('.keyword-alerts');
+if (isMac && !isIOS && keywordSectionEl) {
+  keywordSectionEl.style.display = 'none';
+}
+
+const keywordHintEl = document.getElementById('keyword-alerts-hint');
+if (keywordHintEl) {
+  if (isIOS) {
+    keywordHintEl.textContent = 'iOS 앱이 포그라운드에 있을 때만 알림이 동작합니다.';
+  } else {
+    keywordHintEl.style.display = 'none';
+  }
+}
+
+async function loadKeywordAlerts() {
+  try {
+    const result = await QLStorage.get([KEYWORD_ALERTS_KEY, ALERT_INTERVAL_KEY]);
+    const raw = result[KEYWORD_ALERTS_KEY];
+    keywordAlerts = raw ? JSON.parse(raw) : [];
+    const interval = result[ALERT_INTERVAL_KEY] || 5;
+    document.getElementById('alert-interval').value = interval;
+    updateIntervalWarning(interval);
+  } catch {
+    keywordAlerts = [];
+  }
+}
+
+async function saveKeywordAlerts() {
+  await QLStorage.set({ [KEYWORD_ALERTS_KEY]: JSON.stringify(keywordAlerts) });
+}
+
+function renderKeywordAlerts() {
+  const container = document.getElementById('keyword-alerts-list');
+  if (keywordAlerts.length === 0) {
+    container.innerHTML = '<p class="empty-message">등록된 키워드 알림이 없습니다</p>';
+    return;
+  }
+
+  let html = '';
+  keywordAlerts.forEach((alert, idx) => {
+    html += `
+      <div class="alert-item ${alert.enabled ? '' : 'alert-disabled'}">
+        <div class="alert-item-info">
+          <div class="alert-item-channel">${escapeHtml(alert.channelName)}</div>
+          <div class="alert-item-keywords">${alert.keywords.map((k) => `<span class="alert-keyword-tag">${escapeHtml(k)}</span>`).join('')}</div>
+        </div>
+        <div class="alert-item-actions">
+          <label class="toggle toggle-sm">
+            <input type="checkbox" class="alert-toggle" data-idx="${idx}" ${alert.enabled ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+          <button class="btn-delete-alert" data-idx="${idx}" title="삭제">&times;</button>
+        </div>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+
+  container.querySelectorAll('.alert-toggle').forEach((toggle) => {
+    toggle.addEventListener('change', async () => {
+      const idx = parseInt(toggle.dataset.idx);
+      keywordAlerts[idx].enabled = toggle.checked;
+      await saveKeywordAlerts();
+      renderKeywordAlerts();
+    });
+  });
+
+  container.querySelectorAll('.btn-delete-alert').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const idx = parseInt(btn.dataset.idx);
+      keywordAlerts.splice(idx, 1);
+      await saveKeywordAlerts();
+      renderKeywordAlerts();
+    });
+  });
+}
+
+// 주기 설정
+const intervalInput = document.getElementById('alert-interval');
+const intervalWarning = document.getElementById('interval-warning');
+
+function updateIntervalWarning(val) {
+  intervalWarning.style.display = val < 3 ? 'block' : 'none';
+}
+
+intervalInput.addEventListener('change', async () => {
+  let val = parseInt(intervalInput.value);
+  if (isNaN(val) || val < 1) val = 1;
+  if (val > 60) val = 60;
+  intervalInput.value = val;
+  updateIntervalWarning(val);
+  await QLStorage.set({ [ALERT_INTERVAL_KEY]: val });
+});
+
+// ── 알림 추가 모달 ──
+const alertModal = document.getElementById('alert-modal');
+const stepCategory = document.getElementById('step-category');
+const stepChannel = document.getElementById('step-channel');
+const stepKeywords = document.getElementById('step-keywords');
+
+function openAlertModal() {
+  alertModal.classList.add('active');
+  showStep('category');
+  loadCategories();
+}
+
+function closeAlertModal() {
+  alertModal.classList.remove('active');
+  pendingKeywords = [];
+  selectedChannel = null;
+}
+
+function showStep(step) {
+  stepCategory.style.display = step === 'category' ? 'block' : 'none';
+  stepChannel.style.display = step === 'channel' ? 'block' : 'none';
+  stepKeywords.style.display = step === 'keywords' ? 'block' : 'none';
+  const titles = { category: '카테고리 선택', channel: '채널 선택', keywords: '키워드 입력' };
+  document.getElementById('alert-modal-title').textContent = titles[step];
+}
+
+// ── 카테고리/채널 fetch (popup이 host_permissions로 직접 호출) ──
+async function loadCategories() {
+  const list = document.getElementById('category-list');
+  list.innerHTML = '<p class="loading-message">불러오는 중...</p>';
+  try {
+    const resp = await fetch('https://api.lounge.naver.com/content-api/v1/categories?depth=2');
+    if (!resp.ok) throw new Error('http ' + resp.status);
+    const json = await resp.json();
+    const items = json.data?.items || [];
+    window.__qlCategories = items;
+    renderCategoryList(items);
+  } catch {
+    list.innerHTML = '<p class="error-message">불러오기 실패</p>';
+  }
+}
+
+function renderCategoryList(items) {
+  const list = document.getElementById('category-list');
+  if (items.length === 0) {
+    list.innerHTML = '<p class="empty-message">카테고리가 없습니다</p>';
+    return;
+  }
+  list.innerHTML = items
+    .map(
+      (c) => `
+      <div class="select-item" data-category-id="${c.categoryId}">
+        <span class="select-item-name">${escapeHtml(c.name)}</span>
+      </div>
+    `,
+    )
+    .join('');
+
+  list.querySelectorAll('.select-item').forEach((el) => {
+    el.addEventListener('click', () => {
+      const catId = el.dataset.categoryId;
+      showStep('channel');
+      loadChannels(catId);
+    });
+  });
+}
+
+document.getElementById('category-search').addEventListener('input', (e) => {
+  const query = e.target.value.toLowerCase();
+  const items = (window.__qlCategories || []).filter((c) => c.name.toLowerCase().includes(query));
+  renderCategoryList(items);
+});
+
+async function fetchAllChannels(categoryId) {
+  const channels = [];
+  let page = 1;
+  const size = 50;
+  let hasMore = true;
+  while (hasMore) {
+    const url = `https://api.lounge.naver.com/content-api/v1/channels?categoryId=${categoryId}&page=${page}&size=${size}`;
+    const resp = await fetch(url);
+    if (!resp.ok) break;
+    const json = await resp.json();
+    const items = json.data?.items || [];
+    channels.push(...items);
+    const pageInfo = json.data?.page;
+    if (!pageInfo || page * size >= pageInfo.totalElements) {
+      hasMore = false;
+    } else {
+      page++;
+    }
+  }
+  return channels;
+}
+
+async function loadChannels(categoryId) {
+  const list = document.getElementById('channel-list');
+  list.innerHTML = '<p class="loading-message">불러오는 중...</p>';
+  try {
+    const channels = await fetchAllChannels(categoryId);
+    window.__qlChannels = channels;
+    renderChannelList(channels);
+  } catch {
+    list.innerHTML = '<p class="error-message">불러오기 실패</p>';
+  }
+}
+
+function renderChannelList(items) {
+  const list = document.getElementById('channel-list');
+  if (items.length === 0) {
+    list.innerHTML = '<p class="empty-message">채널이 없습니다</p>';
+    return;
+  }
+  list.innerHTML = items
+    .map(
+      (ch) => `
+      <div class="select-item" data-channel-id="${ch.finalChannelId}" data-channel-name="${escapeHtml(ch.name)}">
+        <span class="select-item-name">${escapeHtml(ch.name)}</span>
+      </div>
+    `,
+    )
+    .join('');
+
+  list.querySelectorAll('.select-item').forEach((el) => {
+    el.addEventListener('click', () => {
+      selectedChannel = {
+        channelId: el.dataset.channelId,
+        channelName: el.dataset.channelName,
+      };
+      document.getElementById('selected-channel-info').textContent = selectedChannel.channelName;
+      pendingKeywords = [];
+      renderPendingKeywords();
+      document.getElementById('btn-save-alert').disabled = true;
+      showStep('keywords');
+    });
+  });
+}
+
+document.getElementById('channel-search').addEventListener('input', (e) => {
+  const query = e.target.value.toLowerCase();
+  const items = (window.__qlChannels || []).filter((c) => c.name.toLowerCase().includes(query));
+  renderChannelList(items);
+});
+
+// ── 키워드 입력 ──
+const keywordInput = document.getElementById('keyword-input');
+const btnAddKeyword = document.getElementById('btn-add-keyword');
+
+function addPendingKeyword() {
+  const kw = keywordInput.value.trim();
+  if (!kw) return;
+  if (pendingKeywords.includes(kw)) {
+    keywordInput.value = '';
+    return;
+  }
+  pendingKeywords.push(kw);
+  keywordInput.value = '';
+  renderPendingKeywords();
+  document.getElementById('btn-save-alert').disabled = pendingKeywords.length === 0;
+}
+
+keywordInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addPendingKeyword();
+  }
+});
+btnAddKeyword.addEventListener('click', addPendingKeyword);
+
+function renderPendingKeywords() {
+  const container = document.getElementById('keyword-tags');
+  container.innerHTML = pendingKeywords
+    .map(
+      (kw, i) =>
+        `<span class="keyword-tag">${escapeHtml(kw)}<button class="keyword-tag-remove" data-idx="${i}">&times;</button></span>`,
+    )
+    .join('');
+
+  container.querySelectorAll('.keyword-tag-remove').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      pendingKeywords.splice(parseInt(btn.dataset.idx), 1);
+      renderPendingKeywords();
+      document.getElementById('btn-save-alert').disabled = pendingKeywords.length === 0;
+    });
+  });
+}
+
+// 알림 등록
+document.getElementById('btn-save-alert').addEventListener('click', async () => {
+  if (!selectedChannel || pendingKeywords.length === 0) return;
+  keywordAlerts.push({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    channelId: selectedChannel.channelId,
+    channelName: selectedChannel.channelName,
+    keywords: [...pendingKeywords],
+    enabled: true,
+    createdAt: new Date().toISOString(),
+  });
+  await saveKeywordAlerts();
+  renderKeywordAlerts();
+  closeAlertModal();
+});
+
+// 모달 버튼 이벤트
+document.getElementById('btn-add-alert').addEventListener('click', openAlertModal);
+document.getElementById('alert-modal-close').addEventListener('click', closeAlertModal);
+alertModal.addEventListener('click', (e) => {
+  if (e.target === alertModal) closeAlertModal();
+});
+
+document.getElementById('btn-back-category').addEventListener('click', () => {
+  showStep('category');
+  document.getElementById('channel-search').value = '';
+});
+document.getElementById('btn-back-channel').addEventListener('click', () => {
+  showStep('channel');
+  document.getElementById('keyword-input').value = '';
+});
+
 // ── iOS 감지 ──
 if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
   const mobileLink = document.getElementById('qr-modal-mobile-link');
@@ -297,6 +622,11 @@ async function refreshAll() {
     updateFilterModeUI(result[FILTER_MODE_KEY] || 'hide');
   } catch {
     // 로드 실패 무시
+  }
+  // macOS Safari에선 키워드 알림 미지원 → 로드 스킵
+  if (!isMac || isIOS) {
+    await loadKeywordAlerts();
+    renderKeywordAlerts();
   }
   loadMyStats();
 }

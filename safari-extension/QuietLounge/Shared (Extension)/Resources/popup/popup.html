@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
   <title>QuietLounge</title>
   <link rel="stylesheet" href="popup.css">
 </head>
@@ -73,6 +74,70 @@
         </label>
       </div>
     </section>
+
+    <section class="keyword-alerts">
+      <div class="keyword-alerts-header">
+        <h2>키워드 알림</h2>
+        <button class="btn-add-alert" id="btn-add-alert">+ 추가</button>
+      </div>
+
+      <p class="keyword-alerts-hint" id="keyword-alerts-hint">macOS 앱이 실행 중이어야 알림이 동작합니다.</p>
+
+      <div class="alert-interval-row">
+        <span class="setting-label">확인 주기</span>
+        <div class="interval-input-wrap">
+          <input type="number" id="alert-interval" min="1" max="60" value="5" class="interval-input">
+          <span class="interval-unit">분</span>
+        </div>
+      </div>
+      <p class="interval-warning" id="interval-warning" style="display:none">주기가 짧으면 네트워크 사용량이 늘어날 수 있습니다</p>
+
+      <div id="keyword-alerts-list">
+        <p class="empty-message">등록된 키워드 알림이 없습니다</p>
+      </div>
+    </section>
+
+    <!-- 키워드 알림 추가 모달 -->
+    <div class="alert-modal" id="alert-modal">
+      <div class="alert-modal-content">
+        <div class="alert-modal-header">
+          <h3 id="alert-modal-title">카테고리 선택</h3>
+          <button class="alert-modal-close" id="alert-modal-close">&times;</button>
+        </div>
+        <div class="alert-modal-body">
+          <!-- Step 1: 카테고리 선택 -->
+          <div id="step-category" class="alert-step">
+            <div class="alert-search-wrap">
+              <input type="text" id="category-search" class="alert-search" placeholder="카테고리 검색...">
+            </div>
+            <div id="category-list" class="select-list">
+              <p class="loading-message">불러오는 중...</p>
+            </div>
+          </div>
+          <!-- Step 2: 채널 선택 -->
+          <div id="step-channel" class="alert-step" style="display:none">
+            <button class="btn-back" id="btn-back-category">&larr; 카테고리 선택</button>
+            <div class="alert-search-wrap">
+              <input type="text" id="channel-search" class="alert-search" placeholder="채널 검색...">
+            </div>
+            <div id="channel-list" class="select-list">
+              <p class="loading-message">불러오는 중...</p>
+            </div>
+          </div>
+          <!-- Step 3: 키워드 입력 -->
+          <div id="step-keywords" class="alert-step" style="display:none">
+            <button class="btn-back" id="btn-back-channel">&larr; 채널 선택</button>
+            <div class="selected-channel-info" id="selected-channel-info"></div>
+            <div class="keyword-input-wrap">
+              <input type="text" id="keyword-input" class="keyword-text-input" placeholder="키워드 입력 후 Enter">
+              <button class="btn-add-keyword" id="btn-add-keyword">추가</button>
+            </div>
+            <div id="keyword-tags" class="keyword-tags"></div>
+            <button class="btn btn-primary" id="btn-save-alert" disabled>알림 등록</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <section class="actions">
       <button id="btn-export" class="btn btn-secondary">내보내기 (JSON)</button>

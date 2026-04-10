@@ -16,6 +16,23 @@ class KeywordAlertManager {
     init() {
         self.defaults = UserDefaults(suiteName: AppGroup.identifier) ?? .standard
         migrateFromStandardIfNeeded()
+        registerDarwinObserver()
+    }
+
+    /// 사파리 익스텐션 팝업이 keyword alerts를 바꿨을 때 알림 받아 타이머 재시작.
+    private func registerDarwinObserver() {
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+        let observer = Unmanaged.passUnretained(self).toOpaque()
+        CFNotificationCenterAddObserver(
+            center, observer,
+            { _, _, _, _, _ in
+                DispatchQueue.main.async {
+                    KeywordAlertManager.shared.restartTimer()
+                    NotificationCenter.default.post(name: .keywordAlertsChanged, object: nil)
+                }
+            },
+            AppGroup.darwinKeywordAlertsNotification, nil, .deliverImmediately
+        )
     }
 
     private func migrateFromStandardIfNeeded() {
@@ -33,6 +50,8 @@ class KeywordAlertManager {
 
     var alerts: [[String: Any]] {
         get {
+            // 사파리 익스텐션이 쓴 값이 캐시에 반영 안 됐을 수 있으므로 강제 동기화
+            defaults.synchronize()
             guard let raw = defaults.string(forKey: alertsKey),
                   let data = raw.data(using: .utf8),
                   let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
@@ -46,12 +65,26 @@ class KeywordAlertManager {
                 defaults.set(str, forKey: alertsKey)
             }
             NotificationCenter.default.post(name: .keywordAlertsChanged, object: nil)
+            postDarwin(AppGroup.darwinKeywordAlertsNotification)
         }
     }
 
     var interval: Int {
-        get { defaults.integer(forKey: intervalKey).clamped(to: 1...60, default: 5) }
-        set { defaults.set(newValue, forKey: intervalKey) }
+        get {
+            defaults.synchronize()
+            return defaults.integer(forKey: intervalKey).clamped(to: 1...60, default: 5)
+        }
+        set {
+            defaults.set(newValue, forKey: intervalKey)
+            postDarwin(AppGroup.darwinKeywordAlertsNotification)
+        }
+    }
+
+    private func postDarwin(_ name: CFString) {
+        CFNotificationCenterPostNotification(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            CFNotificationName(name), nil, nil, true
+        )
     }
 
     private var lastChecked: [String: String] {
@@ -223,10 +256,14 @@ class KeywordAlertManager {
         content.title = "[\(channelName)] 키워드 알림"
         content.body = "\"\(keyword)\" — \(title)"
         content.sound = .default
-        content.userInfo = ["postId": postId]
+        content.userInfo = ["postId": postId, "keyword": keyword]
+
+        // identifier는 ASCII만 사용 — 일부 OS 버전에서 non-ASCII identifier 알림이 silently dropped됨
+        let kwHex = keyword.utf8.map { String(format: "%02x", $0) }.joined()
+        let identifier = "ql_kw_\(postId)_\(kwHex)"
 
         let request = UNNotificationRequest(
-            identifier: "ql_kw_\(postId)_\(keyword)",
+            identifier: identifier,
             content: content,
             trigger: nil
         )

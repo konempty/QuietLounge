@@ -16,8 +16,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         UNUserNotificationCenter.current().delegate = self
 
-        // 포그라운드 타이머 시작
-        KeywordAlertManager.shared.restartTimer()
+        // 알림 권한 요청 (이미 결정돼 있으면 no-op)
+        // 사파리 익스텐션 팝업에서만 키워드를 등록한 사용자도 권한이 필요하므로 launch 시점에 요청.
+        KeywordAlertManager.shared.requestNotificationPermission { _ in
+            KeywordAlertManager.shared.restartTimer()
+        }
 
         // 포그라운드 복귀 시 즉시 체크 + 타이머 재시작
         NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
