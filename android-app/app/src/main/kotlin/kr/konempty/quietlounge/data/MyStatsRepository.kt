@@ -17,7 +17,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Calendar
 
 /**
- * mobile-app/hooks/useMyStats.ts 의 Kotlin 포팅.
+ * 내 활동 통계 조회 — personaId + 총 글/댓글 + 이번달 카운트.
  *
  * 1단계: /user-api/v1/members/me/personas → personaId
  * 2단계: /user-api/v1/personas/{personaId} → totalPostCount, totalCommentCount, createTime

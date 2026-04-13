@@ -15,12 +15,12 @@
 - 총 약 200개+ 채널 (빠르게 증가 중)
 
 ### 관련 API
-| API | 용도 |
-|-----|------|
-| `GET /content-api/v1/categories?depth=2` | 상위 카테고리 목록 |
-| `GET /content-api/v1/channels?categoryId={id}&page={n}&size={n}` | 카테고리별 채널 목록 (페이지네이션) |
+| API                                                               | 용도                   |
+|-------------------------------------------------------------------|----------------------|
+| `GET /content-api/v1/categories?depth=2`                          | 상위 카테고리 목록           |
+| `GET /content-api/v1/channels?categoryId={id}&page={n}&size={n}`  | 카테고리별 채널 목록 (페이지네이션) |
 | `GET /discovery-api/v1/feed/channels/{channelId}/recent?limit=50` | 채널 최신 글 목록 (postId만) |
-| `GET /content-api/v1/posts?postIds={id}&postIds={id}...` | 글 제목/상세 일괄 조회 |
+| `GET /content-api/v1/posts?postIds={id}&postIds={id}...`          | 글 제목/상세 일괄 조회        |
 
 ### 비즈니스 요구사항
 - 유저는 어떤 채널이든 키워드 알림 등록 가능
@@ -91,14 +91,14 @@ FCM 토픽 방식의 장점:
 
 ## 3. 기술 스택
 
-| 항목 | 선택 | 비고 |
-|------|------|------|
-| 서버 | Spring Boot (Kotlin) | |
-| DB | H2 (초기) → PostgreSQL (운영) | |
-| 푸시 | FCM (Firebase Cloud Messaging) | Android, iOS, Chrome 모두 지원 |
-| 빌드 | Gradle (Kotlin DSL) | |
-| 레포 | 별도 레포 (`quietlounge-server`) | |
-| 호스팅 | 추후 결정 | VPS 또는 AWS |
+| 항목  | 선택                             | 비고                         |
+|-----|--------------------------------|----------------------------|
+| 서버  | Spring Boot (Kotlin)           |                            |
+| DB  | H2 (초기) → PostgreSQL (운영)      |                            |
+| 푸시  | FCM (Firebase Cloud Messaging) | Android, iOS, Chrome 모두 지원 |
+| 빌드  | Gradle (Kotlin DSL)            |                            |
+| 레포  | 별도 레포 (`quietlounge-server`)   |                            |
+| 호스팅 | 추후 결정                          | VPS 또는 AWS                 |
 
 ### FCM과 APNs 관계
 - FCM은 iOS에도 푸시를 보낼 수 있음 (FCM이 내부적으로 APNs를 호출)
@@ -264,11 +264,11 @@ fun pollNextChannel() {
 ### 폴링 주기 계산 (단일 서버, 분당 12회)
 
 | 구독된 고유 채널 수 | 최악 (모두 새 글) | 평균 (10%만 새 글) |
-|------------------|----------------|-----------------|
-| 50개 | 8.3분 | 4.6분 |
-| 100개 | 16.7분 | 9.2분 |
-| 200개 | 33.3분 | 18.3분 |
-| 300개 | 50분 | 27.5분 |
+|-------------|-------------|---------------|
+| 50개         | 8.3분        | 4.6분          |
+| 100개        | 16.7분       | 9.2분          |
+| 200개        | 33.3분       | 18.3분         |
+| 300개        | 50분         | 27.5분         |
 
 ---
 
@@ -416,12 +416,12 @@ fun cleanupStaleTopics() {
 5. **로컬 폴링**: 서버 미연결 시 폴백으로 유지
 
 ### 플랫폼별 지원
-| 플랫폼 | 푸시 방식 | 서버 연동 | 비고 |
-|--------|----------|----------|------|
-| Android 앱 (Expo) | FCM | O | 앱 종료 시에도 수신 |
-| iOS 앱 | FCM → APNs | O | 앱 종료 시에도 수신 |
-| Chrome 확장 | FCM | O | service worker에서 수신 |
-| Safari 확장 | 불가 | X | 로컬 폴링 유지 (API 미지원) |
+| 플랫폼       | 푸시 방식      | 서버 연동 | 비고                  |
+|-----------|------------|-------|---------------------|
+| Android 앱 | FCM        | O     | 앱 종료 시에도 수신         |
+| iOS 앱     | FCM → APNs | O     | 앱 종료 시에도 수신         |
+| Chrome 확장 | FCM        | O     | service worker에서 수신 |
+| Safari 확장 | 불가         | X     | 로컬 폴링 유지 (API 미지원)  |
 
 ---
 
@@ -463,28 +463,28 @@ quietlounge-server/
 
 ## 13. 비용 예상
 
-| 항목 | 비용 |
-|------|------|
-| VPS (2 vCPU, 2GB) | 월 $5~12 |
-| Apple Developer Program | 연 $99 (iOS 푸시용) |
-| Firebase (FCM) | 무료 |
-| PostgreSQL | VPS 내 설치 (무료) |
-| 도메인 + SSL | Let's Encrypt 무료, 도메인 연 $10~15 |
-| **합계** | **월 $5~12 + 연 $99~115** |
+| 항목                      | 비용                             |
+|-------------------------|--------------------------------|
+| VPS (2 vCPU, 2GB)       | 월 $5~12                        |
+| Apple Developer Program | 연 $99 (iOS 푸시용)                |
+| Firebase (FCM)          | 무료                             |
+| PostgreSQL              | VPS 내 설치 (무료)                  |
+| 도메인 + SSL               | Let's Encrypt 무료, 도메인 연 $10~15 |
+| **합계**                  | **월 $5~12 + 연 $99~115**        |
 
 ---
 
 ## 14. 구현 우선순위
 
-| 단계 | 내용 | 의존성 |
-|------|------|--------|
-| **Phase 1** | 서버 기본 구조 + DB + API + 폴링 스케줄러 | 없음 |
-| **Phase 2** | FCM 연동 (토픽 메시지 발송) | Firebase 프로젝트 생성 |
-| **Phase 3** | Android 앱 (Expo) 연동 | Phase 2 |
-| **Phase 4** | iOS 앱 연동 | Phase 2 + Apple Developer |
-| **Phase 5** | Chrome 확장 연동 | Phase 2 |
-| **Phase 6** | 우선순위 폴링 + 모니터링 + 로깅 | Phase 1 |
-| **Phase 7** | 다중 서버 스케일링 (필요 시) | Phase 6 |
+| 단계          | 내용                            | 의존성                       |
+|-------------|-------------------------------|---------------------------|
+| **Phase 1** | 서버 기본 구조 + DB + API + 폴링 스케줄러 | 없음                        |
+| **Phase 2** | FCM 연동 (토픽 메시지 발송)            | Firebase 프로젝트 생성          |
+| **Phase 3** | Android 앱 연동                  | Phase 2                   |
+| **Phase 4** | iOS 앱 연동                      | Phase 2 + Apple Developer |
+| **Phase 5** | Chrome 확장 연동                  | Phase 2                   |
+| **Phase 6** | 우선순위 폴링 + 모니터링 + 로깅           | Phase 1                   |
+| **Phase 7** | 다중 서버 스케일링 (필요 시)             | Phase 6                   |
 
 ---
 

@@ -9,8 +9,7 @@ import kr.konempty.quietlounge.data.FilterMode
  * assets/webview-scripts/{before,after}.js 를 로드하고 동적 부분(blockData, filterMode)을
  * 치환해 WebView 에 주입할 JS 문자열을 생성.
  *
- * mobile-app/utils/webview-scripts.ts 의 buildBeforeScript / buildAfterScript /
- * buildBlockListUpdateScript / buildFilterModeScript 에 1:1 대응.
+ * before.js / after.js 동적 치환 + blockData push / filterMode push 스크립트 생성.
  */
 object WebViewScripts {
     private const val BLOCK_DATA_PLACEHOLDER = "__QL_BLOCK_DATA_PLACEHOLDER__"

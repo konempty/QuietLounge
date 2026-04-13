@@ -14,7 +14,7 @@ import kotlinx.serialization.json.Json
 /**
  * BlockList 영속화 + Flow 노출.
  *
- * mobile-app 의 useBlockListProvider 에 대응. Application 라이프타임의 단일 인스턴스로 사용.
+ * Application 라이프타임 싱글턴. DataStore 로 영속화, StateFlow 로 UI 에 노출.
  */
 class BlockListRepository(
     private val context: Context,

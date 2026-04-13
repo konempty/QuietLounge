@@ -67,12 +67,9 @@ enum WebViewScripts {
     """
 
     /// 필터링 + 차단 버튼 + 프로필 통계 — 페이지 로드 후 주입
-    /// Expo의 buildAfterScript와 동일한 로직
     static func afterScript(blockData: [String: Any], filterMode: String) -> String {
         let blockDataJSON = (try? JSONSerialization.data(withJSONObject: blockData))
             .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-        // Expo의 webview-scripts.ts buildAfterScript를 그대로 사용
-        // 단, ReactNativeWebView.postMessage → webkit.messageHandlers.qlBridge.postMessage
         return """
         (function() {
           'use strict';

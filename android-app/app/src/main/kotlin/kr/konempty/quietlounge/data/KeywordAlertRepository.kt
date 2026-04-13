@@ -11,7 +11,7 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
 /**
- * mobile-app/hooks/useKeywordAlerts.ts 영속화 부분의 Kotlin 포팅.
+ * 키워드 알림 설정 영속화 (DataStore Preferences).
  *
  * - alerts: List<KeywordAlert> JSON
  * - intervalMinutes: Int (1~60)

@@ -20,7 +20,7 @@ import kr.konempty.quietlounge.data.KeywordAlertRepository
 import kr.konempty.quietlounge.network.LoungeApi
 
 /**
- * mobile-app/hooks/useKeywordAlerts.ts 의 폴링 로직 + checkKeywordAlerts() 포팅.
+ * 키워드 알림 폴링 — 포그라운드에서 주기적으로 새 글 확인 + 매칭 시 알림 발송.
  *
  * 앱 라이프사이클(MainActivity onResume/onPause)과 연동돼 포그라운드일 때만 동작한다.
  * - alerts/interval 가 변경되면 자동으로 타이머 재시작

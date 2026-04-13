@@ -1,9 +1,7 @@
 // QuietLounge — before.js (document_start)
 // fetch monkey-patch 로 API 응답에서 postId → personaId 매핑을 수집해
 // window.__QL 에 저장하고 네이티브 브릿지(window.QuietLounge.postMessage)로 push.
-//
-// react-native-webview 의 ReactNativeWebView.postMessage 대신 Android WebView 의
-// JavascriptInterface 인 window.QuietLounge.postMessage(string) 을 사용.
+// Android WebView 의 JavascriptInterface 를 사용.
 
 (function () {
   'use strict';

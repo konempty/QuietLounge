@@ -258,7 +258,7 @@ android-app/                     네이티브 Android 앱 (Kotlin + Jetpack Comp
         │       ├── blocklist/               LazyColumn + ViewModel
         │       └── settings/                통계/필터/키워드알림/데이터관리 + 다이얼로그
         └── assets/webview-scripts/
-            ├── before.js                    fetch monkey-patch (mobile-app 의 buildBeforeScript 분리)
+            ├── before.js                    fetch monkey-patch (API 응답에서 personaId 매핑 수집)
             └── after.js                     필터링 + 차단 버튼 + 프로필 통계 (placeholder 치환)
 
 .github/workflows/build.yml      GitHub Actions 빌드 (수동 실행)
@@ -303,12 +303,18 @@ npm run lint        # ESLint 검사
 npm run lint:fix    # 자동 수정
 npm run format      # Prettier 포맷팅
 
-# 모바일 앱
-cd mobile-app
-npm run lint        # ESLint 검사
+# Android (Kotlin)
+cd android-app
+./gradlew ktlintCheck             # Kotlin 포맷팅 검사
+./gradlew ktlintFormat            # 자동 수정
+
+# iOS / macOS (Swift)
+cd safari-extension/QuietLounge
+swiftlint                         # SwiftLint 검사
+swiftlint --fix                   # 자동 수정
 ```
 
-### 모바일 앱 로컬 빌드
+### 로컬 빌드
 
 ```bash
 # Android (네이티브, Kotlin + Compose)

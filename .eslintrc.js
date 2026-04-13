@@ -59,5 +59,5 @@ module.exports = {
       },
     },
   ],
-  ignorePatterns: ['node_modules/', 'mobile-app/', 'sample/'],
+  ignorePatterns: ['node_modules/', 'android-app/', 'sample/'],
 };
