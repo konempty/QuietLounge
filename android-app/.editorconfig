@@ -1,0 +1,23 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+max_line_length = 140
+# Compose @Composable 함수는 PascalCase 컨벤션 (UI 빌더 함수)
+ktlint_standard_function-naming = disabled
+# Kotlin 관용적인 backing field (`_data`, `_state` 등 leading underscore)
+ktlint_standard_property-naming = disabled
+ktlint_standard_function-expression-body = disabled
+# 값 매개변수 주석 한 줄 표기 허용 (// null = 로딩중)
+ktlint_standard_value-parameter-comment = disabled
+ktlint_standard_value-argument-comment = disabled
+
+[*.{xml,json}]
+indent_size = 2

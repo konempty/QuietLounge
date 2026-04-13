@@ -1,10 +1,30 @@
-/.idea/
+# IDE
+.idea/
+*.iml
+
+# 메모 / 로컬 작업
 QuietLounge.md
 /sample/
 /.claude/
-/node_modules/
+
+# Node
+node_modules/
+
+# 키스토어 / 시그너 — 어디 위치에 있든 절대 커밋 금지
 *.keystore
+*.jks
+release.keystore.properties
+
+# Xcode
 *.xcuserstate
 xcuserdata/
 *.xcscmblueprint
 *.xccheckout
+
+# CI 산출물 (워크플로우가 root 로 cp 하는 빌드 결과물)
+/QuietLounge-Android.apk
+/QuietLounge-Android.aab
+/QuietLounge-ChromeExtension.zip
+
+# OS
+.DS_Store

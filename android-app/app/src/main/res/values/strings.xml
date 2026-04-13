@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">QuietLounge</string>
+    <string name="tab_lounge">라운지</string>
+    <string name="tab_blocklist">차단 목록</string>
+    <string name="tab_settings">설정</string>
+    <string name="notification_channel_keyword_alerts">키워드 알림</string>
+    <string name="notification_channel_keyword_alerts_desc">등록한 키워드가 새 글에 매칭되면 알립니다.</string>
+</resources>

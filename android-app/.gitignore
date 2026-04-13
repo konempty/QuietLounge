@@ -1,0 +1,43 @@
+# Gradle
+.gradle/
+build/
+captures/
+.cxx/
+.externalNativeBuild/
+
+# Kotlin compiler cache
+.kotlin/
+
+# IDE
+*.iml
+.idea/
+*.ipr
+*.iws
+out/
+
+# Android Studio Navigation editor / lint
+.navigation/
+lint/intermediates/
+lint/generated/
+lint/outputs/
+lint/tmp/
+
+# Local configuration (SDK path 등)
+local.properties
+
+# Keystore — 절대 커밋 금지
+release.keystore
+release.keystore.properties
+*.jks
+*.keystore
+
+# 빌드 산출물 (워크플로우가 root 로 cp 할 수 있음)
+*.apk
+*.aab
+
+# OS / 메타
+.DS_Store
+*.hprof
+*.log
+
+gradle/gradle-daemon-jvm.properties
