@@ -87,17 +87,7 @@ class KeywordAlertsViewModel(
         viewModelScope.launch {
             _modalLoading.value = true
             val root = LoungeApi.get("${LoungeApi.base()}/content-api/v1/categories?depth=2")
-            val items =
-                (root?.jsonObject?.get("data") as? JsonObject)
-                    ?.get("items") as? JsonArray
-            _categories.value =
-                items
-                    ?.mapNotNull { node ->
-                        val obj = node as? JsonObject ?: return@mapNotNull null
-                        val id = obj["categoryId"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
-                        val name = obj["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                        CategoryItem(id, name)
-                    }.orEmpty()
+            _categories.value = parseCategories(root?.jsonObject)
             _modalLoading.value = false
         }
     }
@@ -115,14 +105,8 @@ class KeywordAlertsViewModel(
                 val root = LoungeApi.get(url)?.jsonObject ?: break
                 val data = root["data"] as? JsonObject
                 val items = data?.get("items") as? JsonArray ?: break
-                items.forEach { node ->
-                    val obj = node as? JsonObject ?: return@forEach
-                    val id = obj["finalChannelId"]?.jsonPrimitive?.contentOrNull ?: return@forEach
-                    val name = obj["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                    all.add(ChannelItem(id, name))
-                }
-                val pageInfo = data["page"] as? JsonObject
-                val total = pageInfo?.get("totalElements")?.jsonPrimitive?.intOrNull ?: 0
+                all += parseChannelsPage(items)
+                val total = parseTotalElements(data)
                 if (page * size >= total) break
                 page++
             }
@@ -135,4 +119,32 @@ class KeywordAlertsViewModel(
         _channels.value = emptyList()
         _modalLoading.value = false
     }
+}
+
+// ── 네트워크 응답 파싱 순수 헬퍼 (단위 테스트 대상) ─────────
+
+internal fun parseCategories(root: JsonObject?): List<CategoryItem> {
+    val items = (root?.get("data") as? JsonObject)?.get("items") as? JsonArray ?: return emptyList()
+    return items.mapNotNull { node ->
+        val obj = node as? JsonObject ?: return@mapNotNull null
+        val id = obj["categoryId"]?.jsonPrimitive?.intOrNull ?: return@mapNotNull null
+        val name = obj["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        CategoryItem(id, name)
+    }
+}
+
+internal fun parseChannelsPage(items: JsonArray): List<ChannelItem> {
+    val out = mutableListOf<ChannelItem>()
+    for (node in items) {
+        val obj = node as? JsonObject ?: continue
+        val id = obj["finalChannelId"]?.jsonPrimitive?.contentOrNull ?: continue
+        val name = obj["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        out.add(ChannelItem(id, name))
+    }
+    return out
+}
+
+internal fun parseTotalElements(data: JsonObject?): Int {
+    val pageInfo = data?.get("page") as? JsonObject
+    return pageInfo?.get("totalElements")?.jsonPrimitive?.intOrNull ?: 0
 }

@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kr.konempty.quietlounge.data.BlockListData
 import kr.konempty.quietlounge.data.BlockListRepository
 import kr.konempty.quietlounge.data.FilterMode
 import kr.konempty.quietlounge.data.MyStatsRepository
@@ -38,13 +39,8 @@ class SettingsViewModel(
 
     val blockStats: StateFlow<SettingsBlockStats> =
         blockRepo.data
-            .map { data ->
-                SettingsBlockStats(
-                    total = data.blockedUsers.size + data.nicknameOnlyBlocks.size,
-                    byPersona = data.blockedUsers.size,
-                    byNickname = data.nicknameOnlyBlocks.size,
-                )
-            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsBlockStats())
+            .map { data -> settingsBlockStatsFrom(data) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsBlockStats())
 
     val filterMode: StateFlow<FilterMode> =
         blockRepo.filterMode
@@ -91,3 +87,11 @@ class SettingsViewModel(
         }
     }
 }
+
+/** 단위 테스트에서 참조 가능한 pure 매핑. */
+internal fun settingsBlockStatsFrom(data: BlockListData): SettingsBlockStats =
+    SettingsBlockStats(
+        total = data.blockedUsers.size + data.nicknameOnlyBlocks.size,
+        byPersona = data.blockedUsers.size,
+        byNickname = data.nicknameOnlyBlocks.size,
+    )

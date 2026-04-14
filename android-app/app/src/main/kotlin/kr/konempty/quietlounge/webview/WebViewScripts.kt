@@ -12,8 +12,8 @@ import kr.konempty.quietlounge.data.FilterMode
  * before.js / after.js 동적 치환 + blockData push / filterMode push 스크립트 생성.
  */
 object WebViewScripts {
-    private const val BLOCK_DATA_PLACEHOLDER = "__QL_BLOCK_DATA_PLACEHOLDER__"
-    private const val FILTER_MODE_PLACEHOLDER = "__QL_FILTER_MODE_PLACEHOLDER__"
+    internal const val BLOCK_DATA_PLACEHOLDER = "__QL_BLOCK_DATA_PLACEHOLDER__"
+    internal const val FILTER_MODE_PLACEHOLDER = "__QL_FILTER_MODE_PLACEHOLDER__"
 
     private val json = Json { encodeDefaults = true }
 
@@ -47,8 +47,14 @@ object WebViewScripts {
         context: Context,
         blockData: BlockListData,
         filterMode: FilterMode,
+    ): String = renderTemplate(loadAfterTemplate(context), blockData, filterMode)
+
+    /** Context 미의존 — 단위 테스트 가능. */
+    internal fun renderTemplate(
+        template: String,
+        blockData: BlockListData,
+        filterMode: FilterMode,
     ): String {
-        val template = loadAfterTemplate(context)
         val blockDataJson = json.encodeToString(BlockListData.serializer(), blockData)
         return template
             .replace(BLOCK_DATA_PLACEHOLDER, blockDataJson)

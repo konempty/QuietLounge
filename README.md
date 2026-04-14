@@ -298,10 +298,10 @@ android-app/                     네이티브 Android 앱 (Kotlin + Jetpack Comp
 ### 린팅
 
 ```bash
-# 루트 (shared + chrome-extension + tampermonkey)
-npm run lint        # ESLint 검사
-npm run lint:fix    # 자동 수정
-npm run format      # Prettier 포맷팅
+# 루트 (shared + chrome-extension + tampermonkey) — pnpm 사용
+pnpm lint           # ESLint 검사
+pnpm lint:fix       # 자동 수정
+pnpm format         # Prettier 포맷팅
 
 # Android (Kotlin)
 cd android-app
@@ -313,6 +313,28 @@ cd safari-extension/QuietLounge
 swiftlint                         # SwiftLint 검사
 swiftlint --fix                   # 자동 수정
 ```
+
+### 테스트
+
+```bash
+# 모든 플랫폼 테스트 한 번에
+./run-tests.sh            # JS + Android + Swift + lint
+./run-tests.sh --fast     # lint 생략
+./run-tests.sh --js       # JS 만
+./run-tests.sh --android  # Android 만
+./run-tests.sh --swift    # Swift 만
+
+# 플랫폼별 개별 실행
+pnpm test                                          # JS/TS (Vitest)
+cd android-app && ./gradlew :app:testDebugUnitTest # Android (JUnit)
+cd swift-tests && swift test                       # iOS/macOS (XCTest)
+```
+
+테스트는 다음 계층을 커버한다:
+- **shared/block-list.ts** (Vitest) — 차단/해제/승격/import·export 등 29 케이스
+- **chrome-extension / safari-extension service-worker** (Vitest) — 키워드 매칭 + lastChecked 전진 로직 회귀 방지
+- **android-app** (JUnit) — `BlockListEngine`, `BlockListData` 직렬화, `KeywordAlert`, `IsoDate` 파싱 등 49 케이스
+- **iOS/macOS** (XCTest via Swift Package) — `QuietLoungeCore` (날짜 파싱, 키워드 매칭, 채널 처리) 21 케이스. 실제 iOS 앱 소스를 심볼릭 링크로 포함해 drift 방지.
 
 ### 로컬 빌드
 

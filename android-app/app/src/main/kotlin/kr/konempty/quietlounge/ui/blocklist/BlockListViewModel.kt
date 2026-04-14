@@ -46,9 +46,12 @@ class BlockListViewModel(
         viewModelScope.launch { repo.unblockByNickname(nickname) }
     }
 
-    private fun BlockListData.toUiState(): BlockListUiState {
-        val sortedByPersona = blockedUsers.values.sortedByDescending { it.blockedAt }
-        val sortedByNickname = nicknameOnlyBlocks.sortedByDescending { it.blockedAt }
-        return BlockListUiState(byPersona = sortedByPersona, byNickname = sortedByNickname)
-    }
+    internal fun BlockListData.toUiState(): BlockListUiState = blockListDataToUiState(this)
+}
+
+/** 단위 테스트에서 참조 가능한 pure 변환. */
+internal fun blockListDataToUiState(data: BlockListData): BlockListUiState {
+    val sortedByPersona = data.blockedUsers.values.sortedByDescending { it.blockedAt }
+    val sortedByNickname = data.nicknameOnlyBlocks.sortedByDescending { it.blockedAt }
+    return BlockListUiState(byPersona = sortedByPersona, byNickname = sortedByNickname)
 }

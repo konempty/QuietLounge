@@ -95,42 +95,27 @@ class KeywordAlertScheduler(
             val details = fetchPostDetails(recentIds)
             if (details.isEmpty()) continue
 
-            val lastTs = lastChecked[channelId]?.let { parseIsoMillis(it) } ?: 0L
-            val newPosts = details.filter { (parseIsoMillis(it.createTime) ?: 0L) > lastTs }
-
-            for (post in newPosts) {
-                for (alert in channelAlerts) {
-                    val matched =
-                        alert.keywords.firstOrNull { kw ->
-                            post.title.lowercase().contains(kw.lowercase())
-                        }
-                    if (matched != null) {
-                        NotificationHelper.showKeywordMatch(
-                            context = context,
-                            postId = post.postId,
-                            channelName = alert.channelName,
-                            matchedKeyword = matched,
-                            title = post.title,
-                        )
-                    }
-                }
+            val result =
+                KeywordAlertEngine.processChannel(
+                    details = details,
+                    alerts = channelAlerts,
+                    lastChecked = lastChecked[channelId],
+                )
+            for (match in result.matches) {
+                NotificationHelper.showKeywordMatch(
+                    context = context,
+                    postId = match.postId,
+                    channelName = match.channelName,
+                    matchedKeyword = match.matchedKeyword,
+                    title = match.title,
+                )
             }
-
             // 매칭 여부와 상관없이 lastChecked 를 가장 최신 글 시점으로 전진 —
             // postId 기반 추적의 "기준 글이 삭제되면 전체를 새 글로 간주" 문제 해결
-            val maxCreateTime = details.mapNotNull { it.createTime.ifBlank { null } }.maxOrNull()
-            if (maxCreateTime != null) {
-                lastChecked[channelId] = maxCreateTime
-            }
+            result.newLastChecked?.let { lastChecked[channelId] = it }
         }
         repo.setLastChecked(lastChecked)
     }
-
-    private data class PostDetail(
-        val postId: String,
-        val title: String,
-        val createTime: String,
-    )
 
     private suspend fun fetchRecentPostIds(channelId: String): List<String> {
         val url = "${LoungeApi.base()}/discovery-api/v1/feed/channels/$channelId/recent?limit=50"
@@ -141,9 +126,9 @@ class KeywordAlertScheduler(
         }
     }
 
-    private suspend fun fetchPostDetails(postIds: List<String>): List<PostDetail> {
+    private suspend fun fetchPostDetails(postIds: List<String>): List<KeywordAlertEngine.PostDetail> {
         if (postIds.isEmpty()) return emptyList()
-        val results = mutableListOf<PostDetail>()
+        val results = mutableListOf<KeywordAlertEngine.PostDetail>()
         postIds.chunked(50).forEach { batch ->
             val params = batch.joinToString("&") { "postIds=$it" }
             val url = "${LoungeApi.base()}/content-api/v1/posts?$params"
@@ -154,32 +139,10 @@ class KeywordAlertScheduler(
                 val pid = obj["postId"]?.jsonPrimitive?.contentOrNull ?: continue
                 val title = obj["title"]?.jsonPrimitive?.contentOrNull.orEmpty()
                 val createTime = obj["createTime"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                results.add(PostDetail(pid, title, createTime))
+                results.add(KeywordAlertEngine.PostDetail(pid, title, createTime))
             }
         }
         return results
-    }
-
-    private fun parseIsoMillis(iso: String?): Long? {
-        if (iso.isNullOrBlank()) return null
-        try {
-            return java.time.OffsetDateTime
-                .parse(iso)
-                .toInstant()
-                .toEpochMilli()
-        } catch (_: Throwable) {
-        }
-        if (iso.matches(Regex(".*[+-]\\d{4}$"))) {
-            try {
-                val fixed = iso.replaceRange(iso.length - 2, iso.length - 2, ":")
-                return java.time.OffsetDateTime
-                    .parse(fixed)
-                    .toInstant()
-                    .toEpochMilli()
-            } catch (_: Throwable) {
-            }
-        }
-        return iso.toLongOrNull()
     }
 
     companion object {

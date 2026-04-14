@@ -5,6 +5,11 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    jacoco
+}
+
+jacoco {
+    toolVersion = "0.8.12"
 }
 
 // release.keystore.properties (gitignore) — CI/local에서 서명용
@@ -60,6 +65,7 @@ android {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            enableUnitTestCoverage = true
         }
     }
 
@@ -71,6 +77,16 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    testOptions {
+        unitTests {
+            // Robolectric 에서 Android 리소스/매니페스트를 사용 가능하게 함
+            // 주의: Robolectric 의 SandboxClassLoader 가 JaCoCo online 에이전트와
+            // 격리돼 Compose UI 테스트 실행분은 JaCoCo 리포트에 반영되지 않는다.
+            // 테스트 자체는 실행되고 회귀를 잡지만, 커버리지 수치상은 0 으로 보인다.
+            isIncludeAndroidResources = true
+        }
     }
 
     packaging {
@@ -118,4 +134,56 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    // Compose UI 테스트 — Robolectric 위에서 JVM 실행 (에뮬레이터 불필요)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core.ktx)
+    testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    // createComposeRule 이 사용할 임시 Activity — debug 매니페스트로 주입
+    debugImplementation(libs.compose.ui.test.manifest)
+}
+
+// ── JaCoCo 커버리지 리포트 ──────────────────────────────────────
+// 실행: ./gradlew :app:jacocoTestReport
+// 결과: app/build/reports/jacoco/jacocoTestReport/html/index.html
+tasks.register<JacocoReport>("jacocoTestReport") {
+    dependsOn("testDebugUnitTest")
+    reports {
+        html.required.set(true)
+        xml.required.set(true)
+    }
+    val fileFilter =
+        listOf(
+            "**/R.class",
+            "**/R\$*.class",
+            "**/BuildConfig.*",
+            "**/Manifest*.*",
+            "**/*Test*.*",
+            "android/**/*.*",
+            "**/*_Factory.*",
+            "**/*_Impl.*",
+            // Compose 내부 생성물
+            "**/ComposableSingletons*.*",
+            "**/*ScreenKt*.*",
+            "**/*ScreenPreviewKt*.*",
+        )
+    val kotlinDebugClasses =
+        fileTree(
+            "${layout.buildDirectory.get()}/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes",
+        ) { exclude(fileFilter) }
+    val javaDebugClasses =
+        fileTree(
+            "${layout.buildDirectory.get()}/intermediates/javac/debug/compileDebugJavaWithJavac/classes",
+        ) { exclude(fileFilter) }
+    classDirectories.setFrom(kotlinDebugClasses, javaDebugClasses)
+    sourceDirectories.setFrom(files("src/main/kotlin"))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
+        },
+    )
 }

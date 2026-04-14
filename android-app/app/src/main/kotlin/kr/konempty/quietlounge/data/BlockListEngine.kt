@@ -103,7 +103,7 @@ class BlockListEngine(
         // nicknameOnlyBlocks 자동 승격
         // - 새 닉네임이 차단 목록에 있거나
         // - 닉네임이 바뀐 경우, 이전 캐시 닉네임이 차단 목록에 있는지도 함께 검사
-        val previousNickname = if (nicknameChanged) cached?.nickname else null
+        val previousNickname = if (nicknameChanged) cached.nickname else null
         val nicknameBlock =
             data.nicknameOnlyBlocks.firstOrNull { block ->
                 block.nickname == nickname || block.nickname == previousNickname

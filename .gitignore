@@ -28,3 +28,11 @@ xcuserdata/
 
 # OS
 .DS_Store
+
+# Vitest / coverage
+coverage/
+
+# Swift Package 캐시
+/swift-tests/.build/
+/swift-tests/.swiftpm/
+/swift-tests/Package.resolved

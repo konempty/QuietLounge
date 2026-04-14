@@ -24,6 +24,10 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
 
+      - name: Swift Package tests (pure logic — QuietLoungeCore)
+        working-directory: swift-tests
+        run: swift test
+
       - name: Build iOS app + extension (no signing)
         working-directory: safari-extension/QuietLounge
         run: |
@@ -70,10 +74,26 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  # ── JS / TS 테스트 (Vitest) ──
+  js-tests:
+    name: JS / TS tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: safari-extension-check
+    needs: [safari-extension-check, js-tests]
     steps:
       - uses: actions/checkout@v5
 
@@ -92,6 +112,10 @@ jobs:
 
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v4
+
+      - name: Android unit tests
+        working-directory: android-app
+        run: ./gradlew :app:testDebugUnitTest
 
       - name: Decode keystore
         env:

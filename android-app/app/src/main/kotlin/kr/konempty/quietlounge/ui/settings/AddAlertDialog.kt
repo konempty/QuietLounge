@@ -215,7 +215,7 @@ fun AddAlertDialog(
 }
 
 @Composable
-private fun SearchField(
+internal fun SearchField(
     value: String,
     onChange: (String) -> Unit,
 ) {
@@ -229,7 +229,7 @@ private fun SearchField(
 }
 
 @Composable
-private fun LoadingBox() {
+internal fun LoadingBox() {
     Box(
         modifier =
             Modifier
@@ -242,7 +242,7 @@ private fun LoadingBox() {
 }
 
 @Composable
-private fun <T : Any> SelectableList(
+internal fun <T : Any> SelectableList(
     items: List<T>,
     label: (T) -> String,
     onClick: (T) -> Unit,
@@ -286,7 +286,7 @@ private fun <T : Any> SelectableList(
 }
 
 @Composable
-private fun KeywordTagFlow(
+internal fun KeywordTagFlow(
     keywords: List<String>,
     onRemove: (Int) -> Unit,
 ) {
