@@ -51,14 +51,20 @@ async function checkKeywordAlerts() {
 
   for (const [channelId, alertsForChannel] of Object.entries(channelAlerts)) {
     try {
-      const newPosts = await fetchNewPosts(channelId, lastChecked[channelId]);
-      if (newPosts.length === 0) continue;
+      const recentIds = await fetchRecentPostIds(channelId);
+      if (recentIds.length === 0) continue;
 
-      // 제목 가져오기
-      const postTitles = await fetchPostTitles(newPosts.map((p) => p.postId));
+      // 제목 + createTime 가져오기
+      const details = await fetchPostTitles(recentIds);
+      if (details.length === 0) continue;
+
+      // lastChecked 는 ISO timestamp — 그보다 나중 글만 새 글로 간주
+      const lastTs = lastChecked[channelId] ? Date.parse(lastChecked[channelId]) : 0;
 
       // 키워드 매칭
-      for (const post of postTitles) {
+      for (const post of details) {
+        const createTs = post.createTime ? Date.parse(post.createTime) : 0;
+        if (!createTs || createTs <= lastTs) continue;
         for (const alert of alertsForChannel) {
           const matched = alert.keywords.find((kw) =>
             post.title.toLowerCase().includes(kw.toLowerCase()),
@@ -69,8 +75,14 @@ async function checkKeywordAlerts() {
         }
       }
 
-      // 마지막 체크 포인트 업데이트 — 첫 번째 글(가장 최신)의 postId 저장
-      lastChecked[channelId] = newPosts[0].postId;
+      // lastChecked 를 가장 최신 글 시점으로 전진 (매칭 여부 무관) —
+      // postId 기반의 "기준 글 삭제 시 전체를 새 글로 간주" 문제 해결
+      const maxCreate = details
+        .map((p) => p.createTime)
+        .filter(Boolean)
+        .sort()
+        .pop();
+      if (maxCreate) lastChecked[channelId] = maxCreate;
     } catch (e) {
       console.error(`[QuietLounge] 키워드 체크 실패 (${channelId}):`, e);
     }
@@ -81,23 +93,14 @@ async function checkKeywordAlerts() {
   });
 }
 
-// 채널의 최신 글 목록 가져오기
-async function fetchNewPosts(channelId, lastPostId) {
+// 채널의 최신 글 postId 목록만 가져오기
+async function fetchRecentPostIds(channelId) {
   const url = `https://api.lounge.naver.com/discovery-api/v1/feed/channels/${channelId}/recent?limit=50`;
   const resp = await fetch(url);
   if (!resp.ok) return [];
   const json = await resp.json();
   const items = json.data?.items || [];
-
-  if (!lastPostId) return items;
-
-  // lastPostId 이후의 새 글만 필터링
-  const newItems = [];
-  for (const item of items) {
-    if (item.postId === lastPostId) break;
-    newItems.push(item);
-  }
-  return newItems;
+  return items.map((item) => item.postId).filter(Boolean);
 }
 
 // 글 제목 가져오기 (최대 50개씩 배치)

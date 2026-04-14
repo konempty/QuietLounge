@@ -181,15 +181,21 @@ async function checkKeywordAlerts() {
 
     for (const [channelId, alertsForChannel] of Object.entries(channelAlerts)) {
       try {
-        const newPosts = await fetchNewPosts(channelId, lastChecked[channelId]);
+        const recentIds = await fetchRecentPostIds(channelId);
         console.log(
-          `[QL][bg] channel ${channelId}: ${newPosts.length} new posts (lastChecked=${lastChecked[channelId] || 'none'})`,
+          `[QL][bg] channel ${channelId}: ${recentIds.length} recent (lastChecked=${lastChecked[channelId] || 'none'})`,
         );
-        if (newPosts.length === 0) continue;
+        if (recentIds.length === 0) continue;
 
-        const postTitles = await fetchPostTitles(newPosts.map((p) => p.postId));
-        console.log(`[QL][bg] fetched ${postTitles.length} titles`);
-        for (const post of postTitles) {
+        const details = await fetchPostTitles(recentIds);
+        console.log(`[QL][bg] fetched ${details.length} details`);
+        if (details.length === 0) continue;
+
+        const lastTs = lastChecked[channelId] ? Date.parse(lastChecked[channelId]) : 0;
+
+        for (const post of details) {
+          const createTs = post.createTime ? Date.parse(post.createTime) : 0;
+          if (!createTs || createTs <= lastTs) continue;
           for (const alert of alertsForChannel) {
             const matched = alert.keywords.find((kw) =>
               post.title.toLowerCase().includes(kw.toLowerCase()),
@@ -201,7 +207,13 @@ async function checkKeywordAlerts() {
           }
         }
 
-        lastChecked[channelId] = newPosts[0].postId;
+        // lastChecked 를 가장 최신 글 시점으로 전진 (매칭 여부 무관)
+        const maxCreate = details
+          .map((p) => p.createTime)
+          .filter(Boolean)
+          .sort()
+          .pop();
+        if (maxCreate) lastChecked[channelId] = maxCreate;
       } catch (e) {
         console.warn(`[QL][bg] channel ${channelId} failed`, e);
       }
@@ -215,20 +227,13 @@ async function checkKeywordAlerts() {
   }
 }
 
-async function fetchNewPosts(channelId, lastPostId) {
+async function fetchRecentPostIds(channelId) {
   const url = `https://api.lounge.naver.com/discovery-api/v1/feed/channels/${channelId}/recent?limit=50`;
   const resp = await fetch(url);
   if (!resp.ok) return [];
   const json = await resp.json();
   const items = json.data?.items || [];
-  if (!lastPostId) return items;
-
-  const newItems = [];
-  for (const item of items) {
-    if (item.postId === lastPostId) break;
-    newItems.push(item);
-  }
-  return newItems;
+  return items.map((item) => item.postId).filter(Boolean);
 }
 
 async function fetchPostTitles(postIds) {

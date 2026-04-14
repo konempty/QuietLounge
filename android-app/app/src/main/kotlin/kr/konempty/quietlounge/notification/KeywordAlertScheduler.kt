@@ -89,11 +89,16 @@ class KeywordAlertScheduler(
 
         val byChannel = alerts.groupBy { it.channelId }
         for ((channelId, channelAlerts) in byChannel) {
-            val newPosts = fetchNewPosts(channelId, lastChecked[channelId])
-            if (newPosts.isEmpty()) continue
+            val recentIds = fetchRecentPostIds(channelId)
+            if (recentIds.isEmpty()) continue
 
-            val titles = fetchPostTitles(newPosts.map { it.postId })
-            for (post in titles) {
+            val details = fetchPostDetails(recentIds)
+            if (details.isEmpty()) continue
+
+            val lastTs = lastChecked[channelId]?.let { parseIsoMillis(it) } ?: 0L
+            val newPosts = details.filter { (parseIsoMillis(it.createTime) ?: 0L) > lastTs }
+
+            for (post in newPosts) {
                 for (alert in channelAlerts) {
                     val matched =
                         alert.keywords.firstOrNull { kw ->
@@ -111,45 +116,32 @@ class KeywordAlertScheduler(
                 }
             }
 
-            lastChecked[channelId] = newPosts.first().postId
+            // 매칭 여부와 상관없이 lastChecked 를 가장 최신 글 시점으로 전진 —
+            // postId 기반 추적의 "기준 글이 삭제되면 전체를 새 글로 간주" 문제 해결
+            val maxCreateTime = details.mapNotNull { it.createTime.ifBlank { null } }.maxOrNull()
+            if (maxCreateTime != null) {
+                lastChecked[channelId] = maxCreateTime
+            }
         }
         repo.setLastChecked(lastChecked)
     }
 
-    private data class PostItem(
-        val postId: String,
-    )
-
     private data class PostDetail(
         val postId: String,
         val title: String,
+        val createTime: String,
     )
 
-    private suspend fun fetchNewPosts(
-        channelId: String,
-        lastPostId: String?,
-    ): List<PostItem> {
+    private suspend fun fetchRecentPostIds(channelId: String): List<String> {
         val url = "${LoungeApi.base()}/discovery-api/v1/feed/channels/$channelId/recent?limit=50"
         val root = LoungeApi.get(url)?.jsonObject ?: return emptyList()
         val items = (root["data"] as? JsonObject)?.get("items") as? JsonArray ?: return emptyList()
-
-        val parsed =
-            items.mapNotNull { node ->
-                val obj = node as? JsonObject ?: return@mapNotNull null
-                val pid = obj["postId"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-                PostItem(pid)
-            }
-
-        if (lastPostId.isNullOrBlank()) return parsed
-        val newOnes = mutableListOf<PostItem>()
-        for (p in parsed) {
-            if (p.postId == lastPostId) break
-            newOnes.add(p)
+        return items.mapNotNull { node ->
+            (node as? JsonObject)?.get("postId")?.jsonPrimitive?.contentOrNull
         }
-        return newOnes
     }
 
-    private suspend fun fetchPostTitles(postIds: List<String>): List<PostDetail> {
+    private suspend fun fetchPostDetails(postIds: List<String>): List<PostDetail> {
         if (postIds.isEmpty()) return emptyList()
         val results = mutableListOf<PostDetail>()
         postIds.chunked(50).forEach { batch ->
@@ -161,10 +153,33 @@ class KeywordAlertScheduler(
                 val obj = node as? JsonObject ?: continue
                 val pid = obj["postId"]?.jsonPrimitive?.contentOrNull ?: continue
                 val title = obj["title"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                results.add(PostDetail(pid, title))
+                val createTime = obj["createTime"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                results.add(PostDetail(pid, title, createTime))
             }
         }
         return results
+    }
+
+    private fun parseIsoMillis(iso: String?): Long? {
+        if (iso.isNullOrBlank()) return null
+        try {
+            return java.time.OffsetDateTime
+                .parse(iso)
+                .toInstant()
+                .toEpochMilli()
+        } catch (_: Throwable) {
+        }
+        if (iso.matches(Regex(".*[+-]\\d{4}$"))) {
+            try {
+                val fixed = iso.replaceRange(iso.length - 2, iso.length - 2, ":")
+                return java.time.OffsetDateTime
+                    .parse(fixed)
+                    .toInstant()
+                    .toEpochMilli()
+            } catch (_: Throwable) {
+            }
+        }
+        return iso.toLongOrNull()
     }
 
     companion object {

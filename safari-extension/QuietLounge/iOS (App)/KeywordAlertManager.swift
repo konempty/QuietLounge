@@ -180,15 +180,21 @@ class KeywordAlertManager {
         for (channelId, alertsForChannel) in channelAlerts {
             Task {
                 do {
-                    let newPosts = try await self.fetchNewPosts(channelId: channelId, lastPostId: checked[channelId])
-                    guard !newPosts.isEmpty else { return }
+                    let recentIds = try await self.fetchRecentPostIds(channelId: channelId)
+                    guard !recentIds.isEmpty else { return }
 
-                    let postIds = newPosts.compactMap { $0["postId"] as? String }
-                    let titles = try await self.fetchPostTitles(postIds: postIds)
+                    let details = try await self.fetchPostTitles(postIds: recentIds)
+                    guard !details.isEmpty else { return }
 
-                    for post in titles {
+                    // lastChecked 는 ISO timestamp 문자열 — 그보다 나중 글만 새 글로 간주
+                    let lastTs = checked[channelId].flatMap { Self.isoToDate($0) } ?? .distantPast
+
+                    for post in details {
                         guard let title = post["title"] as? String,
-                              let postId = post["postId"] as? String else { continue }
+                              let postId = post["postId"] as? String,
+                              let createStr = post["createTime"] as? String,
+                              let createDate = Self.isoToDate(createStr),
+                              createDate > lastTs else { continue }
                         for alert in alertsForChannel {
                             let keywords = alert["keywords"] as? [String] ?? []
                             let channelName = alert["channelName"] as? String ?? ""
@@ -198,8 +204,11 @@ class KeywordAlertManager {
                         }
                     }
 
-                    if let firstPostId = newPosts.first?["postId"] as? String {
-                        checked[channelId] = firstPostId
+                    // 매칭 여부 무관하게 lastChecked 를 가장 최신 글 시점으로 전진 —
+                    // postId 기반 추적의 "기준 글이 삭제되면 전체를 새 글로 간주" 문제 해결
+                    let maxCreate = details.compactMap { $0["createTime"] as? String }.max()
+                    if let m = maxCreate {
+                        checked[channelId] = m
                         self.lastChecked = checked
                     }
                 } catch {
@@ -211,21 +220,21 @@ class KeywordAlertManager {
 
     // MARK: - API
 
-    private func fetchNewPosts(channelId: String, lastPostId: String?) async throws -> [[String: Any]] {
+    private static func isoToDate(_ iso: String) -> Date? {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: iso) { return d }
+        f.formatOptions = [.withInternetDateTime]
+        return f.date(from: iso)
+    }
+
+    private func fetchRecentPostIds(channelId: String) async throws -> [String] {
         let url = URL(string: "https://api.lounge.naver.com/discovery-api/v1/feed/channels/\(channelId)/recent?limit=50")!
         let (data, _) = try await URLSession.shared.data(from: url)
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let dataObj = json["data"] as? [String: Any],
               let items = dataObj["items"] as? [[String: Any]] else { return [] }
-
-        guard let lastId = lastPostId else { return items }
-
-        var newItems: [[String: Any]] = []
-        for item in items {
-            if (item["postId"] as? String) == lastId { break }
-            newItems.append(item)
-        }
-        return newItems
+        return items.compactMap { $0["postId"] as? String }
     }
 
     private func fetchPostTitles(postIds: [String]) async throws -> [[String: Any]] {
