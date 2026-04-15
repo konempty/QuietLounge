@@ -108,6 +108,36 @@ describe('safari service-worker', () => {
     );
   });
 
+  it('활성 alert 있고 interval 이 60 초과면 60 으로 clamp', async () => {
+    globalThis.browser = mkBrowser();
+    globalThis.browser.storage.local._store = {
+      quiet_lounge_keyword_alerts: JSON.stringify([
+        { channelId: 'c', channelName: 'n', keywords: ['k'], enabled: true },
+      ]),
+      quiet_lounge_alert_interval: '999',
+    };
+    await loadWorker();
+    expect(browser.alarms.create).toHaveBeenCalledWith(
+      'quiet_lounge_keyword_check',
+      { periodInMinutes: 60 },
+    );
+  });
+
+  it('활성 alert 있고 interval 이 1 미만이면 1 로 clamp', async () => {
+    globalThis.browser = mkBrowser();
+    globalThis.browser.storage.local._store = {
+      quiet_lounge_keyword_alerts: JSON.stringify([
+        { channelId: 'c', channelName: 'n', keywords: ['k'], enabled: true },
+      ]),
+      quiet_lounge_alert_interval: '0',
+    };
+    await loadWorker();
+    expect(browser.alarms.create).toHaveBeenCalledWith(
+      'quiet_lounge_keyword_check',
+      { periodInMinutes: 1 },
+    );
+  });
+
   it('알람 fire → checkKeywordAlerts 실행', async () => {
     await loadWorker();
     const listener = browser._alarmsListeners[0];
@@ -290,6 +320,78 @@ describe('safari service-worker', () => {
     expect(sendResponse).toHaveBeenCalledWith(
       expect.objectContaining({ ok: true }),
     );
+  });
+
+  // URL 패턴 매칭 fetch mock — call index 에 의존하지 않아 호출 순서가 바뀌어도 견고.
+  function mkKeywordFetch({ recentPostIds, details }) {
+    return vi.fn(async (url) => {
+      if (typeof url === 'string' && url.includes('/recent')) {
+        return {
+          ok: true,
+          json: async () => ({ data: { items: recentPostIds.map((id) => ({ postId: id })) } }),
+        };
+      }
+      return { ok: true, json: async () => ({ data: details }) };
+    });
+  }
+
+  it('QL_KEYWORD_CHECK_NOW — 혼재된 ISO 포맷에서도 실제 최신 시각으로 lastChecked 저장', async () => {
+    globalThis.browser = mkBrowser();
+    globalThis.browser.storage.local._store = {
+      quiet_lounge_keyword_alerts: JSON.stringify([
+        { channelId: 'c1', channelName: '채널', keywords: ['공지'], enabled: true },
+      ]),
+      quiet_lounge_alert_last_checked: JSON.stringify({
+        c1: '2020-01-01T00:00:00Z',
+      }),
+    };
+
+    globalThis.fetch = mkKeywordFetch({
+      recentPostIds: ['p1', 'p2'],
+      details: [
+        { postId: 'p1', title: '공지 A', createTime: '2026-04-01T00:00:00+09:00' },
+        { postId: 'p2', title: '공지 B', createTime: '2026-04-01T00:00:00Z' },
+      ],
+    });
+
+    await loadWorker();
+    const listener = browser._runtime.onMessageListeners[0];
+    listener({ type: 'QL_KEYWORD_CHECK_NOW' }, {}, vi.fn());
+    for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
+
+    const stored = JSON.parse(browser.storage.local._store.quiet_lounge_alert_last_checked);
+    expect(stored.c1).toBe('2026-04-01T00:00:00Z');
+  });
+
+  it('QL_KEYWORD_CHECK_NOW — lastChecked 와 같거나 이전 글은 알림 전송 안 함', async () => {
+    globalThis.browser = mkBrowser();
+    globalThis.browser.storage.local._store = {
+      quiet_lounge_keyword_alerts: JSON.stringify([
+        { channelId: 'c1', channelName: '채널', keywords: ['공지'], enabled: true },
+      ]),
+      quiet_lounge_alert_last_checked: JSON.stringify({
+        c1: '2026-04-01T00:00:00Z',
+      }),
+    };
+    globalThis.browser.tabs.query = vi.fn(async () => [{ id: 99 }]);
+
+    globalThis.fetch = mkKeywordFetch({
+      recentPostIds: ['p1'],
+      details: [{ postId: 'p1', title: '공지', createTime: '2026-04-01T00:00:00Z' }],
+    });
+
+    await loadWorker();
+    const listener = browser._runtime.onMessageListeners[0];
+    listener({ type: 'QL_KEYWORD_CHECK_NOW' }, {}, vi.fn());
+    for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
+
+    expect(browser.tabs.sendMessage).not.toHaveBeenCalledWith(
+      99,
+      expect.objectContaining({ type: 'QL_SHOW_NOTIFICATION' }),
+      expect.any(Function),
+    );
+    const stored = JSON.parse(browser.storage.local._store.quiet_lounge_alert_last_checked);
+    expect(stored.c1).toBe('2026-04-01T00:00:00Z');
   });
 
   it('QL_NOTIFY_TEST — dispatchKeywordNotification 호출 + 뱃지 +1', async () => {

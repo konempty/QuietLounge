@@ -188,8 +188,17 @@ describe('BlockList', () => {
       // 같은 personaId 가 새 닉네임으로 감지됨 → oldname 기준으로 승격
       await bl.updatePersonaCache('p1', 'newname');
       expect(bl.getData().blockedUsers['p1']?.nickname).toBe('newname');
-      // 참고: 승격 시 newname 기준으로만 필터링되어 oldname 은 nicknameOnlyBlocks 에 남음.
-      //      이는 현재 구현의 알려진 동작. 테스트는 승격이 이뤄졌는지만 검증.
+      // 승격 시 근거가 된 nicknameOnlyBlocks 엔트리(oldname)는 반드시 제거되어야 한다.
+      // 그래야 나중에 oldname 닉네임을 쓰는 다른 사용자가 오탐 차단되지 않음.
+      expect(bl.getData().nicknameOnlyBlocks).toHaveLength(0);
+    });
+
+    it('이전 닉네임 기준 승격 후 다른 유저가 oldname 을 써도 차단되지 않음', async () => {
+      await bl.updatePersonaCache('pA', 'oldname');
+      await bl.blockByNickname('oldname');
+      await bl.updatePersonaCache('pA', 'newname');
+      // 다른 personaId 가 oldname 을 쓰더라도 nicknameOnlyBlocks 가 비어 있으므로 미차단
+      expect(bl.isBlockedByNickname('oldname')).toBe(false);
     });
 
     it('이미 차단된 유저의 닉네임 변경 추적 (cache 선행)', async () => {

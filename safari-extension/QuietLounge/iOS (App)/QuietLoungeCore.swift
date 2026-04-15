@@ -81,10 +81,104 @@ enum QuietLoungeCore {
                 matches.append(ChannelMatch(postId: p.postId, title: p.title, matched: matched))
             }
         }
-        let maxCreate = details.compactMap { $0.createTime.isEmpty ? nil : $0.createTime }.max()
+        // 문자열 사전순이 아닌 파싱된 timestamp 기준 max — ISO 포맷 혼재 시에도 정확.
+        let maxCreate = pickMaxIsoDate(details.map { $0.createTime })
         return ChannelProcessResult(
             matches: matches,
             newLastChecked: maxCreate ?? lastChecked
         )
+    }
+
+    /// ISO 문자열 배열에서 파싱된 Date 기준 max 값을 반환.
+    /// `.max()` 는 사전순 정렬이라 `+09:00` / `Z` / fractional seconds 가 섞이면 오답이 나올 수 있음.
+    static func pickMaxIsoDate(_ candidates: [String]) -> String? {
+        var best: (iso: String, date: Date)?
+        for c in candidates where !c.isEmpty {
+            guard let d = parseDate(c) else { continue }
+            if best == nil || d > best!.date {
+                best = (c, d)
+            }
+        }
+        return best?.iso
+    }
+
+    // MARK: - 차단 데이터 승격 + 닉네임 변경 추적
+
+    /// `personaCache` 갱신과 동시에 shared/block-list.ts 의 승격 규칙을 적용한다.
+    /// - nicknameOnlyBlocks 에 현재/이전 닉네임이 있으면 blockedUsers 로 승격하고 해당 엔트리 제거
+    /// - 이미 차단된 유저의 닉네임이 변경되면 previousNicknames 에 append
+    /// `data` 는 BlockDataManager.load() 포맷 ([String: Any]) 을 그대로 사용.
+    static func applyPersonaCacheUpdate(
+        to data: [String: Any],
+        personaId: String,
+        nickname: String,
+        now: Date = Date()
+    ) -> [String: Any] {
+        var result = data
+        let nowIso = ISO8601DateFormatter().string(from: now)
+
+        var cache = result["personaCache"] as? [String: [String: String]] ?? [:]
+        let previousCachedNickname = cache[personaId]?["nickname"]
+        let nicknameChanged = previousCachedNickname != nil && previousCachedNickname != nickname
+        cache[personaId] = ["nickname": nickname, "lastSeen": nowIso]
+        result["personaCache"] = cache
+
+        var nicks = result["nicknameOnlyBlocks"] as? [[String: Any]] ?? []
+        if let idx = nicks.firstIndex(where: { entry in
+            let n = entry["nickname"] as? String
+            return n == nickname || (nicknameChanged && n == previousCachedNickname)
+        }) {
+            let promoted = nicks.remove(at: idx)
+            result["nicknameOnlyBlocks"] = nicks
+            result = promoteBlock(
+                data: result,
+                personaId: personaId,
+                nickname: nickname,
+                reason: (promoted["reason"] as? String) ?? "",
+                nowIso: nowIso
+            )
+            return result
+        }
+
+        if nicknameChanged,
+           var users = result["blockedUsers"] as? [String: [String: Any]],
+           var user = users[personaId],
+           let currentNick = user["nickname"] as? String,
+           currentNick != nickname {
+            var prev = user["previousNicknames"] as? [String] ?? []
+            prev.append(currentNick)
+            user["previousNicknames"] = prev
+            user["nickname"] = nickname
+            users[personaId] = user
+            result["blockedUsers"] = users
+        }
+
+        return result
+    }
+
+    private static func promoteBlock(
+        data: [String: Any],
+        personaId: String,
+        nickname: String,
+        reason: String,
+        nowIso: String
+    ) -> [String: Any] {
+        var result = data
+        var users = result["blockedUsers"] as? [String: [String: Any]] ?? [:]
+        let existing = users[personaId]
+        var prevNicknames = existing?["previousNicknames"] as? [String] ?? []
+        if let ex = existing, let exNick = ex["nickname"] as? String, exNick != nickname {
+            prevNicknames.append(exNick)
+        }
+        let existingReason = (existing?["reason"] as? String) ?? ""
+        users[personaId] = [
+            "personaId": personaId,
+            "nickname": nickname,
+            "previousNicknames": prevNicknames,
+            "blockedAt": existing?["blockedAt"] ?? nowIso,
+            "reason": existingReason.isEmpty ? reason : existingReason
+        ]
+        result["blockedUsers"] = users
+        return result
     }
 }

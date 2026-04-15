@@ -160,12 +160,16 @@ class BlockDataManager {
         save(data)
     }
 
+    /// personaCache 갱신 + shared/block-list.ts 의 승격·닉네임 변경 추적 규칙 적용.
+    /// 순수 로직은 `QuietLoungeCore.applyPersonaCacheUpdate` 에 위임 — swift-tests 가 그 함수를 검증하고
+    /// 실제 프로덕션 코드가 동일 함수를 호출하므로 테스트와 앱 동작 사이 drift 발생 여지 없음.
     func updatePersonaCache(personaId: String, nickname: String) {
-        var data = load()
-        var cache = data["personaCache"] as? [String: [String: String]] ?? [:]
-        cache[personaId] = ["nickname": nickname, "lastSeen": ISO8601DateFormatter().string(from: Date())]
-        data["personaCache"] = cache
-        save(data)
+        let updated = QuietLoungeCore.applyPersonaCacheUpdate(
+            to: load(),
+            personaId: personaId,
+            nickname: nickname
+        )
+        save(updated)
     }
 
     func clearAll() {

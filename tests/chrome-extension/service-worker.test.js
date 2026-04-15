@@ -105,6 +105,36 @@ describe('chrome service-worker', () => {
     );
   });
 
+  it('활성 alert 있고 interval 이 60 초과면 60 으로 clamp', async () => {
+    globalThis.chrome.storage.local._store = {
+      quiet_lounge_keyword_alerts: JSON.stringify([
+        { id: 'a', channelId: 'c', channelName: 'n', keywords: ['k'], enabled: true },
+      ]),
+      quiet_lounge_alert_interval: 999,
+    };
+    await loadWorker();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(chrome.alarms.create).toHaveBeenCalledWith(
+      'quiet_lounge_keyword_check',
+      { periodInMinutes: 60 },
+    );
+  });
+
+  it('활성 alert 있고 interval 이 1 미만이면 1 로 clamp', async () => {
+    globalThis.chrome.storage.local._store = {
+      quiet_lounge_keyword_alerts: JSON.stringify([
+        { id: 'a', channelId: 'c', channelName: 'n', keywords: ['k'], enabled: true },
+      ]),
+      quiet_lounge_alert_interval: 0,
+    };
+    await loadWorker();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(chrome.alarms.create).toHaveBeenCalledWith(
+      'quiet_lounge_keyword_check',
+      { periodInMinutes: 1 },
+    );
+  });
+
   it('UPDATE_BADGE 메시지 → 뱃지 렌더', async () => {
     await loadWorker();
     const listener = chrome._runtime.onMessageListeners[0];
@@ -228,6 +258,75 @@ describe('chrome service-worker', () => {
     for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0));
     expect(chrome.notifications.create).toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({ success: true });
+  });
+
+  // URL 패턴 매칭 fetch mock — step 카운터에 의존하지 않아 fetch 호출 순서가 바뀌어도 견고.
+  // /recent 엔드포인트는 postId 목록, 그 외(content-api/posts 등)는 상세 반환.
+  function mkKeywordFetch({ recentPostIds, details }) {
+    return vi.fn(async (url) => {
+      if (typeof url === 'string' && url.includes('/recent')) {
+        return {
+          ok: true,
+          json: async () => ({ data: { items: recentPostIds.map((id) => ({ postId: id })) } }),
+        };
+      }
+      return { ok: true, json: async () => ({ data: details }) };
+    });
+  }
+
+  it('CHECK_KEYWORD_NOW — 혼재된 ISO 포맷에서도 실제 최신 시각으로 lastChecked 저장', async () => {
+    globalThis.chrome = mkChrome();
+    globalThis.chrome.storage.local._store = {
+      quiet_lounge_keyword_alerts: JSON.stringify([
+        { id: 'a', channelId: 'ch1', channelName: '채널', keywords: ['공지'], enabled: true },
+      ]),
+      quiet_lounge_alert_last_checked: JSON.stringify({
+        ch1: '2020-01-01T00:00:00Z',
+      }),
+    };
+
+    globalThis.fetch = mkKeywordFetch({
+      recentPostIds: ['p1', 'p2'],
+      details: [
+        { postId: 'p1', title: '공지 A', createTime: '2026-04-01T00:00:00+09:00' },
+        { postId: 'p2', title: '공지 B', createTime: '2026-04-01T00:00:00Z' },
+      ],
+    });
+
+    await loadWorker();
+    const handlers = chrome._runtime.onMessageListeners;
+    handlers[1]({ type: 'CHECK_KEYWORD_NOW' }, {}, vi.fn());
+    for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0));
+
+    const stored = JSON.parse(chrome.storage.local._store.quiet_lounge_alert_last_checked);
+    expect(stored.ch1).toBe('2026-04-01T00:00:00Z');
+  });
+
+  it('CHECK_KEYWORD_NOW — notifications 권한 없으면 create 생략', async () => {
+    globalThis.chrome = mkChrome();
+    globalThis.chrome.permissions.contains = (_req, cb) => cb(false);
+    globalThis.chrome.storage.local._store = {
+      quiet_lounge_keyword_alerts: JSON.stringify([
+        { id: 'a', channelId: 'ch1', channelName: '채널', keywords: ['공지'], enabled: true },
+      ]),
+      quiet_lounge_alert_last_checked: JSON.stringify({
+        ch1: '2020-01-01T00:00:00Z',
+      }),
+    };
+
+    globalThis.fetch = mkKeywordFetch({
+      recentPostIds: ['p1'],
+      details: [{ postId: 'p1', title: '공지', createTime: '2030-01-01T00:00:00Z' }],
+    });
+
+    await loadWorker();
+    const handlers = chrome._runtime.onMessageListeners;
+    handlers[1]({ type: 'CHECK_KEYWORD_NOW' }, {}, vi.fn());
+    for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0));
+
+    expect(chrome.notifications.create).not.toHaveBeenCalled();
+    const stored = JSON.parse(chrome.storage.local._store.quiet_lounge_alert_last_checked);
+    expect(stored.ch1).toBe('2030-01-01T00:00:00Z');
   });
 
   it('CHECK_KEYWORD_NOW — 활성 alert 없으면 no-op', async () => {

@@ -133,11 +133,10 @@ document.getElementById('btn-export').addEventListener('click', async () => {
     chrome.storage.local.get([KEYWORD_ALERTS_KEY, ALERT_INTERVAL_KEY], resolve);
   });
 
-  const exportData = { ...blockData };
-  const alerts = alertResult[KEYWORD_ALERTS_KEY] ? JSON.parse(alertResult[KEYWORD_ALERTS_KEY]) : [];
-  if (alerts.length > 0) {
-    exportData.keywordAlerts = alerts;
-  }
+  // personaCache 는 런타임 캐시 — README 및 다른 플랫폼과 일치시키기 위해 export 에서 제외
+  const { personaCache: _cache, ...exportData } = blockData;
+  // keywordAlerts 는 길이와 무관하게 항상 포함 — 빈 배열도 "전부 해제" 라는 유효한 상태.
+  exportData.keywordAlerts = alertResult[KEYWORD_ALERTS_KEY] ? JSON.parse(alertResult[KEYWORD_ALERTS_KEY]) : [];
   const interval = alertResult[ALERT_INTERVAL_KEY];
   if (interval) {
     exportData.alertInterval = interval;
@@ -179,15 +178,19 @@ document.getElementById('file-import').addEventListener('change', async (e) => {
     await saveData();
     render();
 
-    if (importedAlerts && importedAlerts.length > 0) {
+    // keywordAlerts 필드가 존재하면 길이와 무관하게 반영 (빈 배열 = 전체 해제 의도)
+    // 필드가 없으면 기존 알림 유지
+    if (Array.isArray(importedAlerts)) {
       keywordAlerts = importedAlerts;
       await saveKeywordAlerts();
       renderKeywordAlerts();
     }
-    if (importedInterval) {
-      document.getElementById('alert-interval').value = importedInterval;
-      updateIntervalWarning(importedInterval);
-      chrome.storage.local.set({ [ALERT_INTERVAL_KEY]: importedInterval });
+    if (typeof importedInterval === 'number' && Number.isFinite(importedInterval)) {
+      // README 문서상 허용 범위 1~60 분. 외부 백업이 9999 같은 값을 넣어도 폴링이 멈추지 않도록 clamp.
+      const clamped = Math.min(60, Math.max(1, Math.round(importedInterval)));
+      document.getElementById('alert-interval').value = clamped;
+      updateIntervalWarning(clamped);
+      chrome.storage.local.set({ [ALERT_INTERVAL_KEY]: clamped });
     }
 
     alert('데이터를 가져왔습니다.');

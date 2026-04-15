@@ -127,6 +127,10 @@ export class BlockList {
       (b) => b.nickname === nickname || (nicknameChanged && b.nickname === cached.nickname),
     );
     if (nicknameBlock) {
+      // 승격 시 해당 nicknameOnlyBlocks 엔트리를 명시적으로 제거 (현재/이전 닉네임 모두).
+      this.data.nicknameOnlyBlocks = this.data.nicknameOnlyBlocks.filter(
+        (b) => b !== nicknameBlock,
+      );
       await this.blockByPersonaId(personaId, nickname, nicknameBlock.reason);
       return;
     }

@@ -13,6 +13,12 @@ class KeywordAlertManager {
     private var timer: Timer?
     private var lastCheckTime: Date?
 
+    // checkAlerts inter-run overlap 방지용 — 동일 인스턴스에서 동시에 두 실행이 시작되지 않게 막는다.
+    // 이전 실행이 아직 끝나지 않았는데 timer 가 다시 fire 하거나 restartTimer 가 호출되면,
+    // 늦게 끝난 오래된 실행이 더 최신 실행의 lastChecked 를 과거 값으로 덮어쓸 수 있음.
+    private let checkLock = NSLock()
+    private var checkInFlight = false
+
     init() {
         self.defaults = UserDefaults(suiteName: AppGroup.identifier) ?? .standard
         migrateFromStandardIfNeeded()
@@ -75,7 +81,9 @@ class KeywordAlertManager {
             return defaults.integer(forKey: intervalKey).clamped(to: 1...60, default: 5)
         }
         set {
-            defaults.set(newValue, forKey: intervalKey)
+            // 외부 백업 등으로 들어온 비정상 값도 저장 시점에 1~60 으로 clamp.
+            let clamped = min(60, max(1, newValue))
+            defaults.set(clamped, forKey: intervalKey)
             postDarwin(AppGroup.darwinKeywordAlertsNotification)
         }
     }
@@ -165,9 +173,22 @@ class KeywordAlertManager {
     // MARK: - Check
 
     func checkAlerts() {
+        // inter-run overlap 차단: 이전 실행이 아직 끝나지 않았으면 이번 호출은 그냥 스킵.
+        // (대기 큐를 두면 timer 가 빠르게 fire 될 때 task 가 누적되므로 skip 이 더 안전.)
+        checkLock.lock()
+        if checkInFlight {
+            checkLock.unlock()
+            return
+        }
+        checkInFlight = true
+        checkLock.unlock()
+
         lastCheckTime = Date()
         let enabledAlerts = alerts.filter { ($0["enabled"] as? Bool) == true }
-        guard !enabledAlerts.isEmpty else { return }
+        guard !enabledAlerts.isEmpty else {
+            releaseCheckLock()
+            return
+        }
 
         var channelAlerts: [String: [[String: Any]]] = [:]
         for alert in enabledAlerts {
@@ -175,57 +196,99 @@ class KeywordAlertManager {
             channelAlerts[channelId, default: []].append(alert)
         }
 
-        var checked = lastChecked
+        // 시작 시점의 lastChecked 스냅샷 — 모든 채널 Task 가 각자 읽은 값을 기준으로 처리.
+        let startingChecked = lastChecked
 
-        for (channelId, alertsForChannel) in channelAlerts {
-            Task {
-                do {
-                    let recentIds = try await self.fetchRecentPostIds(channelId: channelId)
-                    guard !recentIds.isEmpty else { return }
-
-                    let details = try await self.fetchPostTitles(postIds: recentIds)
-                    guard !details.isEmpty else { return }
-
-                    // lastChecked 는 ISO timestamp 문자열 — 그보다 나중 글만 새 글로 간주
-                    let lastTs = checked[channelId].flatMap { Self.isoToDate($0) } ?? .distantPast
-
-                    for post in details {
-                        guard let title = post["title"] as? String,
-                              let postId = post["postId"] as? String,
-                              let createStr = post["createTime"] as? String,
-                              let createDate = Self.isoToDate(createStr),
-                              createDate > lastTs else { continue }
-                        for alert in alertsForChannel {
-                            let keywords = alert["keywords"] as? [String] ?? []
-                            let channelName = alert["channelName"] as? String ?? ""
-                            for kw in keywords where title.localizedCaseInsensitiveContains(kw) {
-                                await self.sendNotification(channelName: channelName, keyword: kw, title: title, postId: postId)
-                            }
-                        }
+        // withTaskGroup 으로 채널별 결과를 모두 수집한 뒤 **한 번만** lastChecked 에 머지 저장.
+        // 이전 구현은 각 Task 가 공유 `checked` 를 개별 갱신 + self.lastChecked 에 덮어써서
+        // 늦게 끝난 Task 가 먼저 끝난 채널의 갱신을 유실시키는 race 가 있었음.
+        Task { [weak self] in
+            guard let self = self else { return }
+            defer { self.releaseCheckLock() }
+            await withTaskGroup(of: (String, String?).self) { group in
+                for (channelId, alertsForChannel) in channelAlerts {
+                    group.addTask {
+                        await self.processChannel(
+                            channelId: channelId,
+                            alertsForChannel: alertsForChannel,
+                            lastCheckedForChannel: startingChecked[channelId]
+                        )
                     }
+                }
+                var merged = startingChecked
+                for await (channelId, newLast) in group {
+                    if let v = newLast { merged[channelId] = v }
+                }
+                self.lastChecked = merged
+            }
+        }
+    }
 
-                    // 매칭 여부 무관하게 lastChecked 를 가장 최신 글 시점으로 전진 —
-                    // postId 기반 추적의 "기준 글이 삭제되면 전체를 새 글로 간주" 문제 해결
-                    let maxCreate = details.compactMap { $0["createTime"] as? String }.max()
-                    if let m = maxCreate {
-                        checked[channelId] = m
-                        self.lastChecked = checked
+    private func releaseCheckLock() {
+        checkLock.lock()
+        checkInFlight = false
+        checkLock.unlock()
+    }
+
+    /// 테스트 / 디버깅용 — 현재 실행 중인지 확인.
+    var isCheckInFlight: Bool {
+        checkLock.lock()
+        defer { checkLock.unlock() }
+        return checkInFlight
+    }
+
+    /// 채널 1 개 처리 — recent glob → detail → 알림 발송 → 새 lastChecked 반환.
+    /// Returns: (channelId, newLastCheckedIso) — newLastCheckedIso 가 nil 이면 해당 채널은 전진 생략.
+    private func processChannel(
+        channelId: String,
+        alertsForChannel: [[String: Any]],
+        lastCheckedForChannel: String?
+    ) async -> (String, String?) {
+        do {
+            let recentIds = try await fetchRecentPostIds(channelId: channelId)
+            guard !recentIds.isEmpty else { return (channelId, nil) }
+
+            let details = try await fetchPostTitles(postIds: recentIds)
+            guard !details.isEmpty else { return (channelId, nil) }
+
+            let lastTs = lastCheckedForChannel.flatMap { Self.isoToDate($0) } ?? .distantPast
+
+            for post in details {
+                guard let title = post["title"] as? String,
+                      let postId = post["postId"] as? String,
+                      let createStr = post["createTime"] as? String,
+                      let createDate = Self.isoToDate(createStr),
+                      createDate > lastTs else { continue }
+                for alert in alertsForChannel {
+                    let keywords = alert["keywords"] as? [String] ?? []
+                    let channelName = alert["channelName"] as? String ?? ""
+                    for kw in keywords where title.localizedCaseInsensitiveContains(kw) {
+                        await sendNotification(
+                            channelName: channelName,
+                            keyword: kw,
+                            title: title,
+                            postId: postId
+                        )
                     }
-                } catch {
-                    // 네트워크 에러 무시
                 }
             }
+
+            // 매칭 여부 무관하게 lastChecked 를 가장 최신 글 시점으로 전진.
+            // 문자열 사전순이 아닌 파싱된 Date 기준 max — ISO 포맷 혼재 시에도 정확.
+            let candidates = details.compactMap { $0["createTime"] as? String }
+            let maxCreate = QuietLoungeCore.pickMaxIsoDate(candidates)
+            return (channelId, maxCreate)
+        } catch {
+            // 네트워크 에러 — 이번 채널은 전진하지 않음
+            return (channelId, nil)
         }
     }
 
     // MARK: - API
 
+    // ISO 파싱/max 유틸은 QuietLoungeCore 에 통합 — 이전에 있던 isoToDate, pickMaxIsoDate 제거.
     private static func isoToDate(_ iso: String) -> Date? {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = f.date(from: iso) { return d }
-        f.formatOptions = [.withInternetDateTime]
-        return f.date(from: iso)
+        QuietLoungeCore.parseDate(iso)
     }
 
     private func fetchRecentPostIds(channelId: String) async throws -> [String] {
@@ -281,17 +344,21 @@ class KeywordAlertManager {
 
     // MARK: - Export/Import
 
+    /// 백업 스키마 공통 계약:
+    /// - `keywordAlerts` 는 길이와 무관하게 항상 포함 (빈 배열 = cleared state).
+    /// - `alertInterval` 은 기본값(5) 이 아닐 때만 포함 — Chrome/Android 와 동일.
+    /// 반환 nil 의미: 이 매니저가 백업에 실을 게 하나도 없을 때 (현재는 거의 발생 안 함).
     func exportData() -> [String: Any]? {
-        let list = alerts
-        guard !list.isEmpty else { return nil }
-        var result: [String: Any] = ["keywordAlerts": list]
+        var result: [String: Any] = ["keywordAlerts": alerts]
         let intv = interval
         if intv != 5 { result["alertInterval"] = intv }
         return result
     }
 
     func importData(_ data: [String: Any]) {
-        if let imported = data["keywordAlerts"] as? [[String: Any]], !imported.isEmpty {
+        // keywordAlerts 필드가 존재하면 길이와 무관하게 반영 (빈 배열 = 전체 해제 의도).
+        // 필드 자체가 없을 때만 기존 알림 유지.
+        if let imported = data["keywordAlerts"] as? [[String: Any]] {
             alerts = imported
         }
         if let intv = data["alertInterval"] as? Int {

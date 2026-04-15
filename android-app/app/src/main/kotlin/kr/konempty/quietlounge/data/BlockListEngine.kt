@@ -109,6 +109,11 @@ class BlockListEngine(
                 block.nickname == nickname || block.nickname == previousNickname
             }
         if (nicknameBlock != null) {
+            // 승격 시 해당 엔트리를 명시적으로 제거 (현재/이전 닉네임 모두).
+            data =
+                data.copy(
+                    nicknameOnlyBlocks = data.nicknameOnlyBlocks.filterNot { it === nicknameBlock },
+                )
             blockByPersonaId(personaId, nickname, nicknameBlock.reason)
             return data
         }

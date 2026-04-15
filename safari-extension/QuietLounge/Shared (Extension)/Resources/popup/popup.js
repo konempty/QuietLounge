@@ -140,7 +140,26 @@ function escapeHtml(text) {
 
 // ── Export/Import ──
 document.getElementById('btn-export').addEventListener('click', async () => {
-  const json = JSON.stringify(blockData, null, 2);
+  // 차단 목록 + 키워드 알림 설정까지 포함한 통합 백업 (Chrome 과 동일 스키마)
+  const stored = await QLStorage.get([KEYWORD_ALERTS_KEY, ALERT_INTERVAL_KEY]);
+  // personaCache 는 런타임 캐시 — 백업 제외
+  const { personaCache: _cache, ...exportData } = blockData;
+  // keywordAlerts 는 길이와 무관하게 항상 포함 — 빈 배열도 "전부 해제" 라는 유효한 상태.
+  let alerts = [];
+  if (stored[KEYWORD_ALERTS_KEY]) {
+    try {
+      const parsed = JSON.parse(stored[KEYWORD_ALERTS_KEY]);
+      if (Array.isArray(parsed)) alerts = parsed;
+    } catch {
+      // 손상된 데이터는 빈 배열로 대체
+    }
+  }
+  exportData.keywordAlerts = alerts;
+  if (stored[ALERT_INTERVAL_KEY]) {
+    exportData.alertInterval = stored[ALERT_INTERVAL_KEY];
+  }
+
+  const json = JSON.stringify(exportData, null, 2);
   const fileName = `quiet-lounge-${new Date().toISOString().slice(0, 10)}.json`;
   const file = new File([json], fileName, { type: 'application/json' });
 
@@ -166,10 +185,34 @@ document.getElementById('file-import').addEventListener('change', async (e) => {
       alert('지원하지 않는 형식입니다.');
       return;
     }
+
+    // 키워드 알림 설정을 분리 (필드 존재 여부로 판정 — 빈 배열 = 전체 해제 의도)
+    const importedAlerts = parsed.keywordAlerts;
+    const importedInterval = parsed.alertInterval;
+    delete parsed.keywordAlerts;
+    delete parsed.alertInterval;
+
     blockData = parsed;
     await saveData();
+
+    if (Array.isArray(importedAlerts)) {
+      keywordAlerts = importedAlerts;
+      await QLStorage.set({ [KEYWORD_ALERTS_KEY]: JSON.stringify(keywordAlerts) });
+      renderKeywordAlerts();
+    }
+    if (typeof importedInterval === 'number' && Number.isFinite(importedInterval)) {
+      // README 문서상 허용 범위 1~60 분. 외부 백업의 비정상 값으로 폴링이 멈추지 않도록 clamp.
+      const clamped = Math.min(60, Math.max(1, Math.round(importedInterval)));
+      await QLStorage.set({ [ALERT_INTERVAL_KEY]: clamped });
+      const intervalInput = document.getElementById('alert-interval');
+      if (intervalInput) {
+        intervalInput.value = String(clamped);
+        updateIntervalWarning(clamped);
+      }
+    }
+
     render();
-    alert('차단 목록을 가져왔습니다.');
+    alert('데이터를 가져왔습니다.');
   } catch {
     alert('올바른 JSON 파일이 아닙니다.');
   }

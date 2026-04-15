@@ -5,6 +5,22 @@ const ALERT_INTERVAL_KEY = 'quiet_lounge_alert_interval';
 const ALERT_LAST_CHECKED_KEY = 'quiet_lounge_alert_last_checked';
 const ALARM_NAME = 'quiet_lounge_keyword_check';
 
+// ISO 문자열 배열에서 파싱된 timestamp 기준 max 값을 반환.
+// sort().pop() 는 사전순 정렬이라 `+09:00` / `Z` / fractional seconds 가 섞이면 오답이 나올 수 있음.
+function pickMaxIsoDate(candidates) {
+  let bestIso = null;
+  let bestTs = -Infinity;
+  for (const c of candidates) {
+    if (!c) continue;
+    const ts = Date.parse(c);
+    if (Number.isFinite(ts) && ts > bestTs) {
+      bestTs = ts;
+      bestIso = c;
+    }
+  }
+  return bestIso;
+}
+
 // ── 뱃지 업데이트 ──
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (message.type === 'UPDATE_BADGE') {
@@ -19,7 +35,9 @@ chrome.runtime.onMessage.addListener((message, sender) => {
 async function setupAlarm() {
   const result = await chrome.storage.local.get([KEYWORD_ALERTS_KEY, ALERT_INTERVAL_KEY]);
   const alerts = result[KEYWORD_ALERTS_KEY] ? JSON.parse(result[KEYWORD_ALERTS_KEY]) : [];
-  const interval = result[ALERT_INTERVAL_KEY] || 5;
+  const rawInterval = result[ALERT_INTERVAL_KEY];
+  // README 문서상 허용 범위 1~60 분. 저장된 값이 범위를 벗어나 있어도 정상 폴링을 보장.
+  const interval = Math.min(60, Math.max(1, Number.isFinite(rawInterval) ? Math.round(rawInterval) : 5));
 
   const hasEnabled = alerts.some((a) => a.enabled);
 
@@ -76,12 +94,9 @@ async function checkKeywordAlerts() {
       }
 
       // lastChecked 를 가장 최신 글 시점으로 전진 (매칭 여부 무관) —
-      // postId 기반의 "기준 글 삭제 시 전체를 새 글로 간주" 문제 해결
-      const maxCreate = details
-        .map((p) => p.createTime)
-        .filter(Boolean)
-        .sort()
-        .pop();
+      // postId 기반의 "기준 글 삭제 시 전체를 새 글로 간주" 문제 해결.
+      // ISO 포맷이 혼재해도 올바르게 비교하도록 Date.parse 기반 비교.
+      const maxCreate = pickMaxIsoDate(details.map((p) => p.createTime));
       if (maxCreate) lastChecked[channelId] = maxCreate;
     } catch (e) {
       console.error(`[QuietLounge] 키워드 체크 실패 (${channelId}):`, e);

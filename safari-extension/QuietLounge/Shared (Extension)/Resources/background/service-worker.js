@@ -4,6 +4,22 @@
 
 const browser = globalThis.browser || globalThis.chrome;
 
+// ISO 문자열 배열에서 파싱된 timestamp 기준 max 값을 반환.
+// sort().pop() 는 사전순 정렬이라 `+09:00` / `Z` / fractional seconds 가 섞이면 오답이 나올 수 있음.
+function pickMaxIsoDate(candidates) {
+  let bestIso = null;
+  let bestTs = -Infinity;
+  for (const c of candidates) {
+    if (!c) continue;
+    const ts = Date.parse(c);
+    if (Number.isFinite(ts) && ts > bestTs) {
+      bestTs = ts;
+      bestIso = c;
+    }
+  }
+  return bestIso;
+}
+
 // Safari Web Extension에서 native handler로 전달.
 // 컨테이닝 앱 번들 ID — Safari에서는 이 값이 무시되긴 하지만 형식상 전달.
 const NATIVE_APP_ID = 'kr.konempty.quietlounge';
@@ -146,7 +162,9 @@ async function setupKeywordAlarm() {
   try {
     const result = await browser.storage.local.get([KEYWORD_ALERTS_KEY, ALERT_INTERVAL_KEY]);
     const alerts = result[KEYWORD_ALERTS_KEY] ? JSON.parse(result[KEYWORD_ALERTS_KEY]) : [];
-    const interval = Math.max(1, parseInt(result[ALERT_INTERVAL_KEY], 10) || 5);
+    // README 문서상 허용 범위 1~60 분 — 저장된 값이 범위를 벗어나 있어도 정상 폴링 보장.
+    const rawInterval = parseInt(result[ALERT_INTERVAL_KEY], 10);
+    const interval = Math.min(60, Math.max(1, Number.isFinite(rawInterval) ? rawInterval : 5));
     const hasEnabled = alerts.some((a) => a.enabled);
 
     await browser.alarms.clear(ALARM_NAME);
@@ -207,12 +225,9 @@ async function checkKeywordAlerts() {
           }
         }
 
-        // lastChecked 를 가장 최신 글 시점으로 전진 (매칭 여부 무관)
-        const maxCreate = details
-          .map((p) => p.createTime)
-          .filter(Boolean)
-          .sort()
-          .pop();
+        // lastChecked 를 가장 최신 글 시점으로 전진 (매칭 여부 무관).
+        // ISO 포맷이 혼재해도 올바르게 비교하도록 Date.parse 기반 비교.
+        const maxCreate = pickMaxIsoDate(details.map((p) => p.createTime));
         if (maxCreate) lastChecked[channelId] = maxCreate;
       } catch (e) {
         console.warn(`[QL][bg] channel ${channelId} failed`, e);

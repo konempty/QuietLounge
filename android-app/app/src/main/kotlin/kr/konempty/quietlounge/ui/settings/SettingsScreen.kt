@@ -109,26 +109,28 @@ fun SettingsScreen(
 
     // 내보내기 — 캐시 디렉토리에 JSON 저장 후 ACTION_SEND 로 공유
     val exportShare: () -> Unit = {
-        try {
-            val json = viewModel.exportJson()
-            val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-            val cacheDir = File(ctx.cacheDir, "exports").apply { mkdirs() }
-            val file = File(cacheDir, "quietlounge_backup_$date.json").apply { writeText(json) }
-            val uri =
-                FileProvider.getUriForFile(
-                    ctx,
-                    "${ctx.packageName}.fileprovider",
-                    file,
-                )
-            val intent =
-                Intent(Intent.ACTION_SEND).apply {
-                    type = "application/json"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-            ctx.startActivity(Intent.createChooser(intent, "QuietLounge 데이터 내보내기"))
-        } catch (t: Throwable) {
-            infoMessage = "내보내기 실패: ${t.message}"
+        viewModel.exportJson { json ->
+            try {
+                val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                val cacheDir = File(ctx.cacheDir, "exports").apply { mkdirs() }
+                val file =
+                    File(cacheDir, "quietlounge_backup_$date.json").apply { writeText(json) }
+                val uri =
+                    FileProvider.getUriForFile(
+                        ctx,
+                        "${ctx.packageName}.fileprovider",
+                        file,
+                    )
+                val intent =
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "application/json"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                ctx.startActivity(Intent.createChooser(intent, "QuietLounge 데이터 내보내기"))
+            } catch (t: Throwable) {
+                infoMessage = "내보내기 실패: ${t.message}"
+            }
         }
     }
 

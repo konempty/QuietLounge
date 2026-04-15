@@ -89,6 +89,11 @@ class KeywordAlertRepository(
         }
     }
 
+    /** import 복원용 — 기존 목록을 통째로 교체 (빈 리스트 = 전체 해제). */
+    suspend fun replaceAllAlerts(list: List<KeywordAlert>) {
+        saveAlerts(list)
+    }
+
     suspend fun getLastChecked(): Map<String, String> {
         val raw =
             context.qlDataStore.data.first()[PreferencesKeys.ALERT_LAST_CHECKED]

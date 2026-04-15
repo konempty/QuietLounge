@@ -157,6 +157,29 @@ class BlockListEngineTest {
     }
 
     @Test
+    fun `oldname 닉네임 차단 후 newname 으로 감지되면 oldname 엔트리도 제거`() {
+        val engine = BlockListEngine()
+        engine.updatePersonaCache("p1", "oldname")
+        engine.blockByNickname("oldname")
+        engine.updatePersonaCache("p1", "newname")
+        val data = engine.snapshot()
+        assertEquals("newname", data.blockedUsers["p1"]?.nickname)
+        // 승격 근거가 된 oldname 엔트리가 반드시 제거되어야 함 — 다른 사용자 오탐 방지.
+        assertTrue(data.nicknameOnlyBlocks.isEmpty())
+    }
+
+    @Test
+    fun `이전 닉네임 기준 승격 후 같은 oldname 을 쓰는 다른 유저는 미차단`() {
+        val engine = BlockListEngine()
+        engine.updatePersonaCache("pA", "oldname")
+        engine.blockByNickname("oldname")
+        engine.updatePersonaCache("pA", "newname")
+        // oldname 엔트리가 사라졌으므로 nicknameOnlyBlocks 에 남지 않음
+        val data = engine.snapshot()
+        assertTrue(data.nicknameOnlyBlocks.none { it.nickname == "oldname" })
+    }
+
+    @Test
     fun `차단 안 된 유저의 cache 갱신은 blockedUsers 변경 없음`() {
         val engine = BlockListEngine()
         engine.updatePersonaCache("p1", "hello")

@@ -288,6 +288,136 @@ describe('chrome popup.html + popup.js', () => {
     expect(warn.style.display).toBe('none');
   });
 
+  it('import 시 빈 keywordAlerts 배열은 전체 해제로 반영', async () => {
+    const seed = {
+      quiet_lounge_keyword_alerts: JSON.stringify([
+        {
+          id: 'old',
+          channelId: 'c1',
+          channelName: '기존채널',
+          keywords: ['old'],
+          enabled: true,
+          createdAt: '2026-04-01T00:00:00Z',
+        },
+      ]),
+    };
+    const ctx = await setupPopup({ seed });
+    dom = ctx.dom;
+    const doc = ctx.win.document;
+
+    // 기존 알림이 있는 상태 확인
+    expect(doc.getElementById('keyword-alerts-list').innerHTML).toContain('기존채널');
+
+    // 빈 keywordAlerts 를 담은 import 파일 시뮬레이션
+    const importJson = JSON.stringify({
+      version: 2,
+      blockedUsers: {},
+      nicknameOnlyBlocks: [],
+      personaCache: {},
+      keywordAlerts: [],
+    });
+    const fileInput = doc.getElementById('file-import');
+    const file = {
+      text: async () => importJson,
+    };
+    Object.defineProperty(fileInput, 'files', { value: [file], configurable: true });
+    // alert 억제
+    ctx.win.alert = () => {};
+    fileInput.dispatchEvent(new ctx.win.Event('change'));
+    for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
+
+    // 빈 배열로 덮어써져야 함 — 기존채널이 더 이상 보이지 않음
+    expect(doc.getElementById('keyword-alerts-list').innerHTML).not.toContain('기존채널');
+    // 저장소에도 빈 배열 반영
+    const stored = ctx.chrome._storage._store.quiet_lounge_keyword_alerts;
+    expect(JSON.parse(stored)).toEqual([]);
+  });
+
+  it('import 시 keywordAlerts 필드 없으면 기존 알림 유지', async () => {
+    const seed = {
+      quiet_lounge_keyword_alerts: JSON.stringify([
+        {
+          id: 'keep',
+          channelId: 'c1',
+          channelName: '유지채널',
+          keywords: ['k'],
+          enabled: true,
+          createdAt: '2026-04-01T00:00:00Z',
+        },
+      ]),
+    };
+    const ctx = await setupPopup({ seed });
+    dom = ctx.dom;
+    const doc = ctx.win.document;
+
+    const importJson = JSON.stringify({
+      version: 2,
+      blockedUsers: {},
+      nicknameOnlyBlocks: [],
+      personaCache: {},
+      // keywordAlerts 필드 없음
+    });
+    const fileInput = doc.getElementById('file-import');
+    const file = { text: async () => importJson };
+    Object.defineProperty(fileInput, 'files', { value: [file], configurable: true });
+    ctx.win.alert = () => {};
+    fileInput.dispatchEvent(new ctx.win.Event('change'));
+    for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
+
+    // 기존 알림이 유지되어야 함
+    expect(doc.getElementById('keyword-alerts-list').innerHTML).toContain('유지채널');
+  });
+
+  it('export 클릭 — personaCache 는 내보낸 JSON 에서 제외', async () => {
+    const seed = {
+      quiet_lounge_data: JSON.stringify({
+        version: 2,
+        blockedUsers: {
+          p1: {
+            personaId: 'p1',
+            nickname: '유저',
+            previousNicknames: [],
+            blockedAt: '2026-04-01T00:00:00Z',
+            reason: '',
+          },
+        },
+        nicknameOnlyBlocks: [],
+        personaCache: {
+          p1: { nickname: '유저', lastSeen: '2026-04-01T00:00:00Z' },
+          p2: { nickname: '캐시만', lastSeen: '2026-04-01T00:00:00Z' },
+        },
+      }),
+    };
+    const ctx = await setupPopup({ seed });
+    dom = ctx.dom;
+    const doc = ctx.win.document;
+
+    // export 는 Blob 을 만들고 a.click() 으로 다운로드 — Blob 의 내용을 가로채려면 URL.createObjectURL 을 mock
+    let capturedJson = null;
+    ctx.win.URL.createObjectURL = (blob) => {
+      blob.text().then((txt) => {
+        capturedJson = txt;
+      });
+      return 'blob:mocked';
+    };
+    ctx.win.URL.revokeObjectURL = () => {};
+    // a.click() 는 무시 (jsdom 다운로드 미지원)
+    const origCreateElement = doc.createElement.bind(doc);
+    doc.createElement = (tag) => {
+      const el = origCreateElement(tag);
+      if (tag === 'a') el.click = () => {};
+      return el;
+    };
+
+    doc.getElementById('btn-export').click();
+    for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
+
+    expect(capturedJson).toBeTruthy();
+    const parsed = JSON.parse(capturedJson);
+    expect(parsed.personaCache).toBeUndefined();
+    expect(parsed.blockedUsers.p1).toBeDefined();
+  });
+
   it('storage onChanged — 키워드 알림 리스트 재렌더', async () => {
     const ctx = await setupPopup();
     dom = ctx.dom;
