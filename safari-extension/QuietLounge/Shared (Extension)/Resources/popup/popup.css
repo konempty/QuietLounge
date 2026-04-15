@@ -23,15 +23,7 @@ body {
 }
 
 .container {
-  padding: 16px;
-  max-height: 600px;
-  overflow-y: auto;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.container::-webkit-scrollbar {
-  display: none;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
 }
 
 header {
