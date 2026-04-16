@@ -102,6 +102,53 @@ enum QuietLoungeCore {
         return best?.iso
     }
 
+    // MARK: - 플로우 레이아웃 (키워드 태그 배치)
+
+    /// 왼쪽 정렬 플로우 레이아웃 계산 — UITableView 의 heightForRowAt 에서 사용.
+    /// UIKit 의존 없는 순수 함수로, 아이템 크기 배열과 최대 폭을 받아
+    /// 각 아이템의 위치 배열과 전체 높이를 반환.
+    /// - itemSizes: 각 아이템(태그)의 (width, height)
+    /// - maxWidth: 한 줄의 최대 폭
+    /// - hSpacing: 같은 줄 아이템 간 가로 간격
+    /// - vSpacing: 줄 사이 세로 간격
+    struct FlowFrame: Equatable {
+        let x: Double
+        let y: Double
+        let width: Double
+        let height: Double
+    }
+
+    struct FlowLayoutResult {
+        let frames: [FlowFrame]
+        let totalHeight: Double
+    }
+
+    static func computeFlowLayout(
+        itemSizes: [(width: Double, height: Double)],
+        maxWidth: Double,
+        hSpacing: Double = 4,
+        vSpacing: Double = 4
+    ) -> FlowLayoutResult {
+        guard maxWidth > 0, !itemSizes.isEmpty else { return FlowLayoutResult(frames: [], totalHeight: 0) }
+
+        var frames: [FlowFrame] = []
+        var x: Double = 0
+        var y: Double = 0
+        var lineHeight: Double = 0
+
+        for size in itemSizes {
+            if x + size.width > maxWidth && x > 0 {
+                x = 0
+                y += lineHeight + vSpacing
+                lineHeight = 0
+            }
+            frames.append(FlowFrame(x: x, y: y, width: size.width, height: size.height))
+            x += size.width + hSpacing
+            lineHeight = max(lineHeight, size.height)
+        }
+        return FlowLayoutResult(frames: frames, totalHeight: y + lineHeight)
+    }
+
     // MARK: - 차단 데이터 승격 + 닉네임 변경 추적
 
     /// `personaCache` 갱신과 동시에 shared/block-list.ts 의 승격 규칙을 적용한다.

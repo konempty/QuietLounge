@@ -48,6 +48,7 @@
 		C2D68CD62F7BBA6100033FEF /* WebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCF2F7BBA6100033FEF /* WebViewController.swift */; };
 		C2D68CDA2F7BBA6100033FEF /* KeywordAlertManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CD92F7BBA6100033FEF /* KeywordAlertManager.swift */; };
 		C2D68CE62F7BBA6100033FEF /* QuietLoungeCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CE52F7BBA6100033FEF /* QuietLoungeCore.swift */; };
+		E11D4F062FA0000100AAB001 /* AlertSetupViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11D4F072FA0000100AAB001 /* AlertSetupViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -132,6 +133,7 @@
 		C2D68CE32F7BBA6100033FEF /* QuietLounge.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QuietLounge.entitlements; sourceTree = "<group>"; };
 		C2D68CE42F7BBA6100033FEF /* QuietLounge Extension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "QuietLounge Extension.entitlements"; sourceTree = "<group>"; };
 		C2D68CE52F7BBA6100033FEF /* QuietLoungeCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuietLoungeCore.swift; sourceTree = "<group>"; };
+		E11D4F072FA0000100AAB001 /* AlertSetupViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertSetupViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -231,6 +233,7 @@
 				C2D68CCF2F7BBA6100033FEF /* WebViewController.swift */,
 				C2D68CD02F7BBA6100033FEF /* WebViewScripts.swift */,
 				C2D68CE52F7BBA6100033FEF /* QuietLoungeCore.swift */,
+				E11D4F072FA0000100AAB001 /* AlertSetupViewController.swift */,
 				C2C98C322F7A61E800588733 /* AppDelegate.swift */,
 				C2C98C342F7A61E800588733 /* SceneDelegate.swift */,
 				C2C98C362F7A61E800588733 /* LaunchScreen.storyboard */,
@@ -503,6 +506,7 @@
 				C2D68CD52F7BBA6100033FEF /* BlockListViewController.swift in Sources */,
 				C2D68CD62F7BBA6100033FEF /* WebViewController.swift in Sources */,
 				C2D68CE62F7BBA6100033FEF /* QuietLoungeCore.swift in Sources */,
+				E11D4F062FA0000100AAB001 /* AlertSetupViewController.swift in Sources */,
 				C2C98C652F7A61E900588733 /* ViewController.swift in Sources */,
 				C2C98C332F7A61E800588733 /* AppDelegate.swift in Sources */,
 				C2C98C352F7A61E800588733 /* SceneDelegate.swift in Sources */,

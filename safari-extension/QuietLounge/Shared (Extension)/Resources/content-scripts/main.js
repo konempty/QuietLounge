@@ -940,7 +940,6 @@
       const url = `https://lounge.naver.com/posts/${payload.postId}`;
       const title = payload.titleB64 ? base64ToUtf8(payload.titleB64) : payload.title || '';
       const body = payload.bodyB64 ? base64ToUtf8(payload.bodyB64) : payload.body || '';
-      console.log('[QL][cs] notification', { title, body });
       const n = new Notification(title, {
         body,
         icon: payload.icon,

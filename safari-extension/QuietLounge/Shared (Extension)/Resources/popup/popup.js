@@ -638,14 +638,12 @@ document.getElementById('btn-save-alert').addEventListener('click', async () => 
   if (isMac) {
     try {
       browser.runtime.sendMessage({ type: 'QL_KEYWORD_CHECK_NOW' }, (resp) => {
-        console.log('[QL][popup] CHECK_NOW response', resp, browser.runtime.lastError);
       });
     } catch (e) {
       console.warn('[QL][popup] CHECK_NOW failed', e);
     }
     try {
       browser.runtime.sendMessage({ type: 'QL_PROMPT_NOTIF_PERM' }, (resp) => {
-        console.log('[QL][popup] PROMPT_NOTIF_PERM response', resp);
         if (resp && resp.ok && resp.tabCount === 0) {
           alert(
             '키워드 알림을 사용하려면 lounge.naver.com 페이지에서 알림 권한을 한 번 허용해야 합니다.\n라운지 탭을 열고 다시 시도해 주세요.',

@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -290,32 +291,24 @@ internal fun KeywordTagFlow(
     keywords: List<String>,
     onRemove: (Int) -> Unit,
 ) {
-    Row(
+    FlowRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        // 간단한 한 줄 wrap — 단순 구현 (FlowRow 미사용)
-        Column {
-            val rows = keywords.chunked(3)
-            rows.forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    row.forEachIndexed { i, kw ->
-                        val absIdx = rows.indexOf(row) * 3 + i
-                        Text(
-                            text = "$kw  ✕",
-                            color = QlPrimary,
-                            fontSize = 12.sp,
-                            modifier =
-                                Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color(0x261FAF63))
-                                    .clickable { onRemove(absIdx) }
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                        )
-                    }
-                }
-                Spacer(Modifier.height(4.dp))
-            }
+        keywords.forEachIndexed { idx, kw ->
+            Text(
+                text = "$kw  ✕",
+                color = QlPrimary,
+                fontSize = 12.sp,
+                maxLines = 1,
+                modifier =
+                    Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0x261FAF63))
+                        .clickable { onRemove(idx) }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+            )
         }
     }
 }

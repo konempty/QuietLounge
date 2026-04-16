@@ -260,6 +260,119 @@ final class PickMaxIsoDateTests: XCTestCase {
     }
 }
 
+// MARK: - computeFlowLayout (KeywordTagFlowView 의 플로우 레이아웃 math)
+
+final class FlowLayoutTests: XCTestCase {
+    private func sizes(_ widths: [Double], height: Double = 20) -> [(width: Double, height: Double)] {
+        widths.map { ($0, height) }
+    }
+
+    func test_빈_배열은_높이_0() {
+        let result = QuietLoungeCore.computeFlowLayout(itemSizes: [], maxWidth: 100)
+        XCTAssertEqual(result.totalHeight, 0)
+        XCTAssertTrue(result.frames.isEmpty)
+    }
+
+    func test_maxWidth_0_이하면_빈_결과() {
+        let result = QuietLoungeCore.computeFlowLayout(itemSizes: sizes([20, 30]), maxWidth: 0)
+        XCTAssertEqual(result.totalHeight, 0)
+        XCTAssertTrue(result.frames.isEmpty)
+    }
+
+    func test_단일_아이템은_한_줄() {
+        let result = QuietLoungeCore.computeFlowLayout(itemSizes: sizes([50]), maxWidth: 100)
+        XCTAssertEqual(result.totalHeight, 20)
+        XCTAssertEqual(result.frames.count, 1)
+        XCTAssertEqual(result.frames[0].x, 0)
+        XCTAssertEqual(result.frames[0].y, 0)
+    }
+
+    func test_같은_줄_내_아이템은_hSpacing_만큼_떨어짐() {
+        let result = QuietLoungeCore.computeFlowLayout(
+            itemSizes: sizes([30, 30]), maxWidth: 100, hSpacing: 4
+        )
+        XCTAssertEqual(result.frames.count, 2)
+        XCTAssertEqual(result.frames[0].x, 0)
+        XCTAssertEqual(result.frames[1].x, 30 + 4) // 첫 아이템 끝 + spacing
+        XCTAssertEqual(result.frames[1].y, 0)      // 같은 줄
+        XCTAssertEqual(result.totalHeight, 20)
+    }
+
+    func test_maxWidth_초과_시_다음_줄로_wrap() {
+        // 30 + 4 + 30 + 4 + 30 = 98 (fit), 98 + 4 + 30 = 132 (over 100) → wrap
+        let result = QuietLoungeCore.computeFlowLayout(
+            itemSizes: sizes([30, 30, 30, 30]), maxWidth: 100, hSpacing: 4, vSpacing: 4
+        )
+        XCTAssertEqual(result.frames.count, 4)
+        // 첫 줄: 3개 (0, 34, 68)
+        XCTAssertEqual(result.frames[0].x, 0)
+        XCTAssertEqual(result.frames[0].y, 0)
+        XCTAssertEqual(result.frames[1].x, 34)
+        XCTAssertEqual(result.frames[1].y, 0)
+        XCTAssertEqual(result.frames[2].x, 68)
+        XCTAssertEqual(result.frames[2].y, 0)
+        // 둘째 줄: 1개
+        XCTAssertEqual(result.frames[3].x, 0)
+        XCTAssertEqual(result.frames[3].y, 24) // 20 + 4 vSpacing
+        // 총 높이 = 둘째 줄 y + 줄 높이
+        XCTAssertEqual(result.totalHeight, 44)
+    }
+
+    func test_단일_아이템이_maxWidth_초과해도_같은_줄에_배치() {
+        // 첫 아이템이 maxWidth 보다 커도 wrap 하지 않음 (x > 0 조건 때문에)
+        let result = QuietLoungeCore.computeFlowLayout(itemSizes: sizes([200]), maxWidth: 100)
+        XCTAssertEqual(result.frames.count, 1)
+        XCTAssertEqual(result.frames[0].x, 0)
+        XCTAssertEqual(result.frames[0].y, 0)
+    }
+
+    func test_줄별_lineHeight_가_달라도_올바르게_누적() {
+        let result = QuietLoungeCore.computeFlowLayout(
+            itemSizes: [(50, 20), (50, 30)], // 100 = 50 + 4 + 50 → fit (단, hSpacing 빼면)
+            maxWidth: 200,
+            hSpacing: 4,
+            vSpacing: 4
+        )
+        // 둘 다 한 줄: 첫 줄 높이 = max(20, 30) = 30
+        XCTAssertEqual(result.totalHeight, 30)
+    }
+
+    func test_여러_줄_lineHeight_따로_계산() {
+        let result = QuietLoungeCore.computeFlowLayout(
+            itemSizes: [(60, 20), (60, 30), (60, 25)], // 60 + 4 + 60 = 124 (over 100) → 첫 줄 1개
+            maxWidth: 100,
+            hSpacing: 4,
+            vSpacing: 4
+        )
+        XCTAssertEqual(result.frames.count, 3)
+        // 첫 줄: [0]
+        XCTAssertEqual(result.frames[0].y, 0)
+        // 둘째 줄: [1] — y = 20 (첫 줄 높이) + 4 (vSpacing)
+        XCTAssertEqual(result.frames[1].y, 24)
+        // 셋째 줄: [2] — y = 24 + 30 + 4 = 58
+        XCTAssertEqual(result.frames[2].y, 58)
+        // 총 높이 = 58 + 25 = 83
+        XCTAssertEqual(result.totalHeight, 83)
+    }
+
+    func test_딱_맞는_경우_wrap_안_함() {
+        // 30 + 4 + 30 = 64 ≤ 100 → 같은 줄
+        let result = QuietLoungeCore.computeFlowLayout(
+            itemSizes: sizes([30, 30]), maxWidth: 64, hSpacing: 4
+        )
+        XCTAssertEqual(result.frames.count, 2)
+        XCTAssertEqual(result.frames[1].y, 0) // 같은 줄
+    }
+
+    func test_경계값_초과_1px_차이로_wrap() {
+        // maxWidth = 63 → 30 + 4 + 30 = 64 > 63 → wrap
+        let result = QuietLoungeCore.computeFlowLayout(
+            itemSizes: sizes([30, 30]), maxWidth: 63, hSpacing: 4, vSpacing: 4
+        )
+        XCTAssertEqual(result.frames[1].y, 24) // 다음 줄
+    }
+}
+
 // MARK: - applyPersonaCacheUpdate
 
 final class PersonaCachePromotionTests: XCTestCase {

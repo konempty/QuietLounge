@@ -15,6 +15,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -632,12 +633,16 @@ private fun KeywordAlertsSection(viewModel: KeywordAlertsViewModel = viewModel()
                             color = MaterialTheme.colorScheme.onBackground,
                         )
                         Spacer(Modifier.height(6.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
                             alert.keywords.forEach { kw ->
                                 Text(
                                     text = kw,
                                     color = QlPrimary,
                                     fontSize = 12.sp,
+                                    maxLines = 1,
                                     modifier =
                                         Modifier
                                             .clip(RoundedCornerShape(4.dp))

@@ -103,7 +103,6 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'QL_KEYWORD_CHECK_NOW') {
-    console.log('[QL][bg] CHECK_NOW triggered');
     setupKeywordAlarm()
       .then(() => checkKeywordAlerts())
       .then(() => sendResponse({ ok: true }))
@@ -115,7 +114,6 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'QL_PROMPT_NOTIF_PERM') {
-    console.log('[QL][bg] PROMPT_NOTIF_PERM triggered');
     promptPermissionOnLoungeTabs()
       .then((tabCount) => sendResponse({ ok: true, tabCount }))
       .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
@@ -123,7 +121,6 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'QL_NOTIFY_TEST') {
-    console.log('[QL][bg] NOTIFY_TEST triggered');
     dispatchKeywordNotification(
       { channelName: '\ud14c\uc2a4\ud2b8' },
       { postId: 'test', title: '\ud14c\uc2a4\ud2b8 \uc54c\ub9bc\uc785\ub2c8\ub2e4' },
@@ -136,7 +133,6 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 browser.runtime.onInstalled.addListener(() => {
-  console.log('[QL][bg] onInstalled');
   setupKeywordAlarm();
 });
 
@@ -170,9 +166,6 @@ async function setupKeywordAlarm() {
     await browser.alarms.clear(ALARM_NAME);
     if (hasEnabled) {
       browser.alarms.create(ALARM_NAME, { periodInMinutes: interval });
-      console.log(`[QL][bg] alarm registered: ${alerts.length} alerts, ${interval} min interval`);
-    } else {
-      console.log('[QL][bg] no enabled alerts → alarm cleared');
     }
   } catch (e) {
     console.warn('[QL][bg] setupKeywordAlarm failed', e);
@@ -188,7 +181,6 @@ async function checkKeywordAlerts() {
       : {};
 
     const enabledAlerts = alerts.filter((a) => a.enabled);
-    console.log(`[QL][bg] checkKeywordAlerts → ${enabledAlerts.length} enabled`);
     if (enabledAlerts.length === 0) return;
 
     const channelAlerts = {};
@@ -200,13 +192,9 @@ async function checkKeywordAlerts() {
     for (const [channelId, alertsForChannel] of Object.entries(channelAlerts)) {
       try {
         const recentIds = await fetchRecentPostIds(channelId);
-        console.log(
-          `[QL][bg] channel ${channelId}: ${recentIds.length} recent (lastChecked=${lastChecked[channelId] || 'none'})`,
-        );
         if (recentIds.length === 0) continue;
 
         const details = await fetchPostTitles(recentIds);
-        console.log(`[QL][bg] fetched ${details.length} details`);
         if (details.length === 0) continue;
 
         const lastTs = lastChecked[channelId] ? Date.parse(lastChecked[channelId]) : 0;
@@ -219,7 +207,6 @@ async function checkKeywordAlerts() {
               post.title.toLowerCase().includes(kw.toLowerCase()),
             );
             if (matched) {
-              console.log(`[QL][bg] match: "${matched}" in postId=${post.postId}`);
               await dispatchKeywordNotification(alert, post, matched);
             }
           }
@@ -317,7 +304,6 @@ async function dispatchKeywordNotification(alert, post, matchedKeyword) {
   let delivered = false;
   try {
     const tabs = await browser.tabs.query({ url: 'https://lounge.naver.com/*' });
-    console.log(`[QL][bg] dispatch → ${tabs.length} lounge tab(s)`);
     for (const tab of tabs) {
       if (delivered) break;
       try {
@@ -342,10 +328,7 @@ async function dispatchKeywordNotification(alert, post, matchedKeyword) {
           }
           setTimeout(() => done(null), 1500);
         });
-        if (resp && resp.ok) {
-          delivered = true;
-          console.log(`[QL][bg] notification delivered via tab ${tab.id}`);
-        }
+        if (resp && resp.ok) delivered = true;
       } catch (e) {
         console.warn(`[QL][bg] sendMessage to tab ${tab.id} failed`, e);
       }
@@ -354,9 +337,6 @@ async function dispatchKeywordNotification(alert, post, matchedKeyword) {
     console.warn('[QL][bg] tabs.query failed', e);
   }
 
-  if (!delivered) {
-    console.log('[QL][bg] no lounge tab accepted notification → badge fallback');
-  }
   bumpBadge(1);
 }
 
@@ -372,7 +352,6 @@ async function promptPermissionOnLoungeTabs() {
   try {
     const tabs = await browser.tabs.query({ url: 'https://lounge.naver.com/*' });
     tabCount = tabs.length;
-    console.log(`[QL][bg] prompt perm → ${tabCount} lounge tab(s)`);
     for (const tab of tabs) {
       try {
         browser.tabs.sendMessage(tab.id, { type: 'QL_PROMPT_NOTIF_PERM' });
@@ -386,13 +365,8 @@ async function promptPermissionOnLoungeTabs() {
   return tabCount;
 }
 
-console.log(
-  `[QL][bg] init — alarms=${!!browser.alarms} action=${!!browser.action} ua=${(typeof navigator !== 'undefined' && navigator.userAgent) || ''}`,
-);
-
 if (browser.alarms) {
   browser.alarms.onAlarm.addListener((alarm) => {
-    console.log(`[QL][bg] alarm fired: ${alarm.name}`);
     if (alarm.name === ALARM_NAME) checkKeywordAlerts();
   });
 }
@@ -401,7 +375,6 @@ if (browser.storage?.onChanged) {
   browser.storage.onChanged.addListener((changes, area) => {
     if (area && area !== 'local') return;
     if (changes[KEYWORD_ALERTS_KEY] || changes[ALERT_INTERVAL_KEY]) {
-      console.log('[QL][bg] keyword alerts/interval changed → re-setup alarm');
       setupKeywordAlarm();
     }
   });

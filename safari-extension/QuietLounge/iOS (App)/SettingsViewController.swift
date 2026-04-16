@@ -546,17 +546,30 @@ class SettingsViewController: UITableViewController {
                 config.textProperties.alignment = .center
                 cell.contentConfiguration = config
             } else {
-                // 알림 항목
+                // 알림 항목 — Chrome/Safari/Android 와 동일한 태그 스타일 UI
                 let alert = kwAlerts[indexPath.row - 1]
                 let channelName = alert["channelName"] as? String ?? ""
                 let keywords = alert["keywords"] as? [String] ?? []
                 let enabled = alert["enabled"] as? Bool ?? true
-                var config = cell.defaultContentConfiguration()
-                config.text = channelName
-                config.secondaryText = keywords.joined(separator: ", ")
-                config.secondaryTextProperties.color = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
-                config.secondaryTextProperties.font = .systemFont(ofSize: 12)
-                cell.contentConfiguration = config
+
+                cell.contentConfiguration = nil
+                cell.contentView.subviews.forEach { $0.removeFromSuperview() }
+
+                let availableWidth = tableView.bounds.width - 120 // 16 leading + 70 trailing (toggle+delete)
+                let channelFont = UIFont.systemFont(ofSize: 15, weight: .medium)
+                let channelHeight = ceil(channelFont.lineHeight)
+
+                let channelLabel = UILabel(frame: CGRect(x: 16, y: 10, width: availableWidth, height: channelHeight))
+                channelLabel.text = channelName
+                channelLabel.font = channelFont
+                cell.contentView.addSubview(channelLabel)
+
+                let tagY = 10 + channelHeight + 6
+                let tagHeight = KeywordTagFlowView.calculateHeight(for: keywords, in: availableWidth)
+                let tagFlow = KeywordTagFlowView(frame: CGRect(x: 16, y: tagY, width: availableWidth, height: tagHeight))
+                tagFlow.configure(with: keywords)
+                cell.contentView.addSubview(tagFlow)
+
                 let toggle = UISwitch()
                 toggle.isOn = enabled
                 toggle.onTintColor = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
@@ -599,6 +612,22 @@ class SettingsViewController: UITableViewController {
         }
 
         return cell
+    }
+
+    override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        // 키워드 알림 항목(section 3, row > 0)은 태그 줄바꿈에 따라 높이가 달라지므로 직접 계산.
+        // Auto Layout self-sizing 은 셀 재사용/높이 캐싱과 충돌해 채널명이 잘리는 문제가 있어
+        // 명시적 높이를 반환하는 방식이 가장 안정적.
+        let alerts = KeywordAlertManager.shared.alerts
+        if indexPath.section == 3, indexPath.row > 0, indexPath.row <= alerts.count {
+            let alert = alerts[indexPath.row - 1]
+            let keywords = alert["keywords"] as? [String] ?? []
+            let availableWidth = tableView.bounds.width - 120
+            let channelHeight = ceil(UIFont.systemFont(ofSize: 15, weight: .medium).lineHeight)
+            let tagHeight = KeywordTagFlowView.calculateHeight(for: keywords, in: availableWidth)
+            return 10 + channelHeight + 6 + tagHeight + 10
+        }
+        return UITableView.automaticDimension
     }
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
@@ -673,106 +702,9 @@ class SettingsViewController: UITableViewController {
     }
 
     @objc private func addKeywordAlert() {
-        showCategoryPicker()
-    }
-
-    // MARK: - 키워드 알림 추가 플로우
-
-    private func showCategoryPicker() {
-        let alert = UIAlertController(title: "카테고리 선택", message: "불러오는 중...", preferredStyle: .actionSheet)
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        present(alert, animated: true)
-
-        Task {
-            let url = URL(string: "https://api.lounge.naver.com/content-api/v1/categories?depth=2")!
-            guard let (data, _) = try? await URLSession.shared.data(from: url),
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let dataObj = json["data"] as? [String: Any],
-                  let items = dataObj["items"] as? [[String: Any]] else {
-                await MainActor.run {
-                    alert.dismiss(animated: true) {
-                        self.showAlert(title: "오류", message: "카테고리를 불러올 수 없습니다.")
-                    }
-                }
-                return
-            }
-
-            await MainActor.run {
-                alert.dismiss(animated: true) {
-                    let picker = UIAlertController(title: "카테고리 선택", message: nil, preferredStyle: .actionSheet)
-                    for item in items {
-                        guard let name = item["name"] as? String,
-                              let catId = item["categoryId"] as? Int else { continue }
-                        picker.addAction(UIAlertAction(title: name, style: .default) { _ in
-                            self.showChannelPicker(categoryId: catId)
-                        })
-                    }
-                    picker.addAction(UIAlertAction(title: "취소", style: .cancel))
-                    self.present(picker, animated: true)
-                }
-            }
-        }
-    }
-
-    private func showChannelPicker(categoryId: Int) {
-        let loading = UIAlertController(title: "채널 목록", message: "불러오는 중...", preferredStyle: .alert)
-        present(loading, animated: true)
-
-        Task {
-            var channels: [[String: Any]] = []
-            var page = 1
-            var hasMore = true
-            while hasMore {
-                let url = URL(string: "https://api.lounge.naver.com/content-api/v1/channels?categoryId=\(categoryId)&page=\(page)&size=50")!
-                guard let (data, _) = try? await URLSession.shared.data(from: url),
-                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let dataObj = json["data"] as? [String: Any],
-                      let items = dataObj["items"] as? [[String: Any]] else { break }
-                channels.append(contentsOf: items)
-                let pageInfo = dataObj["page"] as? [String: Any]
-                let total = pageInfo?["totalElements"] as? Int ?? 0
-                if page * 50 >= total { hasMore = false } else { page += 1 }
-            }
-
-            await MainActor.run {
-                loading.dismiss(animated: true) {
-                    let picker = UIAlertController(title: "채널 선택", message: nil, preferredStyle: .actionSheet)
-                    for ch in channels {
-                        guard let name = ch["name"] as? String,
-                              let chId = ch["finalChannelId"] as? String else { continue }
-                        picker.addAction(UIAlertAction(title: name, style: .default) { _ in
-                            self.showKeywordInput(channelId: chId, channelName: name)
-                        })
-                    }
-                    picker.addAction(UIAlertAction(title: "취소", style: .cancel))
-                    self.present(picker, animated: true)
-                }
-            }
-        }
-    }
-
-    private func showKeywordInput(channelId: String, channelName: String) {
-        let alert = UIAlertController(title: "키워드 입력", message: "\(channelName)\n쉼표로 구분하여 여러 키워드를 입력하세요", preferredStyle: .alert)
-        alert.addTextField { tf in
-            tf.placeholder = "예: 공지, 업데이트, 이벤트"
-        }
-        alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-        alert.addAction(UIAlertAction(title: "등록", style: .default) { _ in
-            guard let text = alert.textFields?.first?.text, !text.isEmpty else { return }
-            let keywords = text.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-            guard !keywords.isEmpty else { return }
-
-            KeywordAlertManager.shared.requestNotificationPermission { granted in
-                if granted {
-                    KeywordAlertManager.shared.addAlert(channelId: channelId, channelName: channelName, keywords: keywords)
-                    KeywordAlertManager.shared.restartTimer()
-                    self.tableView.reloadSections(IndexSet(integer: 3), with: .automatic)
-                } else {
-                    self.showAlert(title: "알림 권한 필요", message: "설정에서 알림 권한을 허용해 주세요.")
-                }
-            }
-        })
-        present(alert, animated: true)
+        let vc = AlertSetupViewController()
+        vc.delegate = self
+        present(vc, animated: true)
     }
 
     // 스와이프 삭제
@@ -857,5 +789,132 @@ extension SettingsViewController: UIDocumentPickerDelegate {
         } catch {
             showAlert(title: "오류", message: error.localizedDescription)
         }
+    }
+}
+
+// MARK: - AlertSetupDelegate
+
+extension SettingsViewController: AlertSetupDelegate {
+    func alertSetup(didSave keywords: [String], channelId: String, channelName: String) {
+        KeywordAlertManager.shared.requestNotificationPermission { [weak self] granted in
+            if granted {
+                KeywordAlertManager.shared.addAlert(channelId: channelId, channelName: channelName, keywords: keywords)
+                KeywordAlertManager.shared.restartTimer()
+                self?.tableView.reloadSections(IndexSet(integer: 3), with: .automatic)
+            } else {
+                self?.showAlert(title: "알림 권한 필요", message: "설정에서 알림 권한을 허용해 주세요.")
+            }
+        }
+    }
+}
+
+// MARK: - 키워드 태그 플로우 레이아웃 (Chrome/Safari/Android 와 동일 UX)
+
+private class PaddedTagLabel: UILabel {
+    override var intrinsicContentSize: CGSize {
+        let s = super.intrinsicContentSize
+        return CGSize(width: s.width + 12, height: s.height + 4)
+    }
+
+    override func drawText(in rect: CGRect) {
+        super.drawText(in: rect.insetBy(dx: 6, dy: 2))
+    }
+}
+
+class KeywordTagFlowView: UIView {
+    private static let tagColor = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
+    private static let tagBg = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 0.15)
+    static let tagFont = UIFont.systemFont(ofSize: 12)
+    private let hSpacing: CGFloat = 4
+    private let vSpacing: CGFloat = 4
+    private static let hPad: CGFloat = 12
+    private static let vPad: CGFloat = 4
+
+    /// 실제 뷰를 생성하지 않고 키워드 태그 높이만 계산 — heightForRowAt 에서 사용.
+    /// UIKit 텍스트 측정만 여기서 처리하고, 플로우 레이아웃 math 는 QuietLoungeCore.computeFlowLayout 에 위임.
+    static func calculateHeight(for keywords: [String], in maxWidth: CGFloat) -> CGFloat {
+        guard maxWidth > 0, !keywords.isEmpty else { return 0 }
+        let attrs: [NSAttributedString.Key: Any] = [.font: tagFont]
+        let sizes = keywords.map { kw -> (width: Double, height: Double) in
+            let s = (kw as NSString).size(withAttributes: attrs)
+            return (Double(s.width + hPad), Double(s.height + vPad))
+        }
+        let result = QuietLoungeCore.computeFlowLayout(itemSizes: sizes, maxWidth: Double(maxWidth))
+        return CGFloat(result.totalHeight)
+    }
+
+    func configure(with keywords: [String]) {
+        subviews.forEach { $0.removeFromSuperview() }
+        for kw in keywords {
+            let label = PaddedTagLabel()
+            label.text = kw
+            label.font = .systemFont(ofSize: 12)
+            label.textColor = Self.tagColor
+            label.backgroundColor = Self.tagBg
+            label.layer.cornerRadius = 4
+            label.clipsToBounds = true
+            addSubview(label)
+        }
+        invalidateIntrinsicContentSize()
+    }
+
+    /// 삭제 버튼(✕) 포함 태그 — AlertSetupViewController 에서 사용.
+    func configureRemovable(with keywords: [String], onRemove: @escaping (Int) -> Void) {
+        subviews.forEach { $0.removeFromSuperview() }
+        for (idx, kw) in keywords.enumerated() {
+            var btnConfig = UIButton.Configuration.plain()
+            btnConfig.title = "\(kw)  ✕"
+            btnConfig.baseForegroundColor = Self.tagColor
+            btnConfig.background.backgroundColor = Self.tagBg
+            btnConfig.background.cornerRadius = 4
+            btnConfig.contentInsets = NSDirectionalEdgeInsets(top: 2, leading: 6, bottom: 2, trailing: 6)
+            let btn = UIButton(configuration: btnConfig)
+            btn.titleLabel?.font = Self.tagFont
+            btn.tag = idx
+            btn.addAction(UIAction { _ in onRemove(idx) }, for: .touchUpInside)
+            addSubview(btn)
+        }
+        invalidateIntrinsicContentSize()
+        setNeedsLayout()
+    }
+
+    override var intrinsicContentSize: CGSize {
+        let width = bounds.width > 0 ? bounds.width : (superview?.bounds.width ?? 0)
+        guard width > 0 else { return CGSize(width: UIView.noIntrinsicMetric, height: 0) }
+        return CGSize(width: UIView.noIntrinsicMetric, height: computeLayout(in: width, apply: false))
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let oldHeight = computeLayout(in: bounds.width, apply: true)
+        if oldHeight != bounds.height {
+            invalidateIntrinsicContentSize()
+        }
+    }
+
+    @discardableResult
+    private func computeLayout(in maxWidth: CGFloat, apply: Bool) -> CGFloat {
+        guard maxWidth > 0 else { return 0 }
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var lineHeight: CGFloat = 0
+
+        for sub in subviews {
+            let size = sub.intrinsicContentSize
+            let w = size.width
+            let h = size.height
+
+            if x + w > maxWidth && x > 0 {
+                x = 0
+                y += lineHeight + vSpacing
+                lineHeight = 0
+            }
+
+            if apply { sub.frame = CGRect(x: x, y: y, width: w, height: h) }
+            x += w + hSpacing
+            lineHeight = max(lineHeight, h)
+        }
+
+        return y + lineHeight
     }
 }
