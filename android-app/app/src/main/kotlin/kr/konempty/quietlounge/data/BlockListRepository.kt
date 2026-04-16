@@ -1,5 +1,6 @@
 package kr.konempty.quietlounge.data
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.flow.Flow
@@ -118,6 +119,10 @@ class BlockListRepository(
     }
 
     companion object {
+        // INSTANCE 생성 시 반드시 applicationContext 만 전달하므로 Activity/Fragment 의
+        // 수명주기와 연결되지 않아 실제 leak 없음. Lint 는 "Context 가 static 필드" 라는
+        // 표면적 사실만 보고 경고하므로 의도적으로 suppress.
+        @SuppressLint("StaticFieldLeak")
         @Volatile
         private var INSTANCE: BlockListRepository? = null
 

@@ -47,10 +47,6 @@ export class BlockList {
     return this.data;
   }
 
-  setData(data: BlockListData): void {
-    this.data = data;
-  }
-
   async blockByPersonaId(personaId: string, nickname: string, reason = ''): Promise<void> {
     const existing = this.data.blockedUsers[personaId];
     const previousNicknames = existing?.previousNicknames ?? [];

@@ -72,6 +72,10 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // minSdk 24 에서 java.time.*, java.nio.file 등 JDK 8+ API 를 사용 가능하게 함.
+        // 활성화 안 하면 `Instant.now()`, `OffsetDateTime.parse()` 등이 API 24~25 에서
+        // NoClassDefFoundError 로 크래시 → AndroidLintNewApi ERROR 해소용.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     buildFeatures {
@@ -116,6 +120,8 @@ kotlin {
 }
 
 dependencies {
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
+
     implementation(libs.core.ktx)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.lifecycle.viewmodel.compose)

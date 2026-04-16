@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -52,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kr.konempty.quietlounge.BuildConfig
@@ -217,7 +217,7 @@ fun SettingsScreen(
                 onClick = {
                     runCatching {
                         ctx.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse("https://qr.kakaopay.com/FG31jvTdV")),
+                            Intent(Intent.ACTION_VIEW, "https://qr.kakaopay.com/FG31jvTdV".toUri()),
                         )
                     }
                 },

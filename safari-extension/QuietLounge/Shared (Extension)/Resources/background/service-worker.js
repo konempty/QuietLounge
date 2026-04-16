@@ -267,15 +267,6 @@ async function fetchPostTitles(postIds) {
   return results;
 }
 
-// 한국어 키워드가 들어간 식별자는 macOS 알림 시스템에서 silently dropped 되는 사례가
-// 있어 hex로 인코딩한다. 클릭 핸들러는 두 번째 segment(postId)만 본다.
-function hexEncode(str) {
-  let out = '';
-  const bytes = new TextEncoder().encode(str);
-  for (const b of bytes) out += b.toString(16).padStart(2, '0');
-  return out;
-}
-
 // Safari Web Extension은 browser.notifications API 미구현이고, 익스텐션 origin
 // (safari-web-extension://) 에서는 Notification.requestPermission()이 prompt를
 // 띄우지 않고 즉시 denied로 떨어진다. 따라서 lounge.naver.com (HTTPS top-level)

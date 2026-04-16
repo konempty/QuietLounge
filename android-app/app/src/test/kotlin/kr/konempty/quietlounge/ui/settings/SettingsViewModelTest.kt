@@ -62,7 +62,7 @@ class SettingsViewModelTest {
         }
 
         @Test
-        fun `혼합`() {
+        fun 혼합() {
             val data =
                 BlockListData(
                     blockedUsers =

@@ -1,6 +1,7 @@
 package kr.konempty.quietlounge.notification
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -14,6 +15,9 @@ import kr.konempty.quietlounge.R
 object NotificationHelper {
     const val CHANNEL_KEYWORD_ALERTS = "keyword_alerts"
 
+    // notify() 호출 직전에 hasPermission() 으로 체크하고 runCatching 으로 감쌌지만,
+    // @RequiresPermission annotation 기반 lint 가 이를 인식 못해 ERROR 를 냄 → suppress.
+    @SuppressLint("MissingPermission")
     fun showKeywordMatch(
         context: Context,
         postId: String,

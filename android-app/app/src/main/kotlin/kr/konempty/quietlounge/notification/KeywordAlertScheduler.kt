@@ -1,5 +1,6 @@
 package kr.konempty.quietlounge.notification
 
+import android.annotation.SuppressLint
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -146,6 +147,8 @@ class KeywordAlertScheduler(
     }
 
     companion object {
+        // applicationContext 만 저장 — 실제 leak 없음. StaticFieldLeak 설명은 BlockListRepository 참조.
+        @SuppressLint("StaticFieldLeak")
         @Volatile
         private var INSTANCE: KeywordAlertScheduler? = null
 

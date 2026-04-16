@@ -25,7 +25,6 @@ val QlLightBackground = Color(0xFFF2F2F7)
 val QlLightCard = Color(0xFFFFFFFF)
 val QlLightText = Color(0xFF000000)
 val QlLightTextSecondary = Color(0xFF8E8E93)
-val QlLightTextTertiary = Color(0xFFC7C7CC)
 val QlLightBorder = Color(0xFFC6C6C8)
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -40,5 +39,4 @@ val QlDarkBackground = Color(0xFF000000)
 val QlDarkCard = Color(0xFF1C1C1E)
 val QlDarkText = Color(0xFFFFFFFF)
 val QlDarkTextSecondary = Color(0xFF8E8E93)
-val QlDarkTextTertiary = Color(0xFF48484A)
 val QlDarkBorder = Color(0xFF38383A)

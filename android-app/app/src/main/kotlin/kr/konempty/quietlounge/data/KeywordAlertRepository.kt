@@ -1,5 +1,6 @@
 package kr.konempty.quietlounge.data
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import kotlinx.coroutines.flow.Flow
@@ -117,6 +118,8 @@ class KeywordAlertRepository(
     }
 
     companion object {
+        // applicationContext 만 저장 — 실제 leak 없음. StaticFieldLeak 설명은 BlockListRepository 참조.
+        @SuppressLint("StaticFieldLeak")
         @Volatile
         private var INSTANCE: KeywordAlertRepository? = null
 

@@ -90,10 +90,9 @@ fun LoungeScreen(
 
     // 알림 클릭 → 해당 게시글 열기
     LaunchedEffect(pendingPostId) {
-        val postId = pendingPostId
         val view = webView
-        if (postId != null && view != null) {
-            view.evaluateJavascript(WebViewScripts.buildOpenPostUrl(postId), null)
+        if (pendingPostId != null && view != null) {
+            view.evaluateJavascript(WebViewScripts.buildOpenPostUrl(pendingPostId), null)
             onPendingPostIdConsumed()
         }
     }
@@ -105,7 +104,6 @@ fun LoungeScreen(
                 createLoungeWebView(
                     context = ctx,
                     bridge = bridge,
-                    initialUrl = LOUNGE_URL,
                     afterScriptProvider = {
                         WebViewScripts.buildAfter(ctx, blockData, filterMode)
                     },
@@ -153,7 +151,6 @@ fun LoungeScreen(
 private fun createLoungeWebView(
     context: android.content.Context,
     bridge: NativeBridge,
-    initialUrl: String,
     beforeScriptProvider: () -> String,
     afterScriptProvider: () -> String,
 ): WebView {
@@ -208,6 +205,6 @@ private fun createLoungeWebView(
                 }
             }
 
-        loadUrl(initialUrl)
+        loadUrl(LOUNGE_URL)
     }
 }

@@ -11,11 +11,6 @@ import kr.konempty.quietlounge.data.BlockListData
 import kr.konempty.quietlounge.data.BlockListRepository
 import kr.konempty.quietlounge.data.FilterMode
 
-data class LoungeUiState(
-    val blockData: BlockListData = BlockListData(),
-    val filterMode: FilterMode = FilterMode.Hide,
-)
-
 class LoungeViewModel(
     application: Application,
 ) : AndroidViewModel(application) {

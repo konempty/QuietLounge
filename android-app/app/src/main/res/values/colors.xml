@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="qlPrimary">#FF1FAF63</color>
     <color name="qlBackground">#FFF5F5F5</color>
     <color name="qlBackgroundDark">#FF1A1A1A</color>
     <color name="qlIconBackground">#FF4A6CF7</color>
