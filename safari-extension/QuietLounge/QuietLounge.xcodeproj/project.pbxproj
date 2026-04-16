@@ -39,6 +39,7 @@
 		C2C98C882F7A61E900588733 /* content-scripts in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7E2F7A61E900588733 /* content-scripts */; };
 		C2C98C892F7A61E900588733 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7F2F7A61E900588733 /* icons */; };
 		C2C98C8A2F7A61E900588733 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C802F7A61E900588733 /* manifest.json */; };
+		E11D4F012FA0000100AAB001 /* popup (macOS) in Resources */ = {isa = PBXBuildFile; fileRef = E11D4F022FA0000100AAB001 /* popup (macOS) */; };
 		C2D68CD12F7BBA6100033FEF /* WebViewScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CD02F7BBA6100033FEF /* WebViewScripts.swift */; };
 		C2D68CD22F7BBA6100033FEF /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCD2F7BBA6100033FEF /* SettingsViewController.swift */; };
 		C2D68CD32F7BBA6100033FEF /* BlockDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCB2F7BBA6100033FEF /* BlockDataManager.swift */; };
@@ -118,6 +119,7 @@
 		C2C98C7E2F7A61E900588733 /* content-scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "content-scripts"; path = "Resources/content-scripts"; sourceTree = "<group>"; };
 		C2C98C7F2F7A61E900588733 /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = Resources/icons; sourceTree = "<group>"; };
 		C2C98C802F7A61E900588733 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = Resources/manifest.json; sourceTree = "<group>"; };
+		E11D4F022FA0000100AAB001 /* popup (macOS) */ = {isa = PBXFileReference; lastKnownFileType = folder; name = popup; path = Resources/popup-macos; sourceTree = "<group>"; };
 		C2D68CCB2F7BBA6100033FEF /* BlockDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockDataManager.swift; sourceTree = "<group>"; };
 		C2D68CCC2F7BBA6100033FEF /* BlockListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockListViewController.swift; sourceTree = "<group>"; };
 		C2D68CCD2F7BBA6100033FEF /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
@@ -273,6 +275,7 @@
 			children = (
 				C2C98C7C2F7A61E900588733 /* background */,
 				C2C98C7D2F7A61E900588733 /* popup */,
+				E11D4F022FA0000100AAB001 /* popup (macOS) */,
 				C2C98C7E2F7A61E900588733 /* content-scripts */,
 				C2C98C7F2F7A61E900588733 /* icons */,
 				C2C98C802F7A61E900588733 /* manifest.json */,
@@ -352,6 +355,7 @@
 				C2C98C532F7A61E900588733 /* Sources */,
 				C2C98C542F7A61E900588733 /* Frameworks */,
 				C2C98C552F7A61E900588733 /* Resources */,
+				E11D4F032FA0000100AAB001 /* Rename popup-macos to popup */,
 			);
 			buildRules = (
 			);
@@ -365,6 +369,28 @@
 			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		E11D4F032FA0000100AAB001 /* Rename popup-macos to popup */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Rename popup-macos to popup";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Xcode blue folder reference 는 on-disk 폴더명을 보존하므로 popup-macos 가 그대로 복사됨.\n# 공유 manifest.json 이 \"popup/popup.html\" 을 참조하기 때문에 macOS 전용 빌드에서는\n# 번들 복사 후 popup-macos 를 popup 으로 rename 해 경로를 맞춘다.\n\nDEST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\nif [ -d \"${DEST}/popup-macos\" ]; then\n  rm -rf \"${DEST}/popup\"\n  mv \"${DEST}/popup-macos\" \"${DEST}/popup\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXProject section */
 		C2C98C1C2F7A61E700588733 /* Project object */ = {
@@ -458,7 +484,7 @@
 				C2C98C842F7A61E900588733 /* icons in Resources */,
 				C2C98C852F7A61E900588733 /* manifest.json in Resources */,
 				C2C98C832F7A61E900588733 /* content-scripts in Resources */,
-				C2C98C822F7A61E900588733 /* popup in Resources */,
+				E11D4F012FA0000100AAB001 /* popup (macOS) in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -846,6 +872,7 @@
 				DEVELOPMENT_TEAM = Q3X65N3243;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
@@ -883,6 +910,7 @@
 				DEVELOPMENT_TEAM = Q3X65N3243;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "macOS (Extension)/Info.plist";

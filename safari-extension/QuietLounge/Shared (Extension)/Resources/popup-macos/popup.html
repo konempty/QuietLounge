@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <title>QuietLounge</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>QuietLounge</h1>
+      <p class="subtitle">Quiet Lounge 대시보드</p>
+    </header>
+
+    <section class="stats">
+      <div class="stat">
+        <span class="stat-value" id="blocked-count">0</span>
+        <span class="stat-label">총 차단 유저</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="persona-count">0</span>
+        <span class="stat-label">ID 확보된 유저</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="nickname-count">0</span>
+        <span class="stat-label">닉네임만 확보된 유저</span>
+      </div>
+    </section>
+
+    <section class="my-stats" id="my-stats-section" style="display:none">
+      <div class="my-stats-header">
+        <h2>내 활동 통계</h2>
+        <button class="btn-refresh" id="btn-refresh-stats" title="통계 갱신">&#x21bb;</button>
+      </div>
+      <div class="my-stats-grid">
+        <div class="my-stat-item">
+          <span class="my-stat-value" id="my-total-posts">-</span>
+          <span class="my-stat-label">총 작성글</span>
+        </div>
+        <div class="my-stat-item">
+          <span class="my-stat-value" id="my-total-comments">-</span>
+          <span class="my-stat-label">총 댓글</span>
+        </div>
+        <div class="my-stat-item">
+          <span class="my-stat-value" id="my-monthly-posts">-</span>
+          <span class="my-stat-label">이번달 작성글</span>
+        </div>
+        <div class="my-stat-item">
+          <span class="my-stat-value" id="my-monthly-comments">-</span>
+          <span class="my-stat-label">이번달 댓글</span>
+        </div>
+      </div>
+      <p class="my-stats-hint" id="my-stats-hint"></p>
+    </section>
+
+    <section class="block-list">
+      <h2>차단 목록</h2>
+      <div id="block-list-container">
+        <p class="empty-message">차단된 유저가 없습니다</p>
+      </div>
+    </section>
+
+    <section class="settings">
+      <div class="setting-row">
+        <div class="setting-info">
+          <span class="setting-label">흐림 처리</span>
+          <span class="setting-desc" id="filter-mode-desc">차단된 글을 완전히 숨깁니다</span>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="filter-mode-toggle">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="keyword-alerts">
+      <div class="keyword-alerts-header">
+        <h2>키워드 알림</h2>
+        <button class="btn-add-alert" id="btn-add-alert">+ 추가</button>
+      </div>
+
+      <p class="keyword-alerts-hint" id="keyword-alerts-hint"></p>
+
+      <div class="alert-interval-row">
+        <span class="setting-label">확인 주기</span>
+        <div class="interval-input-wrap">
+          <input type="number" id="alert-interval" min="1" max="60" value="5" class="interval-input">
+          <span class="interval-unit">분</span>
+        </div>
+      </div>
+      <p class="interval-warning" id="interval-warning" style="display:none">주기가 짧으면 네트워크 사용량이 늘어날 수 있습니다</p>
+
+      <div id="keyword-alerts-list">
+        <p class="empty-message">등록된 키워드 알림이 없습니다</p>
+      </div>
+    </section>
+
+    <!-- 키워드 알림 추가 모달 -->
+    <div class="alert-modal" id="alert-modal">
+      <div class="alert-modal-content">
+        <div class="alert-modal-header">
+          <h3 id="alert-modal-title">카테고리 선택</h3>
+          <button class="alert-modal-close" id="alert-modal-close">&times;</button>
+        </div>
+        <div class="alert-modal-body">
+          <!-- Step 1: 카테고리 선택 -->
+          <div id="step-category" class="alert-step">
+            <div class="alert-search-wrap">
+              <input type="text" id="category-search" class="alert-search" placeholder="카테고리 검색...">
+            </div>
+            <div id="category-list" class="select-list">
+              <p class="loading-message">불러오는 중...</p>
+            </div>
+          </div>
+          <!-- Step 2: 채널 선택 -->
+          <div id="step-channel" class="alert-step" style="display:none">
+            <button class="btn-back" id="btn-back-category">&larr; 카테고리 선택</button>
+            <div class="alert-search-wrap">
+              <input type="text" id="channel-search" class="alert-search" placeholder="채널 검색...">
+            </div>
+            <div id="channel-list" class="select-list">
+              <p class="loading-message">불러오는 중...</p>
+            </div>
+          </div>
+          <!-- Step 3: 키워드 입력 -->
+          <div id="step-keywords" class="alert-step" style="display:none">
+            <button class="btn-back" id="btn-back-channel">&larr; 채널 선택</button>
+            <div class="selected-channel-info" id="selected-channel-info"></div>
+            <div class="keyword-input-wrap">
+              <input type="text" id="keyword-input" class="keyword-text-input" placeholder="키워드 입력 후 Enter">
+              <button class="btn-add-keyword" id="btn-add-keyword">추가</button>
+            </div>
+            <div id="keyword-tags" class="keyword-tags"></div>
+            <button class="btn btn-primary" id="btn-save-alert" disabled>알림 등록</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="actions">
+      <button id="btn-export" class="btn btn-secondary">내보내기 (JSON)</button>
+      <button id="btn-import" class="btn btn-secondary">가져오기</button>
+      <input type="file" id="file-import" accept=".json" style="display:none">
+    </section>
+
+    <footer>
+      <span id="app-version"></span>
+    </footer>
+  </div>
+
+  <script src="../content-scripts/storage-bridge.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -674,30 +674,6 @@ document.getElementById('btn-back-channel').addEventListener('click', () => {
   document.getElementById('keyword-input').value = '';
 });
 
-// ── iOS 감지 ──
-if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-  const mobileLink = document.getElementById('qr-modal-mobile-link');
-  if (mobileLink) mobileLink.style.display = '';
-}
-
-// ── QR 모달 ──
-const btnSupport = document.getElementById('btn-support');
-const qrModal = document.getElementById('qr-modal');
-const qrModalClose = document.getElementById('qr-modal-close');
-if (btnSupport && qrModal) {
-  btnSupport.addEventListener('click', () => {
-    qrModal.classList.add('active');
-  });
-  qrModalClose?.addEventListener('click', () => {
-    qrModal.classList.remove('active');
-  });
-  qrModal.addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) {
-      e.currentTarget.classList.remove('active');
-    }
-  });
-}
-
 // ── 초기화 / 재활성화 시 재로드 ──
 async function refreshAll() {
   await loadData();

@@ -11,6 +11,10 @@ const POPUP_HTML = path.resolve(
   process.cwd(),
   'safari-extension/QuietLounge/Shared (Extension)/Resources/popup/popup.html',
 );
+const MAC_POPUP_HTML = path.resolve(
+  process.cwd(),
+  'safari-extension/QuietLounge/Shared (Extension)/Resources/popup-macos/popup.html',
+);
 const POPUP_JS = path.resolve(
   process.cwd(),
   'safari-extension/QuietLounge/Shared (Extension)/Resources/popup/popup.js',
@@ -144,6 +148,17 @@ describe('safari popup.html + popup.js', () => {
     doc.getElementById('btn-support').click();
     const modal = doc.getElementById('qr-modal');
     expect(modal.classList.contains('active')).toBe(true);
+  });
+
+  it('macOS 전용 popup.html 에는 후원 마크업과 외부 결제 링크가 없다', async () => {
+    const html = await fs.readFile(MAC_POPUP_HTML, 'utf8');
+    const doc = new JSDOM(html).window.document;
+
+    expect(doc.getElementById('btn-support')).toBeNull();
+    expect(doc.getElementById('qr-modal')).toBeNull();
+    expect(doc.querySelector('.support-desc')).toBeNull();
+    expect(html).not.toContain('qr.kakaopay.com');
+    expect(html).not.toContain('kakaoPayQR.png');
   });
 
   it('키워드 알림 추가 버튼 → 모달 active', async () => {
