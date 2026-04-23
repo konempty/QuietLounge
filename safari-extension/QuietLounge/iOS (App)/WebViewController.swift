@@ -22,6 +22,14 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
     private var isLoadingObs: NSKeyValueObservation?
     private var urlObs: NSKeyValueObservation?
 
+    // 당겨서 새로고침 — UIRefreshControl 은 WKWebView 스크롤 위임 및 네이버 페이지 자체 JS 와 충돌해
+    // 드래그 중 reload 가 발화되는 문제가 있어 pan gesture 로 직접 구현.
+    // `.ended/.cancelled` 상태일 때만 reload 를 호출하므로 반드시 손을 뗀 뒤에만 갱신됨.
+    private let pullSpinner = UIActivityIndicatorView(style: .medium)
+    private static let pullThreshold: CGFloat = 80
+    private var pullRefreshArmed = false
+    private var pullRefreshInProgress = false
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor.systemBackground
@@ -84,6 +92,9 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
         webView.scrollView.decelerationRate = .normal
         webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
 
+        // 당겨서 새로고침 — pan gesture 로 감지. `.ended` 에서만 reload 호출해 반드시 손 뗀 뒤 갱신.
+        webView.scrollView.panGestureRecognizer.addTarget(self, action: #selector(webScrollPanChanged(_:)))
+
         view.addSubview(webView)
         webView.translatesAutoresizingMaskIntoConstraints = false
         // 하단은 툴바가 차지하므로 webView 는 toolbar 위까지
@@ -92,6 +103,16 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
             webView.bottomAnchor.constraint(equalTo: toolbar.topAnchor),
             webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        ])
+
+        // 당겨서 새로고침 스피너 — 상단 safeArea 아래에 오버레이
+        pullSpinner.color = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
+        pullSpinner.hidesWhenStopped = true
+        pullSpinner.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(pullSpinner)
+        NSLayoutConstraint.activate([
+            pullSpinner.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            pullSpinner.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12)
         ])
 
         // canGoBack/Forward/isLoading/url 변화 → 툴바 상태 갱신
@@ -214,6 +235,51 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
         if webView.isLoading { webView.stopLoading() } else { webView.reload() }
     }
 
+    @objc private func webScrollPanChanged(_ gesture: UIPanGestureRecognizer) {
+        let scroll = webView.scrollView
+        // adjustedContentInset 를 빼서 safeArea 보정 이후의 "시각적" top 기준 offset 계산
+        let offset = scroll.contentOffset.y + scroll.adjustedContentInset.top
+
+        switch gesture.state {
+        case .began:
+            pullRefreshArmed = false
+        case .changed:
+            // 이미 리프레시 진행 중이면 스피너 건드리지 않음
+            guard !pullRefreshInProgress else { break }
+
+            if offset < 0 {
+                // 당기는 동안 스피너 표시 — 조금씩 당기면 반투명, 많이 당기면 불투명하게 시각적 피드백
+                let progress = min(1.0, -offset / Self.pullThreshold)
+                pullSpinner.alpha = progress
+                if !pullSpinner.isAnimating {
+                    pullSpinner.startAnimating()
+                }
+                pullRefreshArmed = offset <= -Self.pullThreshold
+            } else {
+                // 다시 올라왔으면 스피너 숨기고 발사 대기 해제
+                pullSpinner.stopAnimating()
+                pullSpinner.alpha = 1.0
+                pullRefreshArmed = false
+            }
+        case .ended, .cancelled, .failed:
+            if pullRefreshArmed && !pullRefreshInProgress {
+                pullRefreshArmed = false
+                pullRefreshInProgress = true
+                pullSpinner.alpha = 1.0
+                // 이미 .changed 에서 startAnimating 됐지만 방어적으로 한번 더
+                if !pullSpinner.isAnimating { pullSpinner.startAnimating() }
+                webView.reload()
+            } else if !pullRefreshInProgress {
+                // threshold 미달로 놓은 경우 스피너 바로 숨김
+                pullSpinner.stopAnimating()
+                pullSpinner.alpha = 1.0
+                pullRefreshArmed = false
+            }
+        default:
+            break
+        }
+    }
+
     private func setupOfflineView() {
         offlineView = UIView()
         offlineView.backgroundColor = UIColor.systemBackground
@@ -287,8 +353,19 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
         showWebView()
     }
 
-    // WKNavigationDelegate — 페이지 로드 실패 시
+    private func stopPullSpinner() {
+        pullRefreshInProgress = false
+        pullSpinner.stopAnimating()
+        pullSpinner.alpha = 1.0
+    }
+
+    // WKNavigationDelegate — 페이지 로드 종료 시
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        stopPullSpinner()
+    }
+
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        stopPullSpinner()
         let nsError = error as NSError
         if nsError.code == NSURLErrorNotConnectedToInternet || nsError.code == NSURLErrorTimedOut {
             showOfflineView()
@@ -296,6 +373,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        stopPullSpinner()
         let nsError = error as NSError
         if nsError.code == NSURLErrorNotConnectedToInternet || nsError.code == NSURLErrorTimedOut || nsError.code == NSURLErrorCannotFindHost {
             showOfflineView()
