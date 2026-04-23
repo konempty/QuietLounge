@@ -58,7 +58,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kr.konempty.quietlounge.BuildConfig
 import kr.konempty.quietlounge.data.FilterMode
 import kr.konempty.quietlounge.ui.theme.QlDanger
-import kr.konempty.quietlounge.ui.theme.QlPrimary
 import kr.konempty.quietlounge.ui.theme.QlSupport
 import kr.konempty.quietlounge.ui.theme.QlSupportDark
 import java.io.File
@@ -284,7 +283,7 @@ private fun Section(
             ) {
                 Text(
                     text = title.uppercase(),
-                    color = QlPrimary,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.5.sp,
@@ -429,7 +428,7 @@ private fun MyStatBoxOrSpinner(
             CircularProgressIndicator(
                 modifier = Modifier.size(22.dp),
                 strokeWidth = 2.dp,
-                color = QlPrimary,
+                color = MaterialTheme.colorScheme.primary,
             )
         } else {
             Text(
@@ -485,7 +484,7 @@ private fun FilterModeRow(
             onCheckedChange = { onToggle() },
             colors =
                 SwitchDefaults.colors(
-                    checkedTrackColor = QlPrimary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary,
                     checkedThumbColor = Color.White,
                     uncheckedTrackColor = MaterialTheme.colorScheme.outline,
                     uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -548,7 +547,7 @@ private fun KeywordAlertsSection(viewModel: KeywordAlertsViewModel = viewModel()
             CardButton(
                 title = "+ 추가",
                 titleColor = Color.White,
-                background = QlPrimary,
+                background = MaterialTheme.colorScheme.primary,
                 centerTitle = true,
                 onClick = { showAddDialog = true },
             )
@@ -640,13 +639,13 @@ private fun KeywordAlertsSection(viewModel: KeywordAlertsViewModel = viewModel()
                             alert.keywords.forEach { kw ->
                                 Text(
                                     text = kw,
-                                    color = QlPrimary,
+                                    color = MaterialTheme.colorScheme.primary,
                                     fontSize = 12.sp,
                                     maxLines = 1,
                                     modifier =
                                         Modifier
                                             .clip(RoundedCornerShape(4.dp))
-                                            .background(Color(0x261FAF63))
+                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
                                             .padding(horizontal = 8.dp, vertical = 2.dp),
                                 )
                             }
@@ -657,7 +656,7 @@ private fun KeywordAlertsSection(viewModel: KeywordAlertsViewModel = viewModel()
                         onCheckedChange = { viewModel.toggleAlert(alert.id, it) },
                         colors =
                             SwitchDefaults.colors(
-                                checkedTrackColor = QlPrimary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
                                 checkedThumbColor = Color.White,
                             ),
                     )

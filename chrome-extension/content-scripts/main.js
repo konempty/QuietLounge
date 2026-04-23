@@ -3,6 +3,12 @@
 (function () {
   'use strict';
 
+  // QuietLounge 브랜드 컬러 — 다크 모드에선 어두운 배경 위 시인성을 위해 한 톤 밝게 사용.
+  const QL_PRIMARY =
+    typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? '#6A86F8'
+      : '#4A6CF7';
+
   // ── URL 체크 ──
   function isActivePage() {
     const path = window.location.pathname;
@@ -579,11 +585,11 @@
     const mp = profileStatsCache.monthlyPosts;
     const mc = profileStatsCache.monthlyComments;
     const spinner =
-      '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:#1FAF63;border-radius:50%;animation:ql-spin 0.8s linear infinite;vertical-align:middle;"></span>';
+      `<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:${QL_PRIMARY};border-radius:50%;animation:ql-spin 0.8s linear infinite;vertical-align:middle;"></span>`;
     const monthlyPostsText = mp !== null ? mp : spinner;
     const monthlyCommentsText = mc !== null ? mc : spinner;
 
-    return `<div style="font-weight:600;font-size:14px;margin-bottom:10px;color:#1FAF63;">활동 통계</div>
+    return `<div style="font-weight:600;font-size:14px;margin-bottom:10px;color:${QL_PRIMARY};">활동 통계</div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
 <div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">
 <div style="font-size:20px;font-weight:700;">${totalPosts}</div>
@@ -614,7 +620,7 @@
     const box = document.createElement('div');
     box.id = 'ql-profile-stats';
     box.style.cssText =
-      'margin:12px 20px 0;padding:14px 16px;background:rgba(31,175,99,0.08);border:1px solid rgba(31,175,99,0.2);border-radius:10px;font-size:13px;color:var(--color-neutral-foreground-default,#e0e0e0);';
+      'margin:12px 20px 0;padding:14px 16px;background:rgba(74,108,247,0.08);border:1px solid rgba(74,108,247,0.2);border-radius:10px;font-size:13px;color:var(--color-neutral-foreground-default,#e0e0e0);';
     box.innerHTML = buildProfileStatsHtml();
     tabsEl.before(box);
   }

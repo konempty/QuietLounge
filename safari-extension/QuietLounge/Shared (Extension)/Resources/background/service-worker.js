@@ -265,7 +265,7 @@ function bumpBadge(delta) {
   badgeCount += delta;
   try {
     browser.action.setBadgeText({ text: badgeCount > 0 ? String(badgeCount) : '' });
-    browser.action.setBadgeBackgroundColor({ color: '#1FAF63' });
+    browser.action.setBadgeBackgroundColor({ color: '#4A6CF7' });
   } catch (e) {
     console.warn('[QL][bg] setBadge failed', e);
   }

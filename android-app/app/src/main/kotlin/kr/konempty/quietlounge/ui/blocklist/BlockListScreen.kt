@@ -37,7 +37,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kr.konempty.quietlounge.data.BlockedUser
 import kr.konempty.quietlounge.data.NicknameOnlyBlock
 import kr.konempty.quietlounge.ui.theme.QlDanger
-import kr.konempty.quietlounge.ui.theme.QlPrimary
 
 private sealed interface BlockRow {
     val nickname: String
@@ -216,7 +215,7 @@ private fun BlockRowItem(
 
 @Composable
 private fun BlockBadge(isPersona: Boolean) {
-    val bg = if (isPersona) QlPrimary else Color(0xFFE67E22)
+    val bg = if (isPersona) MaterialTheme.colorScheme.primary else Color(0xFFE67E22)
     val label = if (isPersona) "ID" else "닉네임"
     Box(
         modifier =

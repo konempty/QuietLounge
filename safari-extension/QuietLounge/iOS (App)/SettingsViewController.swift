@@ -363,7 +363,7 @@ class SettingsViewController: UITableViewController {
             let btn = UIButton(type: .system)
             btn.setTitle("+ 추가", for: .normal)
             btn.titleLabel?.font = .systemFont(ofSize: 13, weight: .medium)
-            btn.tintColor = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
+            btn.tintColor = AppColors.primary
             btn.translatesAutoresizingMaskIntoConstraints = false
             btn.addTarget(self, action: #selector(addKeywordAlert), for: .touchUpInside)
 
@@ -505,7 +505,7 @@ class SettingsViewController: UITableViewController {
         case 2: // 표시 설정
             var config = cell.defaultContentConfiguration()
             let toggle = UISwitch()
-            toggle.onTintColor = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
+            toggle.onTintColor = AppColors.primary
             if indexPath.row == 0 {
                 config.text = "흐림 처리"
                 config.secondaryText = BlockDataManager.shared.filterMode == "blur"
@@ -587,7 +587,7 @@ class SettingsViewController: UITableViewController {
 
                 let toggle = UISwitch()
                 toggle.isOn = enabled
-                toggle.onTintColor = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
+                toggle.onTintColor = AppColors.primary
                 toggle.tag = indexPath.row - 1
                 toggle.addTarget(self, action: #selector(keywordAlertToggled(_:)), for: .valueChanged)
                 cell.accessoryView = toggle
@@ -842,8 +842,8 @@ private class PaddedTagLabel: UILabel {
 }
 
 class KeywordTagFlowView: UIView {
-    private static let tagColor = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
-    private static let tagBg = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 0.15)
+    private static let tagColor = AppColors.primary
+    private static let tagBg = AppColors.primaryTint15
     static let tagFont = UIFont.systemFont(ofSize: 12)
     private let hSpacing: CGFloat = 4
     private let vSpacing: CGFloat = 4

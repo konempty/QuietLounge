@@ -22,7 +22,7 @@ private val LightColors =
 
 private val DarkColors =
     darkColorScheme(
-        primary = QlPrimary,
+        primary = QlPrimaryDark,
         onPrimary = QlDarkCard,
         background = QlDarkBackground,
         onBackground = QlDarkText,

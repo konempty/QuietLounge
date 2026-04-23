@@ -35,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -44,7 +43,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kr.konempty.quietlounge.ui.theme.QlPrimary
 
 private enum class Step { Category, Channel, Keywords }
 
@@ -155,7 +153,7 @@ fun AddAlertDialog(
                         }
                         Text(
                             text = selectedChannel?.name.orEmpty(),
-                            color = QlPrimary,
+                            color = MaterialTheme.colorScheme.primary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(vertical = 8.dp),
@@ -203,7 +201,7 @@ fun AddAlertDialog(
                                 viewModel.resetModal()
                             },
                             enabled = keywords.isNotEmpty() && selectedChannel != null,
-                            colors = ButtonDefaults.buttonColors(containerColor = QlPrimary),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text("알림 등록")
@@ -238,7 +236,7 @@ internal fun LoadingBox() {
                 .height(280.dp),
         contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator(color = QlPrimary)
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -299,13 +297,13 @@ internal fun KeywordTagFlow(
         keywords.forEachIndexed { idx, kw ->
             Text(
                 text = "$kw  ✕",
-                color = QlPrimary,
+                color = MaterialTheme.colorScheme.primary,
                 fontSize = 12.sp,
                 maxLines = 1,
                 modifier =
                     Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0x261FAF63))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
                         .clickable { onRemove(idx) }
                         .padding(horizontal = 8.dp, vertical = 4.dp),
             )

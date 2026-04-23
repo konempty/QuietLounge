@@ -10,7 +10,7 @@ class AlertSetupViewController: UIViewController {
     private enum Step { case category, channel, keyword }
     private var step: Step = .category
 
-    private let qlGreen = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
+    private let accentColor = AppColors.primary
     private let cardView = UIView()
     private let titleLabel = UILabel()
     private let backButton = UIButton(type: .system)
@@ -157,7 +157,7 @@ class AlertSetupViewController: UIViewController {
 
         var addCfg = UIButton.Configuration.filled()
         addCfg.title = "추가"
-        addCfg.baseBackgroundColor = qlGreen
+        addCfg.baseBackgroundColor = accentColor
         addCfg.baseForegroundColor = .white
         addCfg.cornerStyle = .medium
         addCfg.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12)
@@ -172,7 +172,7 @@ class AlertSetupViewController: UIViewController {
 
         var saveCfg = UIButton.Configuration.filled()
         saveCfg.title = "등록"
-        saveCfg.baseBackgroundColor = qlGreen
+        saveCfg.baseBackgroundColor = accentColor
         saveCfg.baseForegroundColor = .white
         saveCfg.cornerStyle = .large
         saveCfg.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 0, bottom: 12, trailing: 0)
@@ -217,7 +217,7 @@ class AlertSetupViewController: UIViewController {
             keywordContainer.isHidden = true
         case .keyword:
             titleLabel.text = selectedChannelName ?? ""
-            titleLabel.textColor = qlGreen
+            titleLabel.textColor = accentColor
             backButton.isHidden = false
             searchField.isHidden = true
             listTable.isHidden = true

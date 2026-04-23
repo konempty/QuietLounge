@@ -32,7 +32,7 @@ class MainTabViewController: UIViewController {
     private var currentIndex = 0
     private let containerView = UIView()
     private var buttons: [UIButton] = []
-    private let accentColor = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
+    private let accentColor = AppColors.primary
 
     override func viewDidLoad() {
         super.viewDidLoad()

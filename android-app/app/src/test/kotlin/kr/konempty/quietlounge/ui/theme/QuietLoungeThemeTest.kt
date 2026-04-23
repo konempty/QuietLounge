@@ -50,6 +50,9 @@ class QuietLoungeThemeTest {
         compose.onNodeWithText("dark-root").assertIsDisplayed()
         assertEquals(QlDarkBackground, captured.background)
         assertNotEquals(QlLightBackground, captured.background)
+        // 다크 모드에서는 시인성 보정된 QlPrimaryDark 가 primary 로 적용되어야 한다
+        assertEquals(QlPrimaryDark, captured.primary)
+        assertNotEquals(QlPrimary, captured.primary)
     }
 
     @Test

@@ -1,5 +1,14 @@
 :root {
   color-scheme: dark light;
+  /* QuietLounge 앱 브랜드 컬러 — 기본(다크 모드) 은 어두운 배경에서 가독성 보정된 밝은 파랑. */
+  --ql-primary: #6A86F8;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    /* 라이트 모드는 원본 앱 아이콘 색상 그대로 사용 */
+    --ql-primary: #4A6CF7;
+  }
 }
 
 * {
@@ -35,7 +44,7 @@ header {
 header h1 {
   font-size: 18px;
   font-weight: 700;
-  color: #1FAF63;
+  color: var(--ql-primary);
 }
 
 .subtitle {
@@ -126,7 +135,7 @@ header h1 {
 }
 
 .block-item-id {
-  color: #1FAF63;
+  color: var(--ql-primary);
   font-family: monospace;
   font-size: 11px;
 }
@@ -174,7 +183,7 @@ header h1 {
 .my-stats h2 {
   font-size: 13px;
   font-weight: 600;
-  color: #1FAF63;
+  color: var(--ql-primary);
 }
 
 .btn-refresh {
@@ -193,8 +202,8 @@ header h1 {
 }
 
 .btn-refresh:hover {
-  border-color: #1FAF63;
-  color: #1FAF63;
+  border-color: var(--ql-primary);
+  color: var(--ql-primary);
 }
 
 .my-stats-grid {
@@ -229,7 +238,7 @@ header h1 {
   width: 14px;
   height: 14px;
   border: 2px solid rgba(255, 255, 255, 0.2);
-  border-top-color: #1FAF63;
+  border-top-color: var(--ql-primary);
   border-radius: 50%;
   animation: ql-spin 0.8s linear infinite;
   vertical-align: middle;
@@ -310,7 +319,7 @@ header h1 {
 }
 
 .toggle input:checked + .toggle-slider {
-  background: #1FAF63;
+  background: var(--ql-primary);
 }
 
 .toggle input:checked + .toggle-slider::before {
@@ -390,7 +399,7 @@ footer {
 }
 
 .btn-add-alert {
-  background: #1FAF63;
+  background: var(--ql-primary);
   color: #fff;
   border: none;
   padding: 4px 10px;
@@ -432,7 +441,7 @@ footer {
 
 .interval-input:focus {
   outline: none;
-  border-color: #1FAF63;
+  border-color: var(--ql-primary);
 }
 
 .interval-unit {
@@ -489,7 +498,7 @@ footer {
 .alert-keyword-tag {
   display: inline-block;
   background: #333;
-  color: #1FAF63;
+  color: var(--ql-primary);
   padding: 1px 6px;
   border-radius: 3px;
   font-size: 11px;
@@ -607,7 +616,7 @@ footer {
 
 .alert-search:focus {
   outline: none;
-  border-color: #1FAF63;
+  border-color: var(--ql-primary);
 }
 
 .select-list {
@@ -655,13 +664,13 @@ footer {
 }
 
 .btn-back:hover {
-  color: #1FAF63;
+  color: var(--ql-primary);
 }
 
 .selected-channel-info {
   font-size: 14px;
   font-weight: 600;
-  color: #1FAF63;
+  color: var(--ql-primary);
   padding: 8px 0;
 }
 
@@ -683,7 +692,7 @@ footer {
 
 .keyword-text-input:focus {
   outline: none;
-  border-color: #1FAF63;
+  border-color: var(--ql-primary);
 }
 
 .btn-add-keyword {
@@ -715,7 +724,7 @@ footer {
   align-items: center;
   gap: 4px;
   background: #2a2a2a;
-  color: #1FAF63;
+  color: var(--ql-primary);
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
@@ -737,7 +746,7 @@ footer {
 
 .btn-primary {
   width: 100%;
-  background: #1FAF63;
+  background: var(--ql-primary);
   color: #fff;
   padding: 10px;
   border: none;
@@ -856,7 +865,7 @@ footer {
 
   .ql-spinner {
     border-color: rgba(0, 0, 0, 0.1);
-    border-top-color: #1FAF63;
+    border-top-color: var(--ql-primary);
   }
 
   .settings {
@@ -898,8 +907,8 @@ footer {
   }
 
   .btn-refresh:hover {
-    border-color: #1FAF63;
-    color: #1FAF63;
+    border-color: var(--ql-primary);
+    color: var(--ql-primary);
   }
 
   #block-list-container::-webkit-scrollbar-thumb {

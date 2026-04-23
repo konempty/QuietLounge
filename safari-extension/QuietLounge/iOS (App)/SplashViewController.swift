@@ -2,7 +2,7 @@ import UIKit
 
 class SplashViewController: UIViewController {
 
-    private let brandColor = UIColor(red: 74/255, green: 108/255, blue: 247/255, alpha: 1)
+    private let brandColor = AppColors.primary
 
     override func viewDidLoad() {
         super.viewDidLoad()

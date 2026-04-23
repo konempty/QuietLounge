@@ -106,7 +106,8 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
         ])
 
         // 당겨서 새로고침 스피너 — 상단 safeArea 아래에 오버레이
-        pullSpinner.color = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
+        pullSpinner.color = AppColors.primary
+        pullSpinner.tintColor = AppColors.primary  // 일부 iOS 버전에서 color 보다 tintColor 가 우선 적용되는 경우 대비
         pullSpinner.hidesWhenStopped = true
         pullSpinner.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(pullSpinner)
@@ -248,9 +249,9 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
             guard !pullRefreshInProgress else { break }
 
             if offset < 0 {
-                // 당기는 동안 스피너 표시 — 조금씩 당기면 반투명, 많이 당기면 불투명하게 시각적 피드백
+                // 당기는 동안 스피너 표시 — 0.4 에서 시작해 1.0 까지 올라가 색상이 항상 선명히 보이도록
                 let progress = min(1.0, -offset / Self.pullThreshold)
-                pullSpinner.alpha = progress
+                pullSpinner.alpha = 0.4 + 0.6 * progress
                 if !pullSpinner.isAnimating {
                     pullSpinner.startAnimating()
                 }
@@ -311,7 +312,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
         let retryButton = UIButton(type: .system)
         retryButton.setTitle("다시 시도", for: .normal)
         retryButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
-        retryButton.tintColor = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
+        retryButton.tintColor = AppColors.primary
         retryButton.addTarget(self, action: #selector(retryTapped), for: .touchUpInside)
 
         stack.addArrangedSubview(icon)
