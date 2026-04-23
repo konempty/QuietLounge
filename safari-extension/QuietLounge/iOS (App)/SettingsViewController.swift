@@ -278,10 +278,14 @@ class SettingsViewController: UITableViewController {
         stack.addArrangedSubview(ll)
 
         box.addSubview(stack)
+        let topPad = stack.topAnchor.constraint(equalTo: box.topAnchor, constant: 12)
+        let bottomPad = stack.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -12)
+        topPad.priority = .defaultHigh
+        bottomPad.priority = .defaultHigh
         NSLayoutConstraint.activate([
             stack.centerXAnchor.constraint(equalTo: box.centerXAnchor),
-            stack.topAnchor.constraint(equalTo: box.topAnchor, constant: 12),
-            stack.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -12)
+            topPad,
+            bottomPad
         ])
 
         return (box, vl)
@@ -319,10 +323,14 @@ class SettingsViewController: UITableViewController {
             stack.addArrangedSubview(ll)
 
             box.addSubview(stack)
+            let topPad = stack.topAnchor.constraint(equalTo: box.topAnchor, constant: 10)
+            let bottomPad = stack.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -10)
+            topPad.priority = .defaultHigh
+            bottomPad.priority = .defaultHigh
             NSLayoutConstraint.activate([
                 stack.centerXAnchor.constraint(equalTo: box.centerXAnchor),
-                stack.topAnchor.constraint(equalTo: box.topAnchor, constant: 10),
-                stack.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -10)
+                topPad,
+                bottomPad
             ])
 
             return box
@@ -413,7 +421,7 @@ class SettingsViewController: UITableViewController {
         switch section {
         case 0: return nil
         case 1: return nil
-        case 2: return "필터 모드"
+        case 2: return "표시 설정"
         case 3: return nil
         case 4: return "데이터 관리"
         case 5: return "후원"
@@ -425,7 +433,7 @@ class SettingsViewController: UITableViewController {
         switch section {
         case 0: return 1
         case 1: return 1
-        case 2: return 1
+        case 2: return 2 // 흐림 처리 + 하단 네비게이션 바 표시
         case 3: // 키워드 알림
             let count = KeywordAlertManager.shared.alerts.count
             return count == 0 ? 2 : count + 1 // interval row + alerts (or empty message)
@@ -494,16 +502,23 @@ class SettingsViewController: UITableViewController {
             }
             return cell
 
-        case 2: // 필터 모드
+        case 2: // 표시 설정
             var config = cell.defaultContentConfiguration()
-            config.text = "흐림 처리"
-            config.secondaryText = BlockDataManager.shared.filterMode == "blur"
-                ? "차단된 글을 흐리게 표시합니다"
-                : "차단된 글을 완전히 숨깁니다"
             let toggle = UISwitch()
-            toggle.isOn = BlockDataManager.shared.filterMode == "blur"
             toggle.onTintColor = UIColor(red: 31/255, green: 175/255, blue: 99/255, alpha: 1)
-            toggle.addTarget(self, action: #selector(filterModeToggled(_:)), for: .valueChanged)
+            if indexPath.row == 0 {
+                config.text = "흐림 처리"
+                config.secondaryText = BlockDataManager.shared.filterMode == "blur"
+                    ? "차단된 글을 흐리게 표시합니다"
+                    : "차단된 글을 완전히 숨깁니다"
+                toggle.isOn = BlockDataManager.shared.filterMode == "blur"
+                toggle.addTarget(self, action: #selector(filterModeToggled(_:)), for: .valueChanged)
+            } else {
+                config.text = "하단 네비게이션 바"
+                config.secondaryText = "라운지 화면에 뒤로/앞으로/홈/새로고침 버튼을 표시합니다"
+                toggle.isOn = BlockDataManager.shared.showWebViewToolbar
+                toggle.addTarget(self, action: #selector(webViewToolbarToggled(_:)), for: .valueChanged)
+            }
             cell.accessoryView = toggle
             cell.contentConfiguration = config
 
@@ -682,6 +697,11 @@ class SettingsViewController: UITableViewController {
         BlockDataManager.shared.filterMode = sender.isOn ? "blur" : "hide"
         NotificationCenter.default.post(name: .filterModeChanged, object: nil)
         tableView.reloadRows(at: [IndexPath(row: 0, section: 2)], with: .none)
+    }
+
+    @objc private func webViewToolbarToggled(_ sender: UISwitch) {
+        BlockDataManager.shared.showWebViewToolbar = sender.isOn
+        NotificationCenter.default.post(name: .webViewToolbarChanged, object: nil)
     }
 
     @objc private func intervalStepperChanged(_ sender: UIStepper) {

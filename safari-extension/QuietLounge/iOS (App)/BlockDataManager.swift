@@ -4,6 +4,7 @@ extension Notification.Name {
     static let blockDataChanged = Notification.Name("QLBlockDataChanged")
     static let filterModeChanged = Notification.Name("QLFilterModeChanged")
     static let navigateToPost = Notification.Name("QLNavigateToPost")
+    static let webViewToolbarChanged = Notification.Name("QLWebViewToolbarChanged")
 }
 
 enum AppGroup {
@@ -11,12 +12,14 @@ enum AppGroup {
     static let darwinNotification: CFString = "kr.konempty.quietlounge.dataChanged" as CFString
     static let darwinFilterModeNotification: CFString = "kr.konempty.quietlounge.filterModeChanged" as CFString
     static let darwinKeywordAlertsNotification: CFString = "kr.konempty.quietlounge.keywordAlertsChanged" as CFString
+    static let darwinWebViewToolbarNotification: CFString = "kr.konempty.quietlounge.webViewToolbarChanged" as CFString
 }
 
 class BlockDataManager {
     static let shared = BlockDataManager()
     private let storageKey = "quiet_lounge_data"
     private let filterModeKey = "quiet_lounge_filter_mode"
+    private let webViewToolbarKey = "quiet_lounge_webview_toolbar"
     private let migrationKey = "quiet_lounge_migrated_to_group"
     private let defaults: UserDefaults
 
@@ -60,6 +63,15 @@ class BlockDataManager {
             },
             AppGroup.darwinFilterModeNotification, nil, .deliverImmediately
         )
+        CFNotificationCenterAddObserver(
+            center, observer,
+            { _, _, _, _, _ in
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .webViewToolbarChanged, object: nil)
+                }
+            },
+            AppGroup.darwinWebViewToolbarNotification, nil, .deliverImmediately
+        )
     }
 
     private func postDarwin(_ name: CFString) {
@@ -78,6 +90,19 @@ class BlockDataManager {
         set {
             defaults.set(newValue, forKey: filterModeKey)
             postDarwin(AppGroup.darwinFilterModeNotification)
+        }
+    }
+
+    /// WebView 하단 네비게이션 툴바 표시 여부 — 기본 `false`.
+    /// iOS 는 엣지 스와이프만으로도 탐색 가능하지만 보이는 버튼을 원하는 유저를 위해 opt-in.
+    var showWebViewToolbar: Bool {
+        get {
+            defaults.synchronize()
+            return defaults.bool(forKey: webViewToolbarKey)
+        }
+        set {
+            defaults.set(newValue, forKey: webViewToolbarKey)
+            postDarwin(AppGroup.darwinWebViewToolbarNotification)
         }
     }
 

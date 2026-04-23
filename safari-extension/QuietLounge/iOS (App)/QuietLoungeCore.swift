@@ -149,6 +149,49 @@ enum QuietLoungeCore {
         return FlowLayoutResult(frames: frames, totalHeight: y + lineHeight)
     }
 
+    // MARK: - WebView 네비게이션 툴바 상태
+
+    enum ReloadMode: String { case reload, stop }
+
+    /// 상단 네비게이션 툴바의 버튼 상태.
+    /// iOS 는 시스템 뒤로가기가 없고 엣지 스와이프만 제공되므로, 보이는 버튼으로 상태를 명시해야 한다.
+    /// - `backEnabled` / `forwardEnabled`: WKWebView.canGoBack / canGoForward 패스스루 — 누를 수 있는지.
+    /// - `homeEnabled`: 현재 URL 이 라운지 홈이 아니면 활성 (홈으로 가는 버튼).
+    /// - `reloadMode`: 로딩 중이면 `.stop`, 아니면 `.reload` — 아이콘/액션이 토글된다.
+    struct NavigationToolbarState: Equatable {
+        let backEnabled: Bool
+        let forwardEnabled: Bool
+        let homeEnabled: Bool
+        let reloadMode: ReloadMode
+    }
+
+    static func computeNavigationToolbarState(
+        canGoBack: Bool,
+        canGoForward: Bool,
+        isLoading: Bool,
+        currentUrl: URL?
+    ) -> NavigationToolbarState {
+        // URL 이 nil 이면 아직 로드 전 — 홈으로 "가는 중" 이므로 홈 버튼 비활성 처리.
+        let atHome = currentUrl == nil || isLoungeHome(url: currentUrl)
+        return NavigationToolbarState(
+            backEnabled: canGoBack,
+            forwardEnabled: canGoForward,
+            homeEnabled: !atHome,
+            reloadMode: isLoading ? .stop : .reload
+        )
+    }
+
+    /// WebView URL 이 라운지 홈(`lounge.naver.com` + path 없음/루트)인지 판정.
+    /// - 호스트가 `lounge.naver.com` 또는 그 서브도메인이 아니면 `false`.
+    /// - path 가 빈 문자열 또는 `/` 일 때만 `true`. 그 외 `/posts/123`, `/channels/x` 등은 홈이 아님.
+    static func isLoungeHome(url: URL?) -> Bool {
+        guard let url = url,
+              let host = url.host,
+              host == "lounge.naver.com" || host.hasSuffix(".lounge.naver.com") else { return false }
+        let path = url.path
+        return path.isEmpty || path == "/"
+    }
+
     // MARK: - 차단 데이터 승격 + 닉네임 변경 추적
 
     /// `personaCache` 갱신과 동시에 shared/block-list.ts 의 승격 규칙을 적용한다.

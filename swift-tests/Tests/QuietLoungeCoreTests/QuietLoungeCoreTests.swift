@@ -543,3 +543,117 @@ final class PersonaCachePromotionTests: XCTestCase {
         )
     }
 }
+
+// MARK: - 네비게이션 툴바 상태
+
+final class NavigationToolbarStateTests: XCTestCase {
+
+    // isLoungeHome — 홈 판정
+
+    func test_isLoungeHome_홈_URL_path_없음() {
+        XCTAssertTrue(QuietLoungeCore.isLoungeHome(url: URL(string: "https://lounge.naver.com")))
+    }
+
+    func test_isLoungeHome_홈_URL_루트_슬래시() {
+        XCTAssertTrue(QuietLoungeCore.isLoungeHome(url: URL(string: "https://lounge.naver.com/")))
+    }
+
+    func test_isLoungeHome_포스트_페이지는_홈_아님() {
+        XCTAssertFalse(QuietLoungeCore.isLoungeHome(url: URL(string: "https://lounge.naver.com/posts/123")))
+    }
+
+    func test_isLoungeHome_채널_페이지는_홈_아님() {
+        XCTAssertFalse(QuietLoungeCore.isLoungeHome(url: URL(string: "https://lounge.naver.com/channels/abc")))
+    }
+
+    func test_isLoungeHome_외부_도메인_홈_아님() {
+        XCTAssertFalse(QuietLoungeCore.isLoungeHome(url: URL(string: "https://naver.com/")))
+        XCTAssertFalse(QuietLoungeCore.isLoungeHome(url: URL(string: "https://example.com/")))
+    }
+
+    func test_isLoungeHome_서브도메인_허용() {
+        // cafe.lounge.naver.com 같은 미래 서브도메인도 라운지 계열로 간주
+        XCTAssertTrue(QuietLoungeCore.isLoungeHome(url: URL(string: "https://m.lounge.naver.com/")))
+    }
+
+    func test_isLoungeHome_유사_도메인_거부() {
+        // suffix 체크만 하면 안전하지 않을 수 있어 보이지만
+        // "fake-lounge.naver.com" 같은 케이스는 .lounge.naver.com suffix 검증으로 걸러진다.
+        XCTAssertFalse(QuietLoungeCore.isLoungeHome(url: URL(string: "https://fakelounge.naver.com/")))
+        XCTAssertFalse(QuietLoungeCore.isLoungeHome(url: URL(string: "https://lounge.naver.com.evil.com/")))
+    }
+
+    func test_isLoungeHome_nil() {
+        XCTAssertFalse(QuietLoungeCore.isLoungeHome(url: nil))
+    }
+
+    // computeNavigationToolbarState — 조합 상태
+
+    func test_toolbar_초기_상태_홈에서_로딩_중() {
+        let s = QuietLoungeCore.computeNavigationToolbarState(
+            canGoBack: false,
+            canGoForward: false,
+            isLoading: true,
+            currentUrl: URL(string: "https://lounge.naver.com/")
+        )
+        XCTAssertFalse(s.backEnabled)
+        XCTAssertFalse(s.forwardEnabled)
+        XCTAssertFalse(s.homeEnabled)
+        XCTAssertEqual(s.reloadMode, .stop)
+    }
+
+    func test_toolbar_포스트_진입_후_뒤로만_가능() {
+        let s = QuietLoungeCore.computeNavigationToolbarState(
+            canGoBack: true,
+            canGoForward: false,
+            isLoading: false,
+            currentUrl: URL(string: "https://lounge.naver.com/posts/42")
+        )
+        XCTAssertTrue(s.backEnabled)
+        XCTAssertFalse(s.forwardEnabled)
+        XCTAssertTrue(s.homeEnabled)
+        XCTAssertEqual(s.reloadMode, .reload)
+    }
+
+    func test_toolbar_뒤로_간_직후_앞으로도_가능() {
+        let s = QuietLoungeCore.computeNavigationToolbarState(
+            canGoBack: false,
+            canGoForward: true,
+            isLoading: false,
+            currentUrl: URL(string: "https://lounge.naver.com/")
+        )
+        XCTAssertFalse(s.backEnabled)
+        XCTAssertTrue(s.forwardEnabled)
+        XCTAssertFalse(s.homeEnabled)
+        XCTAssertEqual(s.reloadMode, .reload)
+    }
+
+    func test_toolbar_로딩_중_stop_로딩_끝_reload() {
+        let url = URL(string: "https://lounge.naver.com/posts/1")
+        let loading = QuietLoungeCore.computeNavigationToolbarState(
+            canGoBack: true, canGoForward: false, isLoading: true, currentUrl: url
+        )
+        XCTAssertEqual(loading.reloadMode, .stop)
+        let done = QuietLoungeCore.computeNavigationToolbarState(
+            canGoBack: true, canGoForward: false, isLoading: false, currentUrl: url
+        )
+        XCTAssertEqual(done.reloadMode, .reload)
+    }
+
+    func test_toolbar_URL_nil이면_홈_버튼도_비활성() {
+        // nil URL 은 아직 페이지 로드 전. "홈으로 가기" 를 눌러야 할 상태가 아니니 비활성이 안전.
+        let s = QuietLoungeCore.computeNavigationToolbarState(
+            canGoBack: false, canGoForward: false, isLoading: true, currentUrl: nil
+        )
+        XCTAssertFalse(s.homeEnabled)
+    }
+
+    func test_toolbar_외부_페이지에서는_홈_버튼_활성() {
+        // 사용자가 외부 링크로 이탈한 상황 — 홈 버튼으로 돌아올 수 있어야 한다.
+        let s = QuietLoungeCore.computeNavigationToolbarState(
+            canGoBack: true, canGoForward: false, isLoading: false,
+            currentUrl: URL(string: "https://naver.com/")
+        )
+        XCTAssertTrue(s.homeEnabled)
+    }
+}

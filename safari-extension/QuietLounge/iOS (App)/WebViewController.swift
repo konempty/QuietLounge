@@ -8,12 +8,34 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
     private var offlineView: UIView!
     private let monitor = NWPathMonitor()
 
+    // 하단 네비게이션 툴바 — iOS Safari 처럼 아래에 배치.
+    // 엣지 스와이프만으로도 탐색 가능하므로 opt-in 설정 (기본 off). BlockDataManager.showWebViewToolbar 로 제어.
+    private let toolbar = UIView()
+    private let backButton = UIButton(type: .system)
+    private let forwardButton = UIButton(type: .system)
+    private let homeButton = UIButton(type: .system)
+    private let reloadButton = UIButton(type: .system)
+    private var toolbarHeightConstraint: NSLayoutConstraint?
+    private static let toolbarHeight: CGFloat = 44
+    private var canGoBackObs: NSKeyValueObservation?
+    private var canGoForwardObs: NSKeyValueObservation?
+    private var isLoadingObs: NSKeyValueObservation?
+    private var urlObs: NSKeyValueObservation?
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor.systemBackground
 
-        setupOfflineView()
+        setupToolbar()
         setupWebView()
+        setupOfflineView()
+        updateToolbarState()
+        updateToolbarVisibility()
+
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(webViewToolbarSettingChanged),
+            name: .webViewToolbarChanged, object: nil
+        )
 
         // 네트워크 상태 감시
         monitor.pathUpdateHandler = { [weak self] path in
@@ -26,6 +48,16 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
             }
         }
         monitor.start(queue: DispatchQueue.global())
+    }
+
+    @objc private func webViewToolbarSettingChanged() {
+        updateToolbarVisibility()
+    }
+
+    private func updateToolbarVisibility() {
+        let show = BlockDataManager.shared.showWebViewToolbar
+        toolbar.isHidden = !show
+        toolbarHeightConstraint?.constant = show ? Self.toolbarHeight : 0
     }
 
     private func setupWebView() {
@@ -54,18 +86,132 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
 
         view.addSubview(webView)
         webView.translatesAutoresizingMaskIntoConstraints = false
+        // 하단은 툴바가 차지하므로 webView 는 toolbar 위까지
         NSLayoutConstraint.activate([
             webView.topAnchor.constraint(equalTo: view.topAnchor),
-            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            webView.bottomAnchor.constraint(equalTo: toolbar.topAnchor),
             webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ])
+
+        // canGoBack/Forward/isLoading/url 변화 → 툴바 상태 갱신
+        canGoBackObs = webView.observe(\.canGoBack, options: [.new]) { [weak self] _, _ in
+            self?.updateToolbarState()
+        }
+        canGoForwardObs = webView.observe(\.canGoForward, options: [.new]) { [weak self] _, _ in
+            self?.updateToolbarState()
+        }
+        isLoadingObs = webView.observe(\.isLoading, options: [.new]) { [weak self] _, _ in
+            self?.updateToolbarState()
+        }
+        urlObs = webView.observe(\.url, options: [.new]) { [weak self] _, _ in
+            self?.updateToolbarState()
+        }
 
         webView.load(URLRequest(url: URL(string: "https://lounge.naver.com")!))
 
         NotificationCenter.default.addObserver(self, selector: #selector(blockDataChanged), name: .blockDataChanged, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(filterModeChanged), name: .filterModeChanged, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(navigateToPost(_:)), name: .navigateToPost, object: nil)
+    }
+
+    private func setupToolbar() {
+        toolbar.backgroundColor = .secondarySystemBackground
+        toolbar.translatesAutoresizingMaskIntoConstraints = false
+        toolbar.clipsToBounds = true  // height=0 일 때 내용이 밖으로 삐져나오지 않도록
+        view.addSubview(toolbar)
+
+        let separator = UIView()
+        separator.backgroundColor = .separator
+        separator.translatesAutoresizingMaskIntoConstraints = false
+        toolbar.addSubview(separator)
+
+        func configure(_ button: UIButton, systemImage: String, action: Selector) {
+            button.setImage(
+                UIImage(systemName: systemImage, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)),
+                for: .normal
+            )
+            button.tintColor = .label
+            button.translatesAutoresizingMaskIntoConstraints = false
+            button.addTarget(self, action: action, for: .touchUpInside)
+        }
+        configure(backButton, systemImage: "chevron.left", action: #selector(backTapped))
+        configure(forwardButton, systemImage: "chevron.right", action: #selector(forwardTapped))
+        configure(homeButton, systemImage: "house", action: #selector(homeTapped))
+        configure(reloadButton, systemImage: "arrow.clockwise", action: #selector(reloadTapped))
+
+        backButton.accessibilityLabel = "뒤로 가기"
+        forwardButton.accessibilityLabel = "앞으로 가기"
+        homeButton.accessibilityLabel = "홈으로"
+        reloadButton.accessibilityLabel = "새로 고침"
+
+        let stack = UIStackView(arrangedSubviews: [backButton, forwardButton, homeButton, reloadButton])
+        stack.axis = .horizontal
+        stack.distribution = .fillEqually
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        toolbar.addSubview(stack)
+
+        // 높이 제약은 priority 999 — 뷰가 레이아웃되기 전 초기 상태에서 컨테이너 높이가 0 일 때
+        // `UIView-Encapsulated-Layout-Height == 0` 와 충돌하지 않도록 required 보다 낮게.
+        let heightConstraint = toolbar.heightAnchor.constraint(equalToConstant: Self.toolbarHeight)
+        heightConstraint.priority = UILayoutPriority(999)
+        toolbarHeightConstraint = heightConstraint
+
+        NSLayoutConstraint.activate([
+            toolbar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            toolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            toolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            heightConstraint,
+
+            stack.topAnchor.constraint(equalTo: toolbar.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: toolbar.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: toolbar.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: toolbar.trailingAnchor),
+
+            separator.leadingAnchor.constraint(equalTo: toolbar.leadingAnchor),
+            separator.trailingAnchor.constraint(equalTo: toolbar.trailingAnchor),
+            separator.topAnchor.constraint(equalTo: toolbar.topAnchor),  // 하단 배치 시 상단 구분선
+            separator.heightAnchor.constraint(equalToConstant: 0.5)
+        ])
+    }
+
+    private func updateToolbarState() {
+        let state = QuietLoungeCore.computeNavigationToolbarState(
+            canGoBack: webView?.canGoBack ?? false,
+            canGoForward: webView?.canGoForward ?? false,
+            isLoading: webView?.isLoading ?? false,
+            currentUrl: webView?.url
+        )
+        backButton.isEnabled = state.backEnabled
+        forwardButton.isEnabled = state.forwardEnabled
+        homeButton.isEnabled = state.homeEnabled
+        let reloadIcon = state.reloadMode == .stop ? "xmark" : "arrow.clockwise"
+        reloadButton.setImage(
+            UIImage(systemName: reloadIcon, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)),
+            for: .normal
+        )
+        reloadButton.accessibilityLabel = state.reloadMode == .stop ? "로드 중지" : "새로 고침"
+
+        let dim: CGFloat = 0.3
+        backButton.alpha = state.backEnabled ? 1.0 : dim
+        forwardButton.alpha = state.forwardEnabled ? 1.0 : dim
+        homeButton.alpha = state.homeEnabled ? 1.0 : dim
+    }
+
+    @objc private func backTapped() {
+        if webView.canGoBack { webView.goBack() }
+    }
+
+    @objc private func forwardTapped() {
+        if webView.canGoForward { webView.goForward() }
+    }
+
+    @objc private func homeTapped() {
+        webView.load(URLRequest(url: URL(string: "https://lounge.naver.com")!))
+    }
+
+    @objc private func reloadTapped() {
+        if webView.isLoading { webView.stopLoading() } else { webView.reload() }
     }
 
     private func setupOfflineView() {
@@ -111,9 +257,10 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
 
         view.addSubview(offlineView)
         offlineView.translatesAutoresizingMaskIntoConstraints = false
+        // 툴바는 하단에 있으므로 offlineView 는 그 위 영역만 덮는다 — 오프라인 상태에서도 새로고침/홈 버튼 접근 가능
         NSLayoutConstraint.activate([
             offlineView.topAnchor.constraint(equalTo: view.topAnchor),
-            offlineView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            offlineView.bottomAnchor.constraint(equalTo: toolbar.topAnchor),
             offlineView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             offlineView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             stack.centerXAnchor.constraint(equalTo: offlineView.centerXAnchor),

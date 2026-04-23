@@ -14,3 +14,5 @@ file_length:
 
 excluded:
   - Pods
+  - build
+  - DerivedData
