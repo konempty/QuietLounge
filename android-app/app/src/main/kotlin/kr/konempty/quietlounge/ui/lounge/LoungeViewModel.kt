@@ -28,6 +28,10 @@ class LoungeViewModel(
         repo.filterMode
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FilterMode.Hide)
 
+    val showWebViewToolbar: StateFlow<Boolean> =
+        repo.showWebViewToolbar
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     fun blockUser(
         personaId: String?,
         nickname: String,

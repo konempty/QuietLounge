@@ -74,6 +74,7 @@ fun SettingsScreen(
     val ctx = LocalContext.current
     val blockStats by viewModel.blockStats.collectAsStateWithLifecycle()
     val filterMode by viewModel.filterMode.collectAsStateWithLifecycle()
+    val showWebViewToolbar by viewModel.showWebViewToolbar.collectAsStateWithLifecycle()
     val myStats by viewModel.myStats.collectAsStateWithLifecycle()
 
     var pendingClearAll by remember { mutableStateOf(false) }
@@ -159,9 +160,16 @@ fun SettingsScreen(
             MyStatsBlock(myStats)
         }
 
-        // ── 필터 모드 ──
-        Section(title = "필터 모드") {
+        // ── 표시 설정 ── (iOS 와 동일하게 흐림 처리 + 웹뷰 툴바를 한 섹션에 묶음)
+        Section(title = "표시 설정") {
             FilterModeRow(filterMode, onToggle = { viewModel.toggleFilterMode() })
+            Spacer(Modifier.height(8.dp))
+            SwitchRow(
+                title = "웹뷰 하단 툴바",
+                description = "라운지 웹뷰 아래에 뒤/앞/홈/새로고침 버튼 표시",
+                checked = showWebViewToolbar,
+                onCheckedChange = { viewModel.setShowWebViewToolbar(it) },
+            )
         }
 
         // ── 키워드 알림 (Step 5에서 채워짐) ──
@@ -452,6 +460,26 @@ private fun FilterModeRow(
     mode: FilterMode,
     onToggle: () -> Unit,
 ) {
+    SwitchRow(
+        title = "흐림 처리",
+        description =
+            if (mode == FilterMode.Blur) {
+                "차단된 글을 흐리게 표시합니다"
+            } else {
+                "차단된 글을 완전히 숨깁니다"
+            },
+        checked = mode == FilterMode.Blur,
+        onCheckedChange = { onToggle() },
+    )
+}
+
+@Composable
+private fun SwitchRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
     Row(
         modifier =
             Modifier
@@ -463,25 +491,20 @@ private fun FilterModeRow(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "흐림 처리",
+                text = title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onBackground,
             )
             Text(
-                text =
-                    if (mode == FilterMode.Blur) {
-                        "차단된 글을 흐리게 표시합니다"
-                    } else {
-                        "차단된 글을 완전히 숨깁니다"
-                    },
+                text = description,
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Switch(
-            checked = mode == FilterMode.Blur,
-            onCheckedChange = { onToggle() },
+            checked = checked,
+            onCheckedChange = onCheckedChange,
             colors =
                 SwitchDefaults.colors(
                     checkedTrackColor = MaterialTheme.colorScheme.primary,

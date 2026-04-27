@@ -36,6 +36,15 @@ class BlockListRepository(
             FilterMode.fromValue(prefs[PreferencesKeys.FILTER_MODE])
         }
 
+    /**
+     * 웹뷰 하단 네비게이션 툴바 표시 여부. 기본값 false (opt-in) — 일부 사용자가
+     * 변화에 거부감이 있을 수 있어 설정에서 켜야만 노출.
+     */
+    val showWebViewToolbar: Flow<Boolean> =
+        context.qlDataStore.data.map { prefs ->
+            prefs[PreferencesKeys.SHOW_WEBVIEW_TOOLBAR] ?: false
+        }
+
     /** 최초 1회 호출 — DataStore 에서 읽어와 _data 에 반영. */
     suspend fun load() {
         val prefs = context.qlDataStore.data.first()
@@ -62,6 +71,12 @@ class BlockListRepository(
     suspend fun setFilterMode(mode: FilterMode) {
         context.qlDataStore.edit { prefs ->
             prefs[PreferencesKeys.FILTER_MODE] = mode.value
+        }
+    }
+
+    suspend fun setShowWebViewToolbar(enabled: Boolean) {
+        context.qlDataStore.edit { prefs ->
+            prefs[PreferencesKeys.SHOW_WEBVIEW_TOOLBAR] = enabled
         }
     }
 

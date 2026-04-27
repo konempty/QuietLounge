@@ -56,6 +56,10 @@ class SettingsViewModel(
         blockRepo.filterMode
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FilterMode.Hide)
 
+    val showWebViewToolbar: StateFlow<Boolean> =
+        blockRepo.showWebViewToolbar
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
     private val _myStats = MutableStateFlow(MyStatsUiState())
     val myStats: StateFlow<MyStatsUiState> = _myStats.asStateFlow()
 
@@ -64,6 +68,10 @@ class SettingsViewModel(
             val current = filterMode.value
             blockRepo.setFilterMode(if (current == FilterMode.Hide) FilterMode.Blur else FilterMode.Hide)
         }
+    }
+
+    fun setShowWebViewToolbar(enabled: Boolean) {
+        viewModelScope.launch { blockRepo.setShowWebViewToolbar(enabled) }
     }
 
     fun refreshMyStats() {
