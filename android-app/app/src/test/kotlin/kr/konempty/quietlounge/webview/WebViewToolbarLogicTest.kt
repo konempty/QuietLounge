@@ -121,6 +121,48 @@ class WebViewToolbarLogicTest {
         }
     }
 
+    class ShouldShowToolbarHintTests {
+        @Test
+        fun `둘 다 false — 안내 표시`() {
+            assertTrue(
+                WebViewToolbarLogic.shouldShowToolbarHint(
+                    showWebViewToolbar = false,
+                    dontShowToolbarHint = false,
+                ),
+            )
+        }
+
+        @Test
+        fun `이미 툴바 켰으면 안내 안 함`() {
+            assertFalse(
+                WebViewToolbarLogic.shouldShowToolbarHint(
+                    showWebViewToolbar = true,
+                    dontShowToolbarHint = false,
+                ),
+            )
+        }
+
+        @Test
+        fun `다시 보지 않기 선택했으면 안내 안 함`() {
+            assertFalse(
+                WebViewToolbarLogic.shouldShowToolbarHint(
+                    showWebViewToolbar = false,
+                    dontShowToolbarHint = true,
+                ),
+            )
+        }
+
+        @Test
+        fun `툴바 켰고 다시 보지 않기도 누른 경우 — 안내 안 함`() {
+            assertFalse(
+                WebViewToolbarLogic.shouldShowToolbarHint(
+                    showWebViewToolbar = true,
+                    dontShowToolbarHint = true,
+                ),
+            )
+        }
+    }
+
     class IsLoungeHomeTests {
         @Test
         fun `홈 — path 없는 호스트`() {

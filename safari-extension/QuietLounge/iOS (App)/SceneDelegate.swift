@@ -48,10 +48,15 @@ class MainTabViewController: UIViewController {
         showViewController(at: 0)
 
         NotificationCenter.default.addObserver(self, selector: #selector(handleNavigateToPost), name: .navigateToPost, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleSwitchToSettings), name: .switchToSettingsTab, object: nil)
     }
 
     @objc private func handleNavigateToPost() {
         showViewController(at: 0)
+    }
+
+    @objc private func handleSwitchToSettings() {
+        showViewController(at: 2)
     }
 
     private func setupContainerView() {

@@ -656,4 +656,30 @@ final class NavigationToolbarStateTests: XCTestCase {
         )
         XCTAssertTrue(s.homeEnabled)
     }
+
+    // MARK: - 툴바 안내 팝업 표시 여부
+
+    func test_hint_둘다_false면_표시() {
+        XCTAssertTrue(QuietLoungeCore.shouldShowToolbarHint(
+            showWebViewToolbar: false, dontShowToolbarHint: false
+        ))
+    }
+
+    func test_hint_이미_툴바_켰으면_안내_안함() {
+        XCTAssertFalse(QuietLoungeCore.shouldShowToolbarHint(
+            showWebViewToolbar: true, dontShowToolbarHint: false
+        ))
+    }
+
+    func test_hint_다시_보지_않기_누른_사용자_안내_안함() {
+        XCTAssertFalse(QuietLoungeCore.shouldShowToolbarHint(
+            showWebViewToolbar: false, dontShowToolbarHint: true
+        ))
+    }
+
+    func test_hint_둘다_true_안내_안함() {
+        XCTAssertFalse(QuietLoungeCore.shouldShowToolbarHint(
+            showWebViewToolbar: true, dontShowToolbarHint: true
+        ))
+    }
 }

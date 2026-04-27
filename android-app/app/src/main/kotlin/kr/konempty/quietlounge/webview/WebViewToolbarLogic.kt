@@ -51,6 +51,21 @@ object WebViewToolbarLogic {
         return path.isEmpty() || path == "/"
     }
 
+    /**
+     * 앱 시작 시 "툴바 켜는 법 안내" 팝업을 띄울지 판정.
+     * - 이미 툴바를 켠 사용자에겐 안내 불필요 → false
+     * - "다시 보지 않기" 를 누른 사용자에겐 표시 안 함 → false
+     * - 그 외에는 매 앱 실행마다 표시 → true
+     */
+    fun shouldShowToolbarHint(
+        showWebViewToolbar: Boolean,
+        dontShowToolbarHint: Boolean,
+    ): Boolean {
+        if (showWebViewToolbar) return false
+        if (dontShowToolbarHint) return false
+        return true
+    }
+
     private fun extractHost(url: String): String? {
         return try {
             java.net.URI(url).host

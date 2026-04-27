@@ -5,6 +5,7 @@ extension Notification.Name {
     static let filterModeChanged = Notification.Name("QLFilterModeChanged")
     static let navigateToPost = Notification.Name("QLNavigateToPost")
     static let webViewToolbarChanged = Notification.Name("QLWebViewToolbarChanged")
+    static let switchToSettingsTab = Notification.Name("QLSwitchToSettingsTab")
 }
 
 enum AppGroup {
@@ -20,6 +21,7 @@ class BlockDataManager {
     private let storageKey = "quiet_lounge_data"
     private let filterModeKey = "quiet_lounge_filter_mode"
     private let webViewToolbarKey = "quiet_lounge_webview_toolbar"
+    private let dontShowToolbarHintKey = "quiet_lounge_dont_show_toolbar_hint"
     private let migrationKey = "quiet_lounge_migrated_to_group"
     private let defaults: UserDefaults
 
@@ -104,6 +106,13 @@ class BlockDataManager {
             defaults.set(newValue, forKey: webViewToolbarKey)
             postDarwin(AppGroup.darwinWebViewToolbarNotification)
         }
+    }
+
+    /// 사용자가 "툴바 안내 팝업 다시 보지 않기" 를 선택했는지. 기본 `false`.
+    /// 다른 프로세스가 변경하지 않으므로 Darwin notification 은 불필요.
+    var dontShowToolbarHint: Bool {
+        get { defaults.bool(forKey: dontShowToolbarHintKey) }
+        set { defaults.set(newValue, forKey: dontShowToolbarHintKey) }
     }
 
     var totalBlockedCount: Int {

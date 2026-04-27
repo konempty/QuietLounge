@@ -30,6 +30,10 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
     private var pullRefreshArmed = false
     private var pullRefreshInProgress = false
 
+    /// 앱 한 번 켤 때 안내 팝업을 1회만 띄우기 위한 플래그.
+    /// `viewDidAppear` 이 라이프사이클상 여러 번 불릴 수 있어 (탭 전환 후 복귀 등) 가드 필요.
+    private var hasShownToolbarHintThisLaunch = false
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor.systemBackground
@@ -58,8 +62,41 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
         monitor.start(queue: DispatchQueue.global())
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        maybeShowToolbarHint()
+    }
+
     @objc private func webViewToolbarSettingChanged() {
         updateToolbarVisibility()
+    }
+
+    /// 앱 시작 후 라운지 화면이 처음 표시될 때 1회 안내 팝업 노출.
+    /// - 이미 툴바를 켰으면 안 띄움
+    /// - "다시 보지 않기" 누른 사용자에겐 안 띄움
+    /// - 그 외에는 매 launch 마다 한 번 (`hasShownToolbarHintThisLaunch` 가드)
+    private func maybeShowToolbarHint() {
+        guard !hasShownToolbarHintThisLaunch else { return }
+        let manager = BlockDataManager.shared
+        guard QuietLoungeCore.shouldShowToolbarHint(
+            showWebViewToolbar: manager.showWebViewToolbar,
+            dontShowToolbarHint: manager.dontShowToolbarHint
+        ) else { return }
+        hasShownToolbarHintThisLaunch = true
+
+        let alert = UIAlertController(
+            title: "웹뷰 툴바를 켤 수 있어요",
+            message: "라운지 웹뷰 하단에 뒤/앞/홈/새로고침 버튼을 표시할 수 있습니다.\n필요하면 설정 > 표시 설정에서 켜보세요.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "설정 열기", style: .default) { _ in
+            NotificationCenter.default.post(name: .switchToSettingsTab, object: nil)
+        })
+        alert.addAction(UIAlertAction(title: "다시 보지 않기", style: .destructive) { _ in
+            BlockDataManager.shared.dontShowToolbarHint = true
+        })
+        alert.addAction(UIAlertAction(title: "닫기", style: .cancel))
+        present(alert, animated: true)
     }
 
     private func updateToolbarVisibility() {

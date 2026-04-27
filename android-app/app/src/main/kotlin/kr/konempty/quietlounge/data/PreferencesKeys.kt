@@ -19,4 +19,5 @@ object PreferencesKeys {
     val ALERT_INTERVAL = intPreferencesKey("quiet_lounge_alert_interval")
     val ALERT_LAST_CHECKED = stringPreferencesKey("quiet_lounge_alert_last_checked")
     val SHOW_WEBVIEW_TOOLBAR = booleanPreferencesKey("quiet_lounge_show_webview_toolbar")
+    val DONT_SHOW_TOOLBAR_HINT = booleanPreferencesKey("quiet_lounge_dont_show_toolbar_hint")
 }

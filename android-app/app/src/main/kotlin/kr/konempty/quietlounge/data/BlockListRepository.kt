@@ -45,6 +45,15 @@ class BlockListRepository(
             prefs[PreferencesKeys.SHOW_WEBVIEW_TOOLBAR] ?: false
         }
 
+    /**
+     * 사용자가 "툴바 안내 팝업 다시 보지 않기" 를 선택했는지. 기본값 false.
+     * true 면 앱 시작 시 안내 팝업을 띄우지 않는다.
+     */
+    val dontShowToolbarHint: Flow<Boolean> =
+        context.qlDataStore.data.map { prefs ->
+            prefs[PreferencesKeys.DONT_SHOW_TOOLBAR_HINT] ?: false
+        }
+
     /** 최초 1회 호출 — DataStore 에서 읽어와 _data 에 반영. */
     suspend fun load() {
         val prefs = context.qlDataStore.data.first()
@@ -77,6 +86,12 @@ class BlockListRepository(
     suspend fun setShowWebViewToolbar(enabled: Boolean) {
         context.qlDataStore.edit { prefs ->
             prefs[PreferencesKeys.SHOW_WEBVIEW_TOOLBAR] = enabled
+        }
+    }
+
+    suspend fun setDontShowToolbarHint(enabled: Boolean) {
+        context.qlDataStore.edit { prefs ->
+            prefs[PreferencesKeys.DONT_SHOW_TOOLBAR_HINT] = enabled
         }
     }
 

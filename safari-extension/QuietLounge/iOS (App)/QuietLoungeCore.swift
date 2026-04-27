@@ -181,6 +181,19 @@ enum QuietLoungeCore {
         )
     }
 
+    /// 앱 시작 시 "툴바 켜는 법 안내" 팝업 표시 여부.
+    /// - 이미 툴바를 켠 사용자: 안내 불필요
+    /// - "다시 보지 않기" 누른 사용자: 표시 안 함
+    /// - 그 외: 매 앱 실행마다 표시
+    static func shouldShowToolbarHint(
+        showWebViewToolbar: Bool,
+        dontShowToolbarHint: Bool
+    ) -> Bool {
+        if showWebViewToolbar { return false }
+        if dontShowToolbarHint { return false }
+        return true
+    }
+
     /// WebView URL 이 라운지 홈(`lounge.naver.com` + path 없음/루트)인지 판정.
     /// - 호스트가 `lounge.naver.com` 또는 그 서브도메인이 아니면 `false`.
     /// - path 가 빈 문자열 또는 `/` 일 때만 `true`. 그 외 `/posts/123`, `/channels/x` 등은 홈이 아님.

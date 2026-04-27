@@ -8,11 +8,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,9 +25,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kr.konempty.quietlounge.R
 import kr.konempty.quietlounge.ui.blocklist.BlockListScreen
 import kr.konempty.quietlounge.ui.lounge.LoungeScreen
+import kr.konempty.quietlounge.ui.lounge.LoungeViewModel
 import kr.konempty.quietlounge.ui.settings.SettingsScreen
 
 private enum class TopDestination(
@@ -43,6 +48,11 @@ fun MainScreen(
     onPendingPostIdConsumed: () -> Unit,
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+
+    // LoungeScreen 과 동일 ViewModel 인스턴스 — Activity 스코프 viewModel() 호출은
+    // 같은 ViewModelStoreOwner 안에서 항상 같은 인스턴스를 반환한다.
+    val loungeVm: LoungeViewModel = viewModel()
+    val showToolbarHint by loungeVm.showToolbarHint.collectAsStateWithLifecycle()
 
     // 알림 클릭 → 라운지 탭으로 전환
     LaunchedEffect(pendingPostId) {
@@ -83,5 +93,33 @@ fun MainScreen(
                 2 -> SettingsScreen(modifier = Modifier.fillMaxSize(), isVisible = true)
             }
         }
+    }
+
+    // 앱 시작 시 1회 — 툴바 안내 팝업.
+    // "다시 보지 않기" 를 선택하지 않았다면 매 앱 실행마다 띄운다 (사용자 명시 요청).
+    if (showToolbarHint) {
+        AlertDialog(
+            onDismissRequest = { loungeVm.dismissToolbarHint() },
+            title = { Text("웹뷰 툴바를 켤 수 있어요") },
+            text = {
+                Text(
+                    "라운지 웹뷰 하단에 뒤/앞/홈/새로고침 버튼을 표시할 수 있습니다.\n" +
+                        "필요하면 설정 > 표시 설정에서 켜보세요.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    loungeVm.dismissToolbarHint()
+                    selectedTab = 2
+                }) {
+                    Text("설정 열기")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { loungeVm.setDontShowToolbarHint() }) {
+                    Text("다시 보지 않기")
+                }
+            },
+        )
     }
 }
