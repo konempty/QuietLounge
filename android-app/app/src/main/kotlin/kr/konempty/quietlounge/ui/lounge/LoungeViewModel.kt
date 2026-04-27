@@ -28,6 +28,13 @@ class LoungeViewModel(
     private val _showToolbarHint = MutableStateFlow(false)
     val showToolbarHint: StateFlow<Boolean> = _showToolbarHint.asStateFlow()
 
+    /**
+     * 유저 차단 직후 1회성으로 표시되는 "흐림 처리 안내" 트리거.
+     * `blockUser()` 가 끝난 뒤 조건이 맞으면 true 로 세팅 → UI 가 dialog 노출 → dismiss 시 false 로 복귀.
+     */
+    private val _showFilterHint = MutableStateFlow(false)
+    val showFilterHint: StateFlow<Boolean> = _showFilterHint.asStateFlow()
+
     init {
         viewModelScope.launch { repo.load() }
         viewModelScope.launch {
@@ -55,7 +62,15 @@ class LoungeViewModel(
         personaId: String?,
         nickname: String,
     ) {
-        viewModelScope.launch { repo.blockUser(personaId, nickname) }
+        viewModelScope.launch {
+            repo.blockUser(personaId, nickname)
+            // 차단이 영속화된 직후에 안내 노출 평가 — 매 차단마다.
+            val isBlur = repo.filterMode.first() == FilterMode.Blur
+            val dontShow = repo.dontShowFilterHint.first()
+            if (WebViewToolbarLogic.shouldShowFilterModeHint(isBlur, dontShow)) {
+                _showFilterHint.value = true
+            }
+        }
     }
 
     fun updatePersonaCache(
@@ -73,6 +88,17 @@ class LoungeViewModel(
         viewModelScope.launch {
             repo.setDontShowToolbarHint(true)
             _showToolbarHint.value = false
+        }
+    }
+
+    fun dismissFilterHint() {
+        _showFilterHint.value = false
+    }
+
+    fun setDontShowFilterHint() {
+        viewModelScope.launch {
+            repo.setDontShowFilterHint(true)
+            _showFilterHint.value = false
         }
     }
 }

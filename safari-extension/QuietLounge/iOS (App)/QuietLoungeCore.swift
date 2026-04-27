@@ -194,6 +194,19 @@ enum QuietLoungeCore {
         return true
     }
 
+    /// 유저 차단 직후 "흐림 처리 모드 안내" 팝업 표시 여부.
+    /// - 이미 BLUR 모드면 안내 불필요
+    /// - "다시 보지 않기" 누른 사용자: 표시 안 함
+    /// - HIDE 모드 + 안내 안 끔: 매 차단마다 노출
+    static func shouldShowFilterModeHint(
+        isBlurMode: Bool,
+        dontShowFilterHint: Bool
+    ) -> Bool {
+        if isBlurMode { return false }
+        if dontShowFilterHint { return false }
+        return true
+    }
+
     /// WebView URL 이 라운지 홈(`lounge.naver.com` + path 없음/루트)인지 판정.
     /// - 호스트가 `lounge.naver.com` 또는 그 서브도메인이 아니면 `false`.
     /// - path 가 빈 문자열 또는 `/` 일 때만 `true`. 그 외 `/posts/123`, `/channels/x` 등은 홈이 아님.

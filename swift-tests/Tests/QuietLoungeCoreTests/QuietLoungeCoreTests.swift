@@ -682,4 +682,30 @@ final class NavigationToolbarStateTests: XCTestCase {
             showWebViewToolbar: true, dontShowToolbarHint: true
         ))
     }
+
+    // MARK: - 차단 직후 흐림 처리 안내 표시 여부
+
+    func test_filterHint_HIDE_dontShow_false면_표시() {
+        XCTAssertTrue(QuietLoungeCore.shouldShowFilterModeHint(
+            isBlurMode: false, dontShowFilterHint: false
+        ))
+    }
+
+    func test_filterHint_이미_BLUR_모드면_안내_안함() {
+        XCTAssertFalse(QuietLoungeCore.shouldShowFilterModeHint(
+            isBlurMode: true, dontShowFilterHint: false
+        ))
+    }
+
+    func test_filterHint_다시_보지_않기_누른_사용자_안내_안함() {
+        XCTAssertFalse(QuietLoungeCore.shouldShowFilterModeHint(
+            isBlurMode: false, dontShowFilterHint: true
+        ))
+    }
+
+    func test_filterHint_둘다_true_안내_안함() {
+        XCTAssertFalse(QuietLoungeCore.shouldShowFilterModeHint(
+            isBlurMode: true, dontShowFilterHint: true
+        ))
+    }
 }

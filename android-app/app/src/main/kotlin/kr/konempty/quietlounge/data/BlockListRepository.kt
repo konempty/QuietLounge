@@ -54,6 +54,14 @@ class BlockListRepository(
             prefs[PreferencesKeys.DONT_SHOW_TOOLBAR_HINT] ?: false
         }
 
+    /**
+     * 사용자가 "차단 직후 흐림 처리 안내 다시 보지 않기" 를 선택했는지. 기본값 false.
+     */
+    val dontShowFilterHint: Flow<Boolean> =
+        context.qlDataStore.data.map { prefs ->
+            prefs[PreferencesKeys.DONT_SHOW_FILTER_HINT] ?: false
+        }
+
     /** 최초 1회 호출 — DataStore 에서 읽어와 _data 에 반영. */
     suspend fun load() {
         val prefs = context.qlDataStore.data.first()
@@ -92,6 +100,12 @@ class BlockListRepository(
     suspend fun setDontShowToolbarHint(enabled: Boolean) {
         context.qlDataStore.edit { prefs ->
             prefs[PreferencesKeys.DONT_SHOW_TOOLBAR_HINT] = enabled
+        }
+    }
+
+    suspend fun setDontShowFilterHint(enabled: Boolean) {
+        context.qlDataStore.edit { prefs ->
+            prefs[PreferencesKeys.DONT_SHOW_FILTER_HINT] = enabled
         }
     }
 

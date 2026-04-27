@@ -22,6 +22,7 @@ class BlockDataManager {
     private let filterModeKey = "quiet_lounge_filter_mode"
     private let webViewToolbarKey = "quiet_lounge_webview_toolbar"
     private let dontShowToolbarHintKey = "quiet_lounge_dont_show_toolbar_hint"
+    private let dontShowFilterHintKey = "quiet_lounge_dont_show_filter_hint"
     private let migrationKey = "quiet_lounge_migrated_to_group"
     private let defaults: UserDefaults
 
@@ -113,6 +114,12 @@ class BlockDataManager {
     var dontShowToolbarHint: Bool {
         get { defaults.bool(forKey: dontShowToolbarHintKey) }
         set { defaults.set(newValue, forKey: dontShowToolbarHintKey) }
+    }
+
+    /// 사용자가 "차단 직후 흐림 처리 안내 다시 보지 않기" 를 선택했는지. 기본 `false`.
+    var dontShowFilterHint: Bool {
+        get { defaults.bool(forKey: dontShowFilterHintKey) }
+        set { defaults.set(newValue, forKey: dontShowFilterHintKey) }
     }
 
     var totalBlockedCount: Int {

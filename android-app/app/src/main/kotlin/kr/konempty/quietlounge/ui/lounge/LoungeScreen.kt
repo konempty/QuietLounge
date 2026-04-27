@@ -70,6 +70,7 @@ fun LoungeScreen(
     val blockData by viewModel.blockData.collectAsStateWithLifecycle()
     val filterMode by viewModel.filterMode.collectAsStateWithLifecycle()
     val showWebViewToolbar by viewModel.showWebViewToolbar.collectAsStateWithLifecycle()
+    val showFilterHint by viewModel.showFilterHint.collectAsStateWithLifecycle()
 
     var webView by remember { mutableStateOf<WebView?>(null) }
     var pendingBlock by remember { mutableStateOf<PendingBlock?>(null) }
@@ -179,6 +180,29 @@ fun LoungeScreen(
                     dismissButton = {
                         TextButton(onClick = { pendingBlock = null }) {
                             Text("취소")
+                        }
+                    },
+                )
+            }
+
+            if (showFilterHint) {
+                AlertDialog(
+                    onDismissRequest = { viewModel.dismissFilterHint() },
+                    title = { Text("팁: 흐림 처리 모드") },
+                    text = {
+                        Text(
+                            "차단된 글을 완전히 숨기는 대신 흐리게만 처리할 수도 있어요.\n" +
+                                "설정 > 표시 설정 > '흐림 처리' 에서 켤 수 있습니다.",
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { viewModel.dismissFilterHint() }) {
+                            Text("확인")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { viewModel.setDontShowFilterHint() }) {
+                            Text("다시 보지 않기")
                         }
                     },
                 )

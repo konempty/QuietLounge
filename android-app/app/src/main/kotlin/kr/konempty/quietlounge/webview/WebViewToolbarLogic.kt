@@ -66,6 +66,21 @@ object WebViewToolbarLogic {
         return true
     }
 
+    /**
+     * 유저 차단 직후 "흐림 처리 모드 안내" 팝업을 띄울지 판정.
+     * - 이미 BLUR 모드면 안내 불필요 (사용자가 이미 알고 있음) → false
+     * - "다시 보지 않기" 누른 사용자 → false
+     * - HIDE 모드 + 안내 안 끔 → true (매 차단마다 노출)
+     */
+    fun shouldShowFilterModeHint(
+        isBlurMode: Boolean,
+        dontShowFilterHint: Boolean,
+    ): Boolean {
+        if (isBlurMode) return false
+        if (dontShowFilterHint) return false
+        return true
+    }
+
     private fun extractHost(url: String): String? {
         return try {
             java.net.URI(url).host

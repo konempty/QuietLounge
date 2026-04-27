@@ -56,24 +56,30 @@
   }
 
   const FILTER_MODE_KEY = 'quiet_lounge_filter_mode';
+  const DONT_SHOW_FILTER_HINT_KEY = 'quiet_lounge_dont_show_filter_hint';
   let blockData = createEmptyData();
   let filterMode = 'hide'; // 'hide' or 'blur'
+  let dontShowFilterHint = false;
 
   async function loadBlockData() {
     return new Promise((resolve) => {
-      chrome.storage.local.get([STORAGE_KEY, FILTER_MODE_KEY], (result) => {
-        if (result[STORAGE_KEY]) {
-          try {
-            blockData = JSON.parse(result[STORAGE_KEY]);
-          } catch {
-            blockData = createEmptyData();
+      chrome.storage.local.get(
+        [STORAGE_KEY, FILTER_MODE_KEY, DONT_SHOW_FILTER_HINT_KEY],
+        (result) => {
+          if (result[STORAGE_KEY]) {
+            try {
+              blockData = JSON.parse(result[STORAGE_KEY]);
+            } catch {
+              blockData = createEmptyData();
+            }
           }
-        }
-        if (result[FILTER_MODE_KEY]) {
-          filterMode = result[FILTER_MODE_KEY];
-        }
-        resolve();
-      });
+          if (result[FILTER_MODE_KEY]) {
+            filterMode = result[FILTER_MODE_KEY];
+          }
+          dontShowFilterHint = !!result[DONT_SHOW_FILTER_HINT_KEY];
+          resolve();
+        },
+      );
     });
   }
 
@@ -118,6 +124,90 @@
       });
     }
     await saveBlockData();
+  }
+
+  // ── 차단 직후 "흐림 처리 모드 안내" Hint 다이얼로그 ──
+  // 사용자가 매 차단마다 안내를 받게 됨 (HIDE 모드 + "다시 보지 않기" 미선택 한정).
+  // browser confirm() 으로는 "다시 보지 않기" UX 가 안 되므로 커스텀 DOM modal.
+  function qlFilterHintDialog() {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText =
+        'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999999;' +
+        'display:flex;align-items:center;justify-content:center;';
+
+      const dialog = document.createElement('div');
+      dialog.style.cssText =
+        'background:#1a1a1a;color:#e0e0e0;border-radius:14px;padding:20px;' +
+        'max-width:340px;width:90%;font-family:-apple-system,BlinkMacSystemFont,sans-serif;' +
+        'box-shadow:0 4px 24px rgba(0,0,0,0.4);';
+
+      const title = document.createElement('p');
+      title.textContent = '팁: 흐림 처리 모드';
+      title.style.cssText = 'font-size:16px;font-weight:600;margin:0 0 10px;';
+
+      const msg = document.createElement('p');
+      msg.textContent =
+        '차단된 글을 완전히 숨기는 대신 흐리게만 처리할 수도 있어요. 익스텐션 팝업의 \'흐림 처리\' 토글에서 켤 수 있습니다.';
+      msg.style.cssText = 'font-size:14px;margin:0 0 18px;line-height:1.5;color:#bbb;';
+
+      const btnRow = document.createElement('div');
+      btnRow.style.cssText = 'display:flex;gap:10px;';
+
+      const dontBtn = document.createElement('button');
+      dontBtn.textContent = '다시 보지 않기';
+      dontBtn.style.cssText =
+        'flex:1;padding:10px;border:1px solid #444;background:transparent;color:#aaa;' +
+        'border-radius:8px;font-size:13px;cursor:pointer;';
+
+      const okBtn = document.createElement('button');
+      okBtn.textContent = '확인';
+      okBtn.style.cssText =
+        'flex:1;padding:10px;border:none;background:#4A6CF7;color:#fff;' +
+        'border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;';
+
+      function close(result) {
+        overlay.remove();
+        resolve(result);
+      }
+
+      dontBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        close('dontShow');
+      });
+      okBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        close('confirm');
+      });
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close('confirm');
+      });
+
+      btnRow.appendChild(dontBtn);
+      btnRow.appendChild(okBtn);
+      dialog.appendChild(title);
+      dialog.appendChild(msg);
+      dialog.appendChild(btnRow);
+      overlay.appendChild(dialog);
+      document.body.appendChild(overlay);
+    });
+  }
+
+  /**
+   * 차단 직후 호출 — HIDE 모드 + 안내 안 끔이면 hint 표시.
+   * pure logic 은 iOS QuietLoungeCore.shouldShowFilterModeHint /
+   * Android WebViewToolbarLogic.shouldShowFilterModeHint 와 동일 시맨틱.
+   */
+  async function maybeShowFilterModeHint() {
+    if (filterMode === 'blur') return;
+    if (dontShowFilterHint) return;
+    const result = await qlFilterHintDialog();
+    if (result === 'dontShow') {
+      dontShowFilterHint = true;
+      await new Promise((resolve) => {
+        chrome.storage.local.set({ [DONT_SHOW_FILTER_HINT_KEY]: true }, resolve);
+      });
+    }
   }
 
   // ── API 인터셉터 (MAIN world에서 수신) ──
@@ -371,6 +461,7 @@
           await blockUser(pid, nickname, '');
           filterAll();
           injectBlockButtons();
+          await maybeShowFilterModeHint();
         }
       });
 
@@ -403,6 +494,7 @@
           await blockUser(pid, nickname || '', '');
           filterAll();
           injectBlockButtons();
+          await maybeShowFilterModeHint();
         }
       });
 
@@ -469,6 +561,9 @@
     if (changes[FILTER_MODE_KEY]) {
       filterMode = changes[FILTER_MODE_KEY].newValue || 'hide';
       filterAll();
+    }
+    if (changes[DONT_SHOW_FILTER_HINT_KEY]) {
+      dontShowFilterHint = !!changes[DONT_SHOW_FILTER_HINT_KEY].newValue;
     }
   });
 

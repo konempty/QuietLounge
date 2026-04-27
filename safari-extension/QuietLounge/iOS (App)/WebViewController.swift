@@ -99,6 +99,27 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
         present(alert, animated: true)
     }
 
+    /// 차단 직후 호출 — HIDE 모드 + 안내 안 끔이면 흐림 처리 모드 안내 alert 노출.
+    private func maybeShowFilterModeHint() {
+        let manager = BlockDataManager.shared
+        let isBlur = manager.filterMode == "blur"
+        guard QuietLoungeCore.shouldShowFilterModeHint(
+            isBlurMode: isBlur,
+            dontShowFilterHint: manager.dontShowFilterHint
+        ) else { return }
+
+        let alert = UIAlertController(
+            title: "팁: 흐림 처리 모드",
+            message: "차단된 글을 완전히 숨기는 대신 흐리게만 처리할 수도 있어요.\n설정 > 표시 설정 > '흐림 처리' 에서 켤 수 있습니다.",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "확인", style: .default))
+        alert.addAction(UIAlertAction(title: "다시 보지 않기", style: .destructive) { _ in
+            BlockDataManager.shared.dontShowFilterHint = true
+        })
+        present(alert, animated: true)
+    }
+
     private func updateToolbarVisibility() {
         let show = BlockDataManager.shared.showWebViewToolbar
         toolbar.isHidden = !show
@@ -449,8 +470,12 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
 
             let alert = UIAlertController(title: "유저 차단", message: "\"\(nickname)\" 유저를 차단하시겠습니까?", preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-            alert.addAction(UIAlertAction(title: "차단", style: .destructive) { _ in
+            alert.addAction(UIAlertAction(title: "차단", style: .destructive) { [weak self] _ in
                 BlockDataManager.shared.blockUser(personaId: personaId, nickname: nickname)
+                // 첫 alert 가 dismiss 된 다음 tick 에 띄워야 "이미 present 중인 vc 위에 또 present" 경고가 안 남.
+                DispatchQueue.main.async {
+                    self?.maybeShowFilterModeHint()
+                }
             })
             present(alert, animated: true)
 

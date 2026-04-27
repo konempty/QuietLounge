@@ -163,6 +163,48 @@ class WebViewToolbarLogicTest {
         }
     }
 
+    class ShouldShowFilterModeHintTests {
+        @Test
+        fun `HIDE 모드 + dontShow false — 안내 표시`() {
+            assertTrue(
+                WebViewToolbarLogic.shouldShowFilterModeHint(
+                    isBlurMode = false,
+                    dontShowFilterHint = false,
+                ),
+            )
+        }
+
+        @Test
+        fun `이미 BLUR 모드면 안내 안 함`() {
+            assertFalse(
+                WebViewToolbarLogic.shouldShowFilterModeHint(
+                    isBlurMode = true,
+                    dontShowFilterHint = false,
+                ),
+            )
+        }
+
+        @Test
+        fun `다시 보지 않기 누른 사용자 안내 안 함`() {
+            assertFalse(
+                WebViewToolbarLogic.shouldShowFilterModeHint(
+                    isBlurMode = false,
+                    dontShowFilterHint = true,
+                ),
+            )
+        }
+
+        @Test
+        fun `BLUR 모드이면서 다시 보지 않기도 누른 경우 안내 안 함`() {
+            assertFalse(
+                WebViewToolbarLogic.shouldShowFilterModeHint(
+                    isBlurMode = true,
+                    dontShowFilterHint = true,
+                ),
+            )
+        }
+    }
+
     class IsLoungeHomeTests {
         @Test
         fun `홈 — path 없는 호스트`() {
