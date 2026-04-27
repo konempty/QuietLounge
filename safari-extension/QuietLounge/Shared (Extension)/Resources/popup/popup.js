@@ -89,7 +89,6 @@ function render() {
             <div class="block-item-meta">
               <span class="block-item-id">${user.personaId}</span> · ${date}
             </div>
-            ${user.reason ? `<div class="block-item-reason">${escapeHtml(user.reason)}</div>` : ''}
           </div>
           <button class="btn-unblock" data-type="persona" data-id="${user.personaId}">해제</button>
         </div>
@@ -106,7 +105,6 @@ function render() {
           <div class="block-item-info">
             <div class="block-item-nickname">${escapeHtml(block.nickname)}</div>
             <div class="block-item-meta">닉네임만 · ${date}</div>
-            ${block.reason ? `<div class="block-item-reason">${escapeHtml(block.reason)}</div>` : ''}
           </div>
           <button class="btn-unblock" data-type="nickname" data-nickname="${escapeHtml(block.nickname)}">해제</button>
         </div>
@@ -137,6 +135,96 @@ function escapeHtml(text) {
   div.textContent = text;
   return div.innerHTML;
 }
+
+// ── In-popup DOM modal ──
+// Safari Web Extension popup 환경에선 native confirm/alert 이 차단되어 동작하지 않음.
+// 동일 시맨틱의 DOM modal 로 대체.
+function popupModal({ message, buttons }) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText =
+      'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;' +
+      'display:flex;align-items:center;justify-content:center;';
+
+    const dialog = document.createElement('div');
+    dialog.style.cssText =
+      'background:#1a1a1a;color:#e0e0e0;border-radius:12px;padding:18px;' +
+      'max-width:300px;width:88%;text-align:center;' +
+      'font-family:-apple-system,BlinkMacSystemFont,sans-serif;' +
+      'box-shadow:0 4px 20px rgba(0,0,0,0.4);';
+
+    const msg = document.createElement('p');
+    msg.textContent = message;
+    msg.style.cssText = 'font-size:14px;margin:0 0 16px;line-height:1.45;white-space:pre-wrap;';
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;';
+
+    function close(value) {
+      overlay.remove();
+      resolve(value);
+    }
+
+    buttons.forEach((b) => {
+      const btn = document.createElement('button');
+      btn.textContent = b.label;
+      const styles = {
+        cancel: 'border:1px solid #444;background:transparent;color:#aaa;',
+        destructive: 'border:none;background:#e74c3c;color:#fff;font-weight:600;',
+        primary: 'border:none;background:#4A6CF7;color:#fff;font-weight:600;',
+      };
+      btn.style.cssText =
+        'flex:1;padding:9px;border-radius:6px;font-size:13px;cursor:pointer;' +
+        (styles[b.style] || styles.primary);
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        close(b.value);
+      });
+      row.appendChild(btn);
+    });
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close(undefined);
+    });
+
+    dialog.appendChild(msg);
+    dialog.appendChild(row);
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+  });
+}
+
+function popupAlert(message) {
+  return popupModal({ message, buttons: [{ label: '확인', value: true, style: 'primary' }] });
+}
+
+function popupConfirm(message) {
+  return popupModal({
+    message,
+    buttons: [
+      { label: '취소', value: false, style: 'cancel' },
+      { label: '삭제', value: true, style: 'destructive' },
+    ],
+  }).then((v) => v === true);
+}
+
+// ── 전체 삭제 ──
+// iOS / Android 앱 의 "전체 삭제" 와 동일 시맨틱 — blockedUsers + nicknameOnlyBlocks + personaCache 모두 초기화.
+document.getElementById('btn-clear-all').addEventListener('click', async () => {
+  const total =
+    Object.keys(blockData.blockedUsers).length + blockData.nicknameOnlyBlocks.length;
+  if (total === 0) {
+    await popupAlert('차단된 유저가 없습니다.');
+    return;
+  }
+  const ok = await popupConfirm(
+    `${total}명의 차단을 모두 해제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`,
+  );
+  if (!ok) return;
+  blockData = createEmptyData();
+  await saveData();
+  render();
+});
 
 // ── Export/Import ──
 document.getElementById('btn-export').addEventListener('click', async () => {
@@ -182,7 +270,7 @@ document.getElementById('file-import').addEventListener('change', async (e) => {
   try {
     const parsed = JSON.parse(text);
     if (parsed.version !== 2) {
-      alert('지원하지 않는 형식입니다.');
+      await popupAlert('지원하지 않는 형식입니다.');
       return;
     }
 
@@ -212,9 +300,9 @@ document.getElementById('file-import').addEventListener('change', async (e) => {
     }
 
     render();
-    alert('데이터를 가져왔습니다.');
+    await popupAlert('데이터를 가져왔습니다.');
   } catch {
-    alert('올바른 JSON 파일이 아닙니다.');
+    await popupAlert('올바른 JSON 파일이 아닙니다.');
   }
   e.target.value = '';
 });
@@ -645,7 +733,7 @@ document.getElementById('btn-save-alert').addEventListener('click', async () => 
     try {
       browser.runtime.sendMessage({ type: 'QL_PROMPT_NOTIF_PERM' }, (resp) => {
         if (resp && resp.ok && resp.tabCount === 0) {
-          alert(
+          popupAlert(
             '키워드 알림을 사용하려면 lounge.naver.com 페이지에서 알림 권한을 한 번 허용해야 합니다.\n라운지 탭을 열고 다시 시도해 주세요.',
           );
         }

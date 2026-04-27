@@ -277,9 +277,7 @@ android-app/                     네이티브 Android 앱 (Kotlin + Jetpack Comp
     "92nccavj": {
       "personaId": "92nccavj",
       "nickname": "닉네임",
-      "previousNicknames": [],
-      "blockedAt": "2026-03-17T12:00:00Z",
-      "reason": ""
+      "blockedAt": "2026-03-17T12:00:00Z"
     }
   },
   "nicknameOnlyBlocks": [],
@@ -290,6 +288,13 @@ android-app/                     네이티브 Android 앱 (Kotlin + Jetpack Comp
 - `blockedUsers` — personaId 확보된 차단 유저 (닉네임 변경 시에도 차단 유지)
 - `nicknameOnlyBlocks` — personaId 미확보 임시 차단 (추후 자동 승격)
 - `personaCache` — 수집된 personaId-닉네임 매핑 캐시 (내보내기 시 제외)
+
+### v2 스키마 변경 이력 (1.0.2)
+
+`BlockedUser.previousNicknames` 와 `BlockedUser.reason` / `NicknameOnlyBlock.reason` 필드는 1.0.2 에서 제거되었다.
+- 사용처 부재 — 차단 사유 입력 UI 가 없어 `reason` 은 항상 빈 문자열, `previousNicknames` 는 자동 추적되었으나 어느 플랫폼 UI 에도 노출되지 않았음.
+- 옛 백업/storage 호환: 모든 파서(`kotlinx.serialization` 의 `ignoreUnknownKeys`, JS `JSON.parse`, Swift dictionary)가 옛 필드를 자동 무시하므로 import 는 깨지지 않는다. 다만 다음 저장/내보내기 때 옛 메타데이터가 떨어진다 — 사용처가 없어 실용 영향은 없으나 명시적으로 양해.
+- `version` 은 그대로 `2` 유지 (forward/backward compat 모두 유지 — 옛 앱이 새 JSON 을 읽으면 빠진 필드는 default 값으로 채움).
 
 ---
 

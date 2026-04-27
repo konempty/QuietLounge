@@ -399,39 +399,35 @@ final class PersonaCachePromotionTests: XCTestCase {
 
     func test_현재_닉네임이_nicknameOnly에_있으면_승격() {
         var data = emptyData()
-        data["nicknameOnlyBlocks"] = [["nickname": "auto", "blockedAt": fixedIso, "reason": "사유"]]
+        data["nicknameOnlyBlocks"] = [["nickname": "auto", "blockedAt": fixedIso]]
         let out = QuietLoungeCore.applyPersonaCacheUpdate(
             to: data, personaId: "p1", nickname: "auto", now: fixedDate
         )
         let users = out["blockedUsers"] as? [String: [String: Any]]
         XCTAssertEqual(users?["p1"]?["nickname"] as? String, "auto")
-        XCTAssertEqual(users?["p1"]?["reason"] as? String, "사유")
         XCTAssertTrue((out["nicknameOnlyBlocks"] as? [[String: Any]])?.isEmpty ?? false)
     }
 
     func test_이전_닉네임_기준_승격_시_oldname_엔트리도_제거() {
         var data = emptyData()
         data["personaCache"] = ["p1": ["nickname": "oldname", "lastSeen": fixedIso]]
-        data["nicknameOnlyBlocks"] = [["nickname": "oldname", "blockedAt": fixedIso, "reason": ""]]
+        data["nicknameOnlyBlocks"] = [["nickname": "oldname", "blockedAt": fixedIso]]
         let out = QuietLoungeCore.applyPersonaCacheUpdate(
             to: data, personaId: "p1", nickname: "newname", now: fixedDate
         )
         let users = out["blockedUsers"] as? [String: [String: Any]]
         XCTAssertEqual(users?["p1"]?["nickname"] as? String, "newname")
-        // oldname 엔트리가 반드시 제거되어야 함 — 다른 사용자 오탐 방지
         XCTAssertTrue((out["nicknameOnlyBlocks"] as? [[String: Any]])?.isEmpty ?? false)
     }
 
-    func test_이미_차단된_유저_닉네임_변경_시_previousNicknames_추적() {
+    func test_이미_차단된_유저_닉네임_변경_시_nickname_만_갱신() {
         var data = emptyData()
         data["personaCache"] = ["p1": ["nickname": "first", "lastSeen": fixedIso]]
         data["blockedUsers"] = [
             "p1": [
                 "personaId": "p1",
                 "nickname": "first",
-                "previousNicknames": [String](),
-                "blockedAt": fixedIso,
-                "reason": ""
+                "blockedAt": fixedIso
             ]
         ]
         let out = QuietLoungeCore.applyPersonaCacheUpdate(
@@ -439,26 +435,6 @@ final class PersonaCachePromotionTests: XCTestCase {
         )
         let users = out["blockedUsers"] as? [String: [String: Any]]
         XCTAssertEqual(users?["p1"]?["nickname"] as? String, "second")
-        XCTAssertEqual(users?["p1"]?["previousNicknames"] as? [String], ["first"])
-    }
-
-    func test_같은_닉네임_재호출은_변경_없음() {
-        var data = emptyData()
-        data["personaCache"] = ["p1": ["nickname": "same", "lastSeen": fixedIso]]
-        data["blockedUsers"] = [
-            "p1": [
-                "personaId": "p1",
-                "nickname": "same",
-                "previousNicknames": [String](),
-                "blockedAt": fixedIso,
-                "reason": ""
-            ]
-        ]
-        let out = QuietLoungeCore.applyPersonaCacheUpdate(
-            to: data, personaId: "p1", nickname: "same", now: fixedDate
-        )
-        let users = out["blockedUsers"] as? [String: [String: Any]]
-        XCTAssertEqual((users?["p1"]?["previousNicknames"] as? [String])?.count, 0)
     }
 
     func test_차단_안_된_유저의_닉네임_변경은_blockedUsers_변경_없음() {
@@ -472,75 +448,24 @@ final class PersonaCachePromotionTests: XCTestCase {
         XCTAssertEqual(cache?["p1"]?["nickname"], "second")
     }
 
-    func test_승격_시_기존_reason_이_있으면_유지() {
-        var data = emptyData()
-        data["blockedUsers"] = [
-            "p1": [
-                "personaId": "p1",
-                "nickname": "keep",
-                "previousNicknames": [String](),
-                "blockedAt": fixedIso,
-                "reason": "기존사유"
-            ]
-        ]
-        data["nicknameOnlyBlocks"] = [["nickname": "keep", "blockedAt": fixedIso, "reason": "새사유"]]
-        let out = QuietLoungeCore.applyPersonaCacheUpdate(
-            to: data, personaId: "p1", nickname: "keep", now: fixedDate
-        )
-        let users = out["blockedUsers"] as? [String: [String: Any]]
-        // 기존 blockedUsers reason 이 우선
-        XCTAssertEqual(users?["p1"]?["reason"] as? String, "기존사유")
-    }
-
     func test_승격_시_기존_blockedAt_유지() {
         var data = emptyData()
         data["blockedUsers"] = [
             "p1": [
                 "personaId": "p1",
                 "nickname": "old",
-                "previousNicknames": [String](),
-                "blockedAt": "2026-01-01T00:00:00Z",
-                "reason": ""
+                "blockedAt": "2026-01-01T00:00:00Z"
             ]
         ]
         data["nicknameOnlyBlocks"] = [[
             "nickname": "old",
-            "blockedAt": fixedIso,
-            "reason": ""
+            "blockedAt": fixedIso
         ]]
         let out = QuietLoungeCore.applyPersonaCacheUpdate(
             to: data, personaId: "p1", nickname: "old", now: fixedDate
         )
         let users = out["blockedUsers"] as? [String: [String: Any]]
         XCTAssertEqual(users?["p1"]?["blockedAt"] as? String, "2026-01-01T00:00:00Z")
-    }
-
-    func test_이전_닉네임_기준_승격_시_기존_previousNicknames_보존하고_추가() {
-        var data = emptyData()
-        data["personaCache"] = ["p1": ["nickname": "oldname", "lastSeen": fixedIso]]
-        data["blockedUsers"] = [
-            "p1": [
-                "personaId": "p1",
-                "nickname": "very-old",
-                "previousNicknames": ["ancient"],
-                "blockedAt": fixedIso,
-                "reason": ""
-            ]
-        ]
-        data["nicknameOnlyBlocks"] = [[
-            "nickname": "oldname",
-            "blockedAt": fixedIso,
-            "reason": ""
-        ]]
-        let out = QuietLoungeCore.applyPersonaCacheUpdate(
-            to: data, personaId: "p1", nickname: "newname", now: fixedDate
-        )
-        let users = out["blockedUsers"] as? [String: [String: Any]]
-        XCTAssertEqual(users?["p1"]?["nickname"] as? String, "newname")
-        XCTAssertEqual(
-            users?["p1"]?["previousNicknames"] as? [String],
-            ["ancient", "very-old"]
-        )
     }
 }
 

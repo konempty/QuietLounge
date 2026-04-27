@@ -17,31 +17,15 @@ class BlockListEngineTest {
         val data = engine.snapshot()
         assertEquals(1, data.blockedUsers.size)
         assertEquals("foo", data.blockedUsers["p1"]?.nickname)
-        assertTrue(data.blockedUsers["p1"]?.previousNicknames?.isEmpty() == true)
     }
 
     @Test
-    fun `같은 personaId 재차단 시 닉네임 변경 이력 유지`() {
+    fun `같은 personaId 재차단 시 nickname 갱신`() {
         val engine = BlockListEngine()
         engine.blockByPersonaId("p1", "first")
         engine.blockByPersonaId("p1", "second")
         val user = engine.snapshot().blockedUsers["p1"]!!
         assertEquals("second", user.nickname)
-        assertTrue(user.previousNicknames.contains("first"))
-    }
-
-    @Test
-    fun `같은 닉네임 재차단 — previousNicknames 비어있음`() {
-        val engine = BlockListEngine()
-        engine.blockByPersonaId("p1", "same")
-        engine.blockByPersonaId("p1", "same")
-        assertTrue(
-            engine
-                .snapshot()
-                .blockedUsers["p1"]
-                ?.previousNicknames
-                ?.isEmpty() == true,
-        )
     }
 
     @Test
@@ -52,14 +36,6 @@ class BlockListEngineTest {
         Thread.sleep(5)
         engine.blockByPersonaId("p1", "a")
         assertEquals(t1, engine.snapshot().blockedUsers["p1"]!!.blockedAt)
-    }
-
-    @Test
-    fun `reason — 최초값 보존`() {
-        val engine = BlockListEngine()
-        engine.blockByPersonaId("p1", "a", reason = "광고")
-        engine.blockByPersonaId("p1", "a", reason = "")
-        assertEquals("광고", engine.snapshot().blockedUsers["p1"]?.reason)
     }
 
     @Test
@@ -77,11 +53,10 @@ class BlockListEngineTest {
     @Test
     fun `blockByNickname 기본 동작`() {
         val engine = BlockListEngine()
-        engine.blockByNickname("tester", "스팸")
+        engine.blockByNickname("tester")
         val data = engine.snapshot()
         assertEquals(1, data.nicknameOnlyBlocks.size)
         assertEquals("tester", data.nicknameOnlyBlocks[0].nickname)
-        assertEquals("스팸", data.nicknameOnlyBlocks[0].reason)
     }
 
     @Test
@@ -137,23 +112,21 @@ class BlockListEngineTest {
     @Test
     fun `nicknameOnlyBlocks 에 있는 닉네임이 cache 에 들어오면 자동 승격`() {
         val engine = BlockListEngine()
-        engine.blockByNickname("auto", reason = "사유")
+        engine.blockByNickname("auto")
         engine.updatePersonaCache("p1", "auto")
         val data = engine.snapshot()
         assertNotNull(data.blockedUsers["p1"])
-        assertEquals("사유", data.blockedUsers["p1"]?.reason)
         assertTrue(data.nicknameOnlyBlocks.isEmpty())
     }
 
     @Test
-    fun `cache 에 기존 닉네임이 있고 차단된 상태에서 닉네임 변경 추적`() {
+    fun `cache 에 기존 닉네임이 있고 차단된 상태에서 닉네임이 바뀌면 nickname 만 갱신`() {
         val engine = BlockListEngine()
         engine.updatePersonaCache("p1", "first")
         engine.blockByPersonaId("p1", "first")
         engine.updatePersonaCache("p1", "second")
         val user = engine.snapshot().blockedUsers["p1"]!!
         assertEquals("second", user.nickname)
-        assertTrue(user.previousNicknames.contains("first"))
     }
 
     @Test
@@ -216,9 +189,7 @@ class BlockListEngineTest {
                             BlockedUser(
                                 personaId = "p2",
                                 nickname = "new",
-                                previousNicknames = emptyList(),
                                 blockedAt = "2026-01-01T00:00:00Z",
-                                reason = "",
                             ),
                     ),
                 nicknameOnlyBlocks = emptyList(),

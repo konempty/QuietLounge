@@ -78,7 +78,6 @@ function render() {
             <div class="block-item-meta">
               <span class="block-item-id">${user.personaId}</span> · ${date}
             </div>
-            ${user.reason ? `<div class="block-item-reason">${escapeHtml(user.reason)}</div>` : ''}
           </div>
           <button class="btn-unblock" data-type="persona" data-id="${user.personaId}">해제</button>
         </div>
@@ -95,7 +94,6 @@ function render() {
           <div class="block-item-info">
             <div class="block-item-nickname">${escapeHtml(block.nickname)}</div>
             <div class="block-item-meta">닉네임만 · ${date}</div>
-            ${block.reason ? `<div class="block-item-reason">${escapeHtml(block.reason)}</div>` : ''}
           </div>
           <button class="btn-unblock" data-type="nickname" data-nickname="${escapeHtml(block.nickname)}">해제</button>
         </div>
@@ -126,6 +124,24 @@ function escapeHtml(text) {
   div.textContent = text;
   return div.innerHTML;
 }
+
+// ── 전체 삭제 ──
+// iOS / Android 앱 의 "전체 삭제" 와 동일 시맨틱 — blockedUsers + nicknameOnlyBlocks + personaCache 모두 초기화.
+// 키워드 알림은 별도 storage 라 영향 없음.
+document.getElementById('btn-clear-all').addEventListener('click', async () => {
+  const total =
+    Object.keys(blockData.blockedUsers).length + blockData.nicknameOnlyBlocks.length;
+  if (total === 0) {
+    alert('차단된 유저가 없습니다.');
+    return;
+  }
+  if (!confirm(`${total}명의 차단을 모두 해제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+    return;
+  }
+  blockData = createEmptyData();
+  await saveData();
+  render();
+});
 
 // ── Export/Import ──
 document.getElementById('btn-export').addEventListener('click', async () => {

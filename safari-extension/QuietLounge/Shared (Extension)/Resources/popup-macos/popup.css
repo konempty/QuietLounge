@@ -140,16 +140,6 @@ header h1 {
   font-size: 11px;
 }
 
-.block-item-reason {
-  font-size: 11px;
-  color: #888;
-  font-style: italic;
-  margin-top: 1px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .btn-unblock {
   background: none;
   border: 1px solid #555;
@@ -351,6 +341,17 @@ header h1 {
 
 .btn-secondary:hover {
   background: #444;
+}
+
+.btn-danger {
+  background: transparent;
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.5);
+}
+
+.btn-danger:hover {
+  background: rgba(231, 76, 60, 0.12);
+  border-color: #e74c3c;
 }
 
 footer {
@@ -826,10 +827,6 @@ footer {
   }
 
   .block-item-meta {
-    color: #8e8e93;
-  }
-
-  .block-item-reason {
     color: #8e8e93;
   }
 

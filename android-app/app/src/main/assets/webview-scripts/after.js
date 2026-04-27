@@ -112,12 +112,13 @@
       }
     });
 
+    // 캐러셀/카드 — applyStyle 을 항상 호출해서 unblock 시에도 흐림이 풀리도록.
     document.querySelectorAll(SEL.card).forEach(function (card) {
       const nickname = card.querySelector(SEL.nickname)?.textContent?.trim();
-      if (nickname && isBlocked(undefined, nickname)) {
-        const item = card.closest(SEL.cardItem);
-        if (item) applyStyle(item, true);
-      }
+      if (!nickname) return;
+      const blocked = isBlocked(undefined, nickname);
+      const item = card.closest(SEL.cardItem);
+      if (item) applyStyle(item, blocked);
     });
   }
 

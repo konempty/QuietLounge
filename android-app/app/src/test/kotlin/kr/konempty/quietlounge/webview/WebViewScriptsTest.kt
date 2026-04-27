@@ -46,16 +46,15 @@ class WebViewScriptsTest {
             BlockListData(
                 blockedUsers =
                     mapOf(
-                        "p1" to BlockedUser("p1", "닉네임", listOf("이전"), "2026-01-01T00:00:00Z", "스팸"),
+                        "p1" to BlockedUser("p1", "닉네임", "2026-01-01T00:00:00Z"),
                     ),
-                nicknameOnlyBlocks = listOf(NicknameOnlyBlock("only", "2026-01-02T00:00:00Z", "")),
+                nicknameOnlyBlocks = listOf(NicknameOnlyBlock("only", "2026-01-02T00:00:00Z")),
                 personaCache = mapOf("p2" to PersonaCacheEntry("캐시", "2026-01-03T00:00:00Z")),
             )
         val template = WebViewScripts.BLOCK_DATA_PLACEHOLDER
         val out = WebViewScripts.renderTemplate(template, data, FilterMode.Hide)
         assertTrue(out.contains("\"p1\""))
         assertTrue(out.contains("\"닉네임\""))
-        assertTrue(out.contains("\"이전\""))
         assertTrue(out.contains("\"only\""))
         assertTrue(out.contains("\"캐시\""))
     }
@@ -84,7 +83,7 @@ class WebViewScriptsTest {
         val data =
             BlockListData(
                 blockedUsers =
-                    mapOf("p1" to BlockedUser("p1", "n", emptyList(), "2026-01-01T00:00:00Z", "")),
+                    mapOf("p1" to BlockedUser("p1", "n", "2026-01-01T00:00:00Z")),
             )
         val script = WebViewScripts.buildBlockListUpdate(data)
         assertTrue(script.contains("window.__QL_BLOCK_DATA ="))

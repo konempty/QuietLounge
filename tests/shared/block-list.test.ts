@@ -50,9 +50,7 @@ describe('BlockList', () => {
           abc123: {
             personaId: 'abc123',
             nickname: 'foo',
-            previousNicknames: [],
             blockedAt: '2026-01-01T00:00:00Z',
-            reason: '',
           },
         },
         nicknameOnlyBlocks: [],
@@ -78,18 +76,10 @@ describe('BlockList', () => {
       expect(updates).toHaveLength(1);
     });
 
-    it('이미 차단된 유저의 닉네임 변경 추적', async () => {
+    it('이미 차단된 유저 재차단 시 nickname 만 갱신', async () => {
       await bl.blockByPersonaId('p1', '옛닉');
       await bl.blockByPersonaId('p1', '새닉');
-      const u = bl.getData().blockedUsers['p1'];
-      expect(u.nickname).toBe('새닉');
-      expect(u.previousNicknames).toContain('옛닉');
-    });
-
-    it('동일 닉네임 재차단 시 previousNicknames 비어있음', async () => {
-      await bl.blockByPersonaId('p1', 'same');
-      await bl.blockByPersonaId('p1', 'same');
-      expect(bl.getData().blockedUsers['p1'].previousNicknames).toHaveLength(0);
+      expect(bl.getData().blockedUsers['p1'].nickname).toBe('새닉');
     });
 
     it('blockedAt 은 최초 차단 시점 유지', async () => {
@@ -98,12 +88,6 @@ describe('BlockList', () => {
       await new Promise((r) => setTimeout(r, 10));
       await bl.blockByPersonaId('p1', 'b');
       expect(bl.getData().blockedUsers['p1'].blockedAt).toBe(t1);
-    });
-
-    it('reason — 최초 차단 시 전달된 값 유지, 빈 값으로 재차단해도 보존', async () => {
-      await bl.blockByPersonaId('p1', 'a', '광고');
-      await bl.blockByPersonaId('p1', 'a', '');
-      expect(bl.getData().blockedUsers['p1'].reason).toBe('광고');
     });
 
     it('nicknameOnlyBlocks 에 있던 동일 닉네임은 승격되며 제거', async () => {
@@ -117,10 +101,9 @@ describe('BlockList', () => {
 
   describe('blockByNickname', () => {
     it('기본 동작', async () => {
-      await bl.blockByNickname('tester', '스팸');
+      await bl.blockByNickname('tester');
       expect(bl.getData().nicknameOnlyBlocks).toHaveLength(1);
       expect(bl.getData().nicknameOnlyBlocks[0].nickname).toBe('tester');
-      expect(bl.getData().nicknameOnlyBlocks[0].reason).toBe('스팸');
     });
 
     it('이미 personaId 로 차단된 닉네임은 추가 안 함', async () => {
@@ -173,10 +156,9 @@ describe('BlockList', () => {
 
   describe('updatePersonaCache + 자동 승격', () => {
     it('nicknameOnlyBlocks 에 있던 닉네임 → personaId 차단으로 승격', async () => {
-      await bl.blockByNickname('auto', '이유');
+      await bl.blockByNickname('auto');
       await bl.updatePersonaCache('p1', 'auto');
       expect(bl.getData().blockedUsers['p1']?.nickname).toBe('auto');
-      expect(bl.getData().blockedUsers['p1']?.reason).toBe('이유');
       expect(bl.getData().nicknameOnlyBlocks).toHaveLength(0);
     });
 
@@ -201,21 +183,11 @@ describe('BlockList', () => {
       expect(bl.isBlockedByNickname('oldname')).toBe(false);
     });
 
-    it('이미 차단된 유저의 닉네임 변경 추적 (cache 선행)', async () => {
-      // updatePersonaCache 기반 추적은 cache 에 기존 닉네임이 있어야 발동
+    it('이미 차단된 유저의 닉네임 변경 시 nickname 만 갱신 (cache 선행)', async () => {
       await bl.updatePersonaCache('p1', 'first');
       await bl.blockByPersonaId('p1', 'first');
       await bl.updatePersonaCache('p1', 'second');
       expect(bl.getData().blockedUsers['p1'].nickname).toBe('second');
-      expect(bl.getData().blockedUsers['p1'].previousNicknames).toContain('first');
-    });
-
-    it('cache 없이 blockByPersonaId 로만 닉네임 변경 추적', async () => {
-      // updatePersonaCache 를 거치지 않고 blockByPersonaId 로 재차단하면 추적됨
-      await bl.blockByPersonaId('p1', 'first');
-      await bl.blockByPersonaId('p1', 'second');
-      expect(bl.getData().blockedUsers['p1'].nickname).toBe('second');
-      expect(bl.getData().blockedUsers['p1'].previousNicknames).toContain('first');
     });
 
     it('차단 안 된 유저의 닉네임 변경은 캐시만 갱신', async () => {
@@ -262,9 +234,7 @@ describe('BlockList', () => {
           p2: {
             personaId: 'p2',
             nickname: 'imported',
-            previousNicknames: [],
             blockedAt: '2026-01-01T00:00:00Z',
-            reason: '',
           },
         },
         nicknameOnlyBlocks: [],

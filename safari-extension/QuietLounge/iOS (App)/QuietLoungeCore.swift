@@ -222,7 +222,7 @@ enum QuietLoungeCore {
 
     /// `personaCache` 갱신과 동시에 shared/block-list.ts 의 승격 규칙을 적용한다.
     /// - nicknameOnlyBlocks 에 현재/이전 닉네임이 있으면 blockedUsers 로 승격하고 해당 엔트리 제거
-    /// - 이미 차단된 유저의 닉네임이 변경되면 previousNicknames 에 append
+    /// - 이미 차단된 유저의 닉네임이 바뀐 경우 nickname 만 갱신 (옛 닉네임 추적은 더 이상 안 함)
     /// `data` 는 BlockDataManager.load() 포맷 ([String: Any]) 을 그대로 사용.
     static func applyPersonaCacheUpdate(
         to data: [String: Any],
@@ -244,13 +244,12 @@ enum QuietLoungeCore {
             let n = entry["nickname"] as? String
             return n == nickname || (nicknameChanged && n == previousCachedNickname)
         }) {
-            let promoted = nicks.remove(at: idx)
+            nicks.remove(at: idx)
             result["nicknameOnlyBlocks"] = nicks
             result = promoteBlock(
                 data: result,
                 personaId: personaId,
                 nickname: nickname,
-                reason: (promoted["reason"] as? String) ?? "",
                 nowIso: nowIso
             )
             return result
@@ -261,9 +260,6 @@ enum QuietLoungeCore {
            var user = users[personaId],
            let currentNick = user["nickname"] as? String,
            currentNick != nickname {
-            var prev = user["previousNicknames"] as? [String] ?? []
-            prev.append(currentNick)
-            user["previousNicknames"] = prev
             user["nickname"] = nickname
             users[personaId] = user
             result["blockedUsers"] = users
@@ -276,23 +272,15 @@ enum QuietLoungeCore {
         data: [String: Any],
         personaId: String,
         nickname: String,
-        reason: String,
         nowIso: String
     ) -> [String: Any] {
         var result = data
         var users = result["blockedUsers"] as? [String: [String: Any]] ?? [:]
         let existing = users[personaId]
-        var prevNicknames = existing?["previousNicknames"] as? [String] ?? []
-        if let ex = existing, let exNick = ex["nickname"] as? String, exNick != nickname {
-            prevNicknames.append(exNick)
-        }
-        let existingReason = (existing?["reason"] as? String) ?? ""
         users[personaId] = [
             "personaId": personaId,
             "nickname": nickname,
-            "previousNicknames": prevNicknames,
-            "blockedAt": existing?["blockedAt"] ?? nowIso,
-            "reason": existingReason.isEmpty ? reason : existingReason
+            "blockedAt": existing?["blockedAt"] ?? nowIso
         ]
         result["blockedUsers"] = users
         return result

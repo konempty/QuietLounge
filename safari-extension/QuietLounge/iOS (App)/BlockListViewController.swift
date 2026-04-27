@@ -37,6 +37,10 @@ class BlockListViewController: UIViewController, UITableViewDataSource, UITableV
     }
 
     @objc private func reload() {
+        // 비활성 탭일 땐 view 가 hierarchy 에서 빠진 상태 (MainTabViewController 가 removeFromSuperview 함).
+        // 그 때 reloadData 를 호출하면 UITableView 가 visible cell layout 을 시도하면서
+        // "UITableViewAlertForLayoutOutsideViewHierarchy" 경고가 뜸. 어차피 viewWillAppear 가 다시 호출되므로 skip.
+        guard isViewLoaded, view.window != nil else { return }
         let data = BlockDataManager.shared.load()
         let users = data["blockedUsers"] as? [String: [String: Any]] ?? [:]
         personaBlocked = users.values.sorted {

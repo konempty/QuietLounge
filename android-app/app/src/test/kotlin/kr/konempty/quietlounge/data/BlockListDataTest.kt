@@ -27,14 +27,27 @@ class BlockListDataTest {
                 version = 2,
                 blockedUsers =
                     mapOf(
-                        "p1" to BlockedUser("p1", "n1", listOf("old"), "2026-01-01T00:00:00Z", "스팸"),
+                        "p1" to BlockedUser("p1", "n1", "2026-01-01T00:00:00Z"),
                     ),
-                nicknameOnlyBlocks = listOf(NicknameOnlyBlock("nonly", "2026-01-02T00:00:00Z", "")),
+                nicknameOnlyBlocks = listOf(NicknameOnlyBlock("nonly", "2026-01-02T00:00:00Z")),
                 personaCache = mapOf("p2" to PersonaCacheEntry("cached", "2026-01-03T00:00:00Z")),
             )
         val raw = json.encodeToString(BlockListData.serializer(), data)
         val parsed = json.decodeFromString(BlockListData.serializer(), raw)
         assertEquals(data, parsed)
+    }
+
+    @Test
+    fun `BlockedUser — 알 수 없는 필드(previousNicknames, reason) 무시 — 마이그레이션 호환성`() {
+        // 기존 사용자 storage 에 남은 옛 필드들이 파싱을 깨뜨리지 않아야 함.
+        val raw =
+            """
+            {"personaId":"p1","nickname":"n","blockedAt":"2026-01-01T00:00:00Z",
+            "previousNicknames":["old"],"reason":"광고"}
+            """.trimIndent().replace("\n", "")
+        val parsed = json.decodeFromString(BlockedUser.serializer(), raw)
+        assertEquals("p1", parsed.personaId)
+        assertEquals("n", parsed.nickname)
     }
 
     @Test
@@ -59,21 +72,6 @@ class BlockListDataTest {
     }
 
     @Test
-    fun `BlockedUser — previousNicknames 기본값 빈 리스트`() {
-        val raw = """{"personaId":"p1","nickname":"n","blockedAt":"2026-01-01T00:00:00Z"}"""
-        val parsed = json.decodeFromString(BlockedUser.serializer(), raw)
-        assertEquals(emptyList<String>(), parsed.previousNicknames)
-        assertEquals("", parsed.reason)
-    }
-
-    @Test
-    fun `NicknameOnlyBlock — reason 기본값`() {
-        val raw = """{"nickname":"a","blockedAt":"2026-01-01T00:00:00Z"}"""
-        val parsed = json.decodeFromString(NicknameOnlyBlock.serializer(), raw)
-        assertEquals("", parsed.reason)
-    }
-
-    @Test
     fun `PersonaCacheEntry — 필드 검증`() {
         val entry = PersonaCacheEntry("nick", "2026-01-01T00:00:00Z")
         val raw = json.encodeToString(PersonaCacheEntry.serializer(), entry)
@@ -87,7 +85,7 @@ class BlockListDataTest {
             BlockListData(
                 blockedUsers =
                     mapOf(
-                        "p1" to BlockedUser("p1", "n1", emptyList(), "2026-01-01T00:00:00Z", ""),
+                        "p1" to BlockedUser("p1", "n1", "2026-01-01T00:00:00Z"),
                     ),
             )
         val modified = original.copy(blockedUsers = emptyMap())

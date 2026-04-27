@@ -24,21 +24,14 @@ class BlockListEngine(
     fun blockByPersonaId(
         personaId: String,
         nickname: String,
-        reason: String = "",
     ): BlockListData {
         val existing = data.blockedUsers[personaId]
-        val previousNicknames = existing?.previousNicknames?.toMutableList() ?: mutableListOf()
-        if (existing != null && existing.nickname != nickname) {
-            previousNicknames.add(existing.nickname)
-        }
 
         val updated =
             BlockedUser(
                 personaId = personaId,
                 nickname = nickname,
-                previousNicknames = previousNicknames,
                 blockedAt = existing?.blockedAt ?: nowIso(),
-                reason = reason.ifEmpty { existing?.reason.orEmpty() },
             )
 
         data =
@@ -50,10 +43,7 @@ class BlockListEngine(
     }
 
     /** 닉네임만 차단. 이미 차단되어 있으면 no-op. */
-    fun blockByNickname(
-        nickname: String,
-        reason: String = "",
-    ): BlockListData {
+    fun blockByNickname(nickname: String): BlockListData {
         val alreadyByPersona = data.blockedUsers.values.any { it.nickname == nickname }
         if (alreadyByPersona) return data
         if (data.nicknameOnlyBlocks.any { it.nickname == nickname }) return data
@@ -65,7 +55,6 @@ class BlockListEngine(
                         NicknameOnlyBlock(
                             nickname = nickname,
                             blockedAt = nowIso(),
-                            reason = reason,
                         ),
             )
         return data
@@ -84,7 +73,10 @@ class BlockListEngine(
         return data
     }
 
-    /** personaCache 갱신 + 닉네임 차단 → personaId 차단 자동 승격 + 닉네임 변경 추적. */
+    /**
+     * personaCache 갱신 + 닉네임 차단 → personaId 차단 자동 승격 (현재/이전 닉네임 모두 매칭).
+     * 차단된 유저의 닉네임이 바뀐 경우 nickname 만 갱신 (옛 닉네임 추적은 더 이상 안 함).
+     */
     fun updatePersonaCache(
         personaId: String,
         nickname: String,
@@ -100,31 +92,24 @@ class BlockListEngine(
                     ),
             )
 
-        // nicknameOnlyBlocks 자동 승격
-        // - 새 닉네임이 차단 목록에 있거나
-        // - 닉네임이 바뀐 경우, 이전 캐시 닉네임이 차단 목록에 있는지도 함께 검사
         val previousNickname = if (nicknameChanged) cached.nickname else null
         val nicknameBlock =
             data.nicknameOnlyBlocks.firstOrNull { block ->
                 block.nickname == nickname || block.nickname == previousNickname
             }
         if (nicknameBlock != null) {
-            // 승격 시 해당 엔트리를 명시적으로 제거 (현재/이전 닉네임 모두).
             data =
                 data.copy(
                     nicknameOnlyBlocks = data.nicknameOnlyBlocks.filterNot { it === nicknameBlock },
                 )
-            blockByPersonaId(personaId, nickname, nicknameBlock.reason)
+            blockByPersonaId(personaId, nickname)
             return data
         }
 
-        // 차단된 유저 닉네임 변경 추적
         if (nicknameChanged) {
             val user = data.blockedUsers[personaId]
             if (user != null && user.nickname != nickname) {
-                val newPrev = user.previousNicknames + user.nickname
-                val updated = user.copy(nickname = nickname, previousNicknames = newPrev)
-                data = data.copy(blockedUsers = data.blockedUsers + (personaId to updated))
+                data = data.copy(blockedUsers = data.blockedUsers + (personaId to user.copy(nickname = nickname)))
             }
         }
 

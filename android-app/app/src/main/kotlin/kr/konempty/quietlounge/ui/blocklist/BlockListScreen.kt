@@ -187,14 +187,6 @@ private fun BlockRowItem(
                     fontFamily = FontFamily.Monospace,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (row.user.previousNicknames.isNotEmpty()) {
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "이전: ${row.user.previousNicknames.joinToString(", ")}",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             }
             Spacer(Modifier.height(4.dp))
             Text(

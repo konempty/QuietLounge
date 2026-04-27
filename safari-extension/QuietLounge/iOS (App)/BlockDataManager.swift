@@ -156,16 +156,10 @@ class BlockDataManager {
 
         if let pid = personaId {
             let existing = users[pid]
-            var prevNicknames = existing?["previousNicknames"] as? [String] ?? []
-            if let ex = existing, let exNick = ex["nickname"] as? String, exNick != nickname {
-                prevNicknames.append(exNick)
-            }
             users[pid] = [
                 "personaId": pid,
                 "nickname": nickname,
-                "previousNicknames": prevNicknames,
-                "blockedAt": existing?["blockedAt"] ?? ISO8601DateFormatter().string(from: Date()),
-                "reason": existing?["reason"] ?? ""
+                "blockedAt": existing?["blockedAt"] ?? ISO8601DateFormatter().string(from: Date())
             ]
             nicks.removeAll { ($0["nickname"] as? String) == nickname }
         } else {
@@ -174,8 +168,7 @@ class BlockDataManager {
             if !alreadyByPersona && !alreadyByNick {
                 nicks.append([
                     "nickname": nickname,
-                    "blockedAt": ISO8601DateFormatter().string(from: Date()),
-                    "reason": ""
+                    "blockedAt": ISO8601DateFormatter().string(from: Date())
                 ])
             }
         }

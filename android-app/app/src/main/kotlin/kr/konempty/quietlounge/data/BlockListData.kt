@@ -8,16 +8,13 @@ import kotlinx.serialization.Serializable
 data class BlockedUser(
     val personaId: String,
     val nickname: String,
-    val previousNicknames: List<String> = emptyList(),
     val blockedAt: String,
-    val reason: String = "",
 )
 
 @Serializable
 data class NicknameOnlyBlock(
     val nickname: String,
     val blockedAt: String,
-    val reason: String = "",
 )
 
 @Serializable

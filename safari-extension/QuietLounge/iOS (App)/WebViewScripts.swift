@@ -44,9 +44,25 @@ enum WebViewScripts {
         document.querySelectorAll('script').forEach(function(s) {
           var t = s.textContent;
           if (!t) return;
+          // 인접 패턴: ("postId":"x","personaId":"y")
           var regex1 = /\\\\"postId\\\\":\\\\"([^"\\\\]+)\\\\",\\\\"personaId\\\\":\\\\"([^"\\\\]+)\\\\"/g;
           var m;
           while ((m = regex1.exec(t)) !== null) { window.__QL.personaMap[m[1]] = m[2]; }
+          // 비인접 패턴 — postId 와 가장 가까운 personaId 매칭 (200자 이내 후행)
+          var postIds = [], pIds = [];
+          var regex2 = /\\\\"postId\\\\":\\\\"([^"\\\\]+)\\\\"/g;
+          var regex3 = /\\\\"personaId\\\\":\\\\"([^"\\\\]+)\\\\"/g;
+          while ((m = regex2.exec(t)) !== null) postIds.push({ id: m[1], idx: m.index });
+          while ((m = regex3.exec(t)) !== null) pIds.push({ id: m[1], idx: m.index });
+          postIds.forEach(function(pm) {
+            if (window.__QL.personaMap[pm.id]) return;
+            var closest = null, dist = Infinity;
+            pIds.forEach(function(pi) {
+              var d = pi.idx - pm.idx;
+              if (d > 0 && d < dist && d < 200) { dist = d; closest = pi.id; }
+            });
+            if (closest) window.__QL.personaMap[pm.id] = closest;
+          });
           var regex4 = /\\\\"personaId\\\\":\\\\"([^"\\\\]+)\\\\",\\\\"nickname\\\\":\\\\"([^"\\\\]+)\\\\"/g;
           while ((m = regex4.exec(t)) !== null) { window.__QL.personaCache[m[1]] = m[2]; }
         });
@@ -55,6 +71,15 @@ enum WebViewScripts {
           var nick = link.textContent.trim();
           if (pid && nick && pid.length >= 6) window.__QL.personaCache[pid] = nick;
         });
+        // /posts/{postId} 상세 페이지에서 작성자 personaId 가 인터셉터/regex 로 안 잡혔으면 DOM 으로 fallback
+        var urlMatch = window.location.pathname.match(/^\\/posts\\/([^/]+)/);
+        if (urlMatch && !window.__QL.personaMap[urlMatch[1]]) {
+          var authorLink = document.querySelector('[data-slot="profile-name"] a[href^="/profiles/"]');
+          if (authorLink) {
+            var authorPid = authorLink.getAttribute('href').replace('/profiles/', '');
+            if (authorPid) window.__QL.personaMap[urlMatch[1]] = authorPid;
+          }
+        }
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.qlBridge) {
           window.webkit.messageHandlers.qlBridge.postMessage(JSON.stringify({
             type: 'PERSONA_MAP_UPDATE',
@@ -137,6 +162,15 @@ enum WebViewScripts {
               var sep = container.parentElement && container.parentElement.nextElementSibling;
               if (sep && sep.getAttribute && sep.getAttribute('data-slot') === 'separator') applyStyle(sep, blocked);
             });
+            // 캐러셀/카드 (주간 베스트 등) — postLink 가 없는 카드형 글도 차단/해제 일관 적용.
+            document.querySelectorAll(SEL.card).forEach(function(card) {
+              var n = (card.querySelector(SEL.nickname)||{}).textContent;
+              if (!n) return;
+              n = n.trim();
+              var blocked = isBlocked(undefined, n);
+              var item = card.closest(SEL.cardItem);
+              if (item) applyStyle(item, blocked);
+            });
           }
 
           function sendBlockMessage(pid, nickname) {
@@ -147,16 +181,22 @@ enum WebViewScripts {
             }
           }
 
+          function makeBlockBtn() {
+            var btn = document.createElement('button');
+            btn.className = 'ql-btn';
+            btn.textContent = '\\u2715';
+            btn.style.cssText = 'margin-left:6px;cursor:pointer;opacity:0.5;font-size:16px;border:none;background:rgba(200,50,50,0.12);padding:4px 8px;color:#e74c3c;border-radius:4px;transition:opacity 0.15s;line-height:1;min-width:28px;min-height:28px;display:inline-flex;align-items:center;justify-content:center;';
+            btn.ontouchstart = function() { btn.style.opacity='1'; };
+            btn.ontouchend = function() { btn.style.opacity='0.5'; };
+            return btn;
+          }
+
           function injectButtons() {
             if (!isBlockButtonPage()) return;
+            // 방법 A — profile-name 슬롯이 있는 일반 글
             document.querySelectorAll(SEL.profileName).forEach(function(el) {
               if (el.querySelector('.ql-btn')) return;
-              var btn = document.createElement('button');
-              btn.className = 'ql-btn';
-              btn.textContent = '\\u2715';
-              btn.style.cssText = 'margin-left:6px;cursor:pointer;opacity:0.5;font-size:16px;border:none;background:rgba(200,50,50,0.12);padding:4px 8px;color:#e74c3c;border-radius:4px;transition:opacity 0.15s;line-height:1;min-width:28px;min-height:28px;display:inline-flex;align-items:center;justify-content:center;';
-              btn.ontouchstart = function() { btn.style.opacity='1'; };
-              btn.ontouchend = function() { btn.style.opacity='0.5'; };
+              var btn = makeBlockBtn();
               btn.onclick = function(e) {
                 e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
                 var nickname = (el.querySelector('[data-slot="profile-name-label"] span.truncate')||{}).textContent;
@@ -172,6 +212,27 @@ enum WebViewScripts {
                 sendBlockMessage(pid, nickname);
               };
               el.appendChild(btn);
+            });
+            // 방법 B — profile-name 슬롯이 없는 카드 (주간 베스트 등). personaId 가 매핑돼 있어야 차단 가능.
+            // pid 가 안 잡힌 카드엔 버튼 자체를 만들지 않음 — 눌러도 반응 없는 silent no-op 방지.
+            // personaMap 이 채워지면 다음 injectButtons() 호출 (스크롤/네비게이션 debounce) 때 자동 등장.
+            document.querySelectorAll(SEL.postContainer).forEach(function(container) {
+              if (container.querySelector('.ql-btn')) return;
+              if (container.querySelector(SEL.profileName)) return; // 방법 A 가 처리
+              var postLink = container.querySelector(SEL.postLink) || container.closest(SEL.postLink);
+              if (!postLink) return;
+              var ql = window.__QL || { personaMap: {}, personaCache: {} };
+              var postId = postLink.getAttribute('href').replace('/posts/','');
+              var pid = postId ? ql.personaMap[postId] : undefined;
+              if (!pid) return; // 매핑 없는 카드는 버튼 미노출
+              var btn = makeBlockBtn();
+              btn.onclick = function(e) {
+                e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+                var nickname = ql.personaCache[pid] || pid;
+                sendBlockMessage(pid, nickname);
+              };
+              var firstRow = container.querySelector('a > div');
+              if (firstRow) firstRow.appendChild(btn); else container.appendChild(btn);
             });
           }
 

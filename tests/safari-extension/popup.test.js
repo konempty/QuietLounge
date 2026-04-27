@@ -112,9 +112,7 @@ describe('safari popup.html + popup.js', () => {
           p1: {
             personaId: 'p1',
             nickname: 'S_유저',
-            previousNicknames: [],
             blockedAt: '2026-04-01T00:00:00Z',
-            reason: '',
           },
         },
         nicknameOnlyBlocks: [],
@@ -703,9 +701,7 @@ describe('safari popup.html + popup.js', () => {
             px: {
               personaId: 'px',
               nickname: '갱신유저',
-              previousNicknames: [],
               blockedAt: '2026-04-01T00:00:00Z',
-              reason: '',
             },
           },
           nicknameOnlyBlocks: [],

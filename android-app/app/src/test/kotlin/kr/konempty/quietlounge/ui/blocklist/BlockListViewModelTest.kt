@@ -14,9 +14,9 @@ class BlockListViewModelTest {
             BlockListData(
                 blockedUsers =
                     mapOf(
-                        "a" to BlockedUser("a", "n1", emptyList(), "2026-04-01T00:00:00Z", ""),
-                        "b" to BlockedUser("b", "n2", emptyList(), "2026-04-05T00:00:00Z", ""),
-                        "c" to BlockedUser("c", "n3", emptyList(), "2026-04-03T00:00:00Z", ""),
+                        "a" to BlockedUser("a", "n1", "2026-04-01T00:00:00Z"),
+                        "b" to BlockedUser("b", "n2", "2026-04-05T00:00:00Z"),
+                        "c" to BlockedUser("c", "n3", "2026-04-03T00:00:00Z"),
                     ),
             )
         val ui = blockListDataToUiState(data)
@@ -29,9 +29,9 @@ class BlockListViewModelTest {
             BlockListData(
                 nicknameOnlyBlocks =
                     listOf(
-                        NicknameOnlyBlock("n1", "2026-04-01T00:00:00Z", ""),
-                        NicknameOnlyBlock("n2", "2026-04-05T00:00:00Z", ""),
-                        NicknameOnlyBlock("n3", "2026-04-03T00:00:00Z", ""),
+                        NicknameOnlyBlock("n1", "2026-04-01T00:00:00Z"),
+                        NicknameOnlyBlock("n2", "2026-04-05T00:00:00Z"),
+                        NicknameOnlyBlock("n3", "2026-04-03T00:00:00Z"),
                     ),
             )
         val ui = blockListDataToUiState(data)
@@ -52,10 +52,10 @@ class BlockListViewModelTest {
             BlockListUiState(
                 byPersona =
                     listOf(
-                        BlockedUser("a", "n", emptyList(), "2026-01-01", ""),
-                        BlockedUser("b", "n", emptyList(), "2026-01-01", ""),
+                        BlockedUser("a", "n", "2026-01-01"),
+                        BlockedUser("b", "n", "2026-01-01"),
                     ),
-                byNickname = listOf(NicknameOnlyBlock("x", "2026-01-01", "")),
+                byNickname = listOf(NicknameOnlyBlock("x", "2026-01-01")),
             )
         assertEquals(3, ui.total)
     }
@@ -66,12 +66,12 @@ class BlockListViewModelTest {
             BlockListData(
                 blockedUsers =
                     mapOf(
-                        "p1" to BlockedUser("p1", "a", emptyList(), "2026-04-02T00:00:00Z", ""),
-                        "p2" to BlockedUser("p2", "b", emptyList(), "2026-04-10T00:00:00Z", ""),
+                        "p1" to BlockedUser("p1", "a", "2026-04-02T00:00:00Z"),
+                        "p2" to BlockedUser("p2", "b", "2026-04-10T00:00:00Z"),
                     ),
                 nicknameOnlyBlocks =
                     listOf(
-                        NicknameOnlyBlock("nn", "2026-04-03T00:00:00Z", ""),
+                        NicknameOnlyBlock("nn", "2026-04-03T00:00:00Z"),
                     ),
             )
         val ui = blockListDataToUiState(data)

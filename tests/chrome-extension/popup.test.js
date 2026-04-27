@@ -128,13 +128,11 @@ describe('chrome popup.html + popup.js', () => {
           p1: {
             personaId: 'p1',
             nickname: '유저A',
-            previousNicknames: [],
             blockedAt: '2026-04-01T00:00:00Z',
-            reason: '',
           },
         },
         nicknameOnlyBlocks: [
-          { nickname: 'B_닉네임', blockedAt: '2026-04-02T00:00:00Z', reason: '' },
+          { nickname: 'B_닉네임', blockedAt: '2026-04-02T00:00:00Z' },
         ],
         personaCache: {},
       }),
@@ -158,9 +156,7 @@ describe('chrome popup.html + popup.js', () => {
           p1: {
             personaId: 'p1',
             nickname: 'X',
-            previousNicknames: [],
             blockedAt: '2026-04-01T00:00:00Z',
-            reason: '',
           },
         },
         nicknameOnlyBlocks: [],
@@ -376,9 +372,7 @@ describe('chrome popup.html + popup.js', () => {
           p1: {
             personaId: 'p1',
             nickname: '유저',
-            previousNicknames: [],
             blockedAt: '2026-04-01T00:00:00Z',
-            reason: '',
           },
         },
         nicknameOnlyBlocks: [],

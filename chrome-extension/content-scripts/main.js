@@ -98,19 +98,13 @@
     return false;
   }
 
-  async function blockUser(personaId, nickname, reason) {
+  async function blockUser(personaId, nickname) {
     if (personaId) {
       const existing = blockData.blockedUsers[personaId];
-      const previousNicknames = existing?.previousNicknames ?? [];
-      if (existing && existing.nickname !== nickname) {
-        previousNicknames.push(existing.nickname);
-      }
       blockData.blockedUsers[personaId] = {
         personaId,
         nickname,
-        previousNicknames,
         blockedAt: existing?.blockedAt ?? new Date().toISOString(),
-        reason: reason || existing?.reason || '',
       };
       blockData.nicknameOnlyBlocks = blockData.nicknameOnlyBlocks.filter(
         (b) => b.nickname !== nickname,
@@ -120,7 +114,6 @@
       blockData.nicknameOnlyBlocks.push({
         nickname,
         blockedAt: new Date().toISOString(),
-        reason: reason || '',
       });
     }
     await saveBlockData();
@@ -252,16 +245,13 @@
         blockData.blockedUsers[pid] = {
           personaId: pid,
           nickname,
-          previousNicknames: [],
           blockedAt: block.blockedAt,
-          reason: block.reason,
         };
         changed = true;
       }
       if (blockData.blockedUsers[pid] && blockData.blockedUsers[pid].nickname !== nickname) {
-        const user = blockData.blockedUsers[pid];
-        user.previousNicknames.push(user.nickname);
-        user.nickname = nickname;
+        // 닉네임 갱신만 — 옛 닉네임 추적은 더 이상 안 함.
+        blockData.blockedUsers[pid].nickname = nickname;
         changed = true;
       }
     }
@@ -458,7 +448,7 @@
         const pid = findPersonaId(el);
 
         if (confirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
-          await blockUser(pid, nickname, '');
+          await blockUser(pid, nickname);
           filterAll();
           injectBlockButtons();
           await maybeShowFilterModeHint();
@@ -491,7 +481,7 @@
         }
 
         if (confirm(`"${nickname || pid}" 유저를 차단하시겠습니까?`)) {
-          await blockUser(pid, nickname || '', '');
+          await blockUser(pid, nickname || '');
           filterAll();
           injectBlockButtons();
           await maybeShowFilterModeHint();

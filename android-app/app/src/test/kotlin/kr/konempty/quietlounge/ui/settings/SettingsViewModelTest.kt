@@ -34,8 +34,8 @@ class SettingsViewModelTest {
                 BlockListData(
                     blockedUsers =
                         mapOf(
-                            "p1" to BlockedUser("p1", "a", emptyList(), "2026-01-01", ""),
-                            "p2" to BlockedUser("p2", "b", emptyList(), "2026-01-01", ""),
+                            "p1" to BlockedUser("p1", "a", "2026-01-01"),
+                            "p2" to BlockedUser("p2", "b", "2026-01-01"),
                         ),
                 )
             val s = settingsBlockStatsFrom(data)
@@ -50,9 +50,9 @@ class SettingsViewModelTest {
                 BlockListData(
                     nicknameOnlyBlocks =
                         listOf(
-                            NicknameOnlyBlock("a", "2026-01-01", ""),
-                            NicknameOnlyBlock("b", "2026-01-01", ""),
-                            NicknameOnlyBlock("c", "2026-01-01", ""),
+                            NicknameOnlyBlock("a", "2026-01-01"),
+                            NicknameOnlyBlock("b", "2026-01-01"),
+                            NicknameOnlyBlock("c", "2026-01-01"),
                         ),
                 )
             val s = settingsBlockStatsFrom(data)
@@ -66,11 +66,11 @@ class SettingsViewModelTest {
             val data =
                 BlockListData(
                     blockedUsers =
-                        mapOf("p1" to BlockedUser("p1", "a", emptyList(), "2026-01-01", "")),
+                        mapOf("p1" to BlockedUser("p1", "a", "2026-01-01")),
                     nicknameOnlyBlocks =
                         listOf(
-                            NicknameOnlyBlock("n1", "2026-01-01", ""),
-                            NicknameOnlyBlock("n2", "2026-01-01", ""),
+                            NicknameOnlyBlock("n1", "2026-01-01"),
+                            NicknameOnlyBlock("n2", "2026-01-01"),
                         ),
                 )
             val s = settingsBlockStatsFrom(data)
@@ -117,7 +117,7 @@ class SettingsViewModelTest {
             val withData =
                 """
                 {"version":2,"blockedUsers":{"p1":{"personaId":"p1","nickname":"a",
-                "previousNicknames":[],"blockedAt":"2026-01-01","reason":""}},
+                "blockedAt":"2026-01-01"}},
                 "nicknameOnlyBlocks":[],"personaCache":{}}
                 """.trimIndent().replace("\n", "")
             val merged = mergeBackupJson(withData, emptyList(), interval = 5)

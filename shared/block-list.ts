@@ -47,19 +47,12 @@ export class BlockList {
     return this.data;
   }
 
-  async blockByPersonaId(personaId: string, nickname: string, reason = ''): Promise<void> {
+  async blockByPersonaId(personaId: string, nickname: string): Promise<void> {
     const existing = this.data.blockedUsers[personaId];
-    const previousNicknames = existing?.previousNicknames ?? [];
-    if (existing && existing.nickname !== nickname) {
-      previousNicknames.push(existing.nickname);
-    }
-
     this.data.blockedUsers[personaId] = {
       personaId,
       nickname,
-      previousNicknames,
       blockedAt: existing?.blockedAt ?? new Date().toISOString(),
-      reason: reason || existing?.reason || '',
     };
 
     // nicknameOnlyBlocks에서 해당 닉네임 제거 (승격)
@@ -70,7 +63,7 @@ export class BlockList {
     await this.save();
   }
 
-  async blockByNickname(nickname: string, reason = ''): Promise<void> {
+  async blockByNickname(nickname: string): Promise<void> {
     const alreadyBlocked = Object.values(this.data.blockedUsers).some(
       (u) => u.nickname === nickname,
     );
@@ -81,7 +74,6 @@ export class BlockList {
     this.data.nicknameOnlyBlocks.push({
       nickname,
       blockedAt: new Date().toISOString(),
-      reason,
     });
     await this.save();
   }
@@ -108,7 +100,8 @@ export class BlockList {
     return byPersona || byNickname;
   }
 
-  // personaCache 업데이트 + nicknameOnlyBlocks 자동 승격
+  // personaCache 업데이트 + nicknameOnlyBlocks 자동 승격.
+  // previousNicknames 추적 기능은 제거됨 — 닉네임만 차단 → personaId 매핑 승격 로직만 남음.
   async updatePersonaCache(personaId: string, nickname: string): Promise<void> {
     const cached = this.data.personaCache[personaId];
     const nicknameChanged = cached && cached.nickname !== nickname;
@@ -118,24 +111,22 @@ export class BlockList {
       lastSeen: new Date().toISOString(),
     };
 
-    // 닉네임 차단 → personaId 차단 자동 승격
+    // 닉네임 차단 → personaId 차단 자동 승격 (현재 닉네임 또는 캐시된 옛 닉네임 매칭)
     const nicknameBlock = this.data.nicknameOnlyBlocks.find(
       (b) => b.nickname === nickname || (nicknameChanged && b.nickname === cached.nickname),
     );
     if (nicknameBlock) {
-      // 승격 시 해당 nicknameOnlyBlocks 엔트리를 명시적으로 제거 (현재/이전 닉네임 모두).
       this.data.nicknameOnlyBlocks = this.data.nicknameOnlyBlocks.filter(
         (b) => b !== nicknameBlock,
       );
-      await this.blockByPersonaId(personaId, nickname, nicknameBlock.reason);
+      await this.blockByPersonaId(personaId, nickname);
       return;
     }
 
-    // 차단된 유저 닉네임 변경 추적
+    // 차단된 유저 닉네임이 바뀐 경우엔 nickname 만 갱신 (옛 닉네임 추적은 더 이상 안 함).
     if (nicknameChanged && this.data.blockedUsers[personaId]) {
       const user = this.data.blockedUsers[personaId];
       if (user.nickname !== nickname) {
-        user.previousNicknames.push(user.nickname);
         user.nickname = nickname;
         await this.save();
       }

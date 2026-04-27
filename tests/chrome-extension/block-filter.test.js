@@ -22,9 +22,9 @@ function isBlocked(blockData, personaId, nickname) {
 const sample = {
   version: 2,
   blockedUsers: {
-    pid1: { personaId: 'pid1', nickname: 'n1', previousNicknames: [], blockedAt: '', reason: '' },
+    pid1: { personaId: 'pid1', nickname: 'n1', blockedAt: '' },
   },
-  nicknameOnlyBlocks: [{ nickname: 'nonly', blockedAt: '', reason: '' }],
+  nicknameOnlyBlocks: [{ nickname: 'nonly', blockedAt: '' }],
   personaCache: {},
 };
 
