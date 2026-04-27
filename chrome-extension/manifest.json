@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "QuietLounge",
   "description": "네이버 라운지에서 특정 유저의 게시글을 차단(숨김)합니다",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "permissions": ["storage", "tabs", "alarms"],
   "optional_permissions": ["notifications"],
   "host_permissions": ["https://lounge.naver.com/*", "https://api.lounge.naver.com/*"],
