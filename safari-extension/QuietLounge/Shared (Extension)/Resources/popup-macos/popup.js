@@ -209,21 +209,30 @@ function popupConfirm(message) {
 }
 
 // ── 전체 삭제 ──
-// iOS / Android 앱 의 "전체 삭제" 와 동일 시맨틱 — blockedUsers + nicknameOnlyBlocks + personaCache 모두 초기화.
+// iOS / Android 앱 의 "전체 삭제" 와 동일 시맨틱 — 차단(blockedUsers + nicknameOnlyBlocks + personaCache)
+// + 키워드 알림 설정(alerts + interval + lastChecked) 모두 초기화. 이름 그대로 "전체".
 document.getElementById('btn-clear-all').addEventListener('click', async () => {
-  const total =
+  const blockTotal =
     Object.keys(blockData.blockedUsers).length + blockData.nicknameOnlyBlocks.length;
-  if (total === 0) {
-    await popupAlert('차단된 유저가 없습니다.');
+  const alertTotal = keywordAlerts.length;
+  if (blockTotal === 0 && alertTotal === 0) {
+    await popupAlert('삭제할 데이터가 없습니다.');
     return;
   }
   const ok = await popupConfirm(
-    `${total}명의 차단을 모두 해제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`,
+    '차단 목록과 키워드 알림 설정을 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
   );
   if (!ok) return;
   blockData = createEmptyData();
+  keywordAlerts = [];
   await saveData();
+  try {
+    await QLStorage.remove([KEYWORD_ALERTS_KEY, ALERT_INTERVAL_KEY, ALERT_LAST_CHECKED_KEY]);
+  } catch {
+    // remove 실패해도 render 는 진행
+  }
   render();
+  renderKeywordAlerts();
 });
 
 // ── Export/Import ──
@@ -414,6 +423,7 @@ document.getElementById('btn-refresh-stats').addEventListener('click', async () 
 // ── 키워드 알림 ──
 const KEYWORD_ALERTS_KEY = 'quiet_lounge_keyword_alerts';
 const ALERT_INTERVAL_KEY = 'quiet_lounge_alert_interval';
+const ALERT_LAST_CHECKED_KEY = 'quiet_lounge_alert_last_checked';
 
 let keywordAlerts = [];
 let pendingKeywords = [];

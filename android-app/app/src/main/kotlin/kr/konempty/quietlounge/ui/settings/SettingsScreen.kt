@@ -75,6 +75,7 @@ fun SettingsScreen(
     val blockStats by viewModel.blockStats.collectAsStateWithLifecycle()
     val filterMode by viewModel.filterMode.collectAsStateWithLifecycle()
     val showWebViewToolbar by viewModel.showWebViewToolbar.collectAsStateWithLifecycle()
+    val alertCount by viewModel.alertCount.collectAsStateWithLifecycle()
     val myStats by viewModel.myStats.collectAsStateWithLifecycle()
 
     var pendingClearAll by remember { mutableStateOf(false) }
@@ -194,10 +195,10 @@ fun SettingsScreen(
             CardButton(
                 title = "전체 삭제",
                 titleColor = QlDanger,
-                desc = "모든 차단 목록 초기화",
+                desc = "차단 목록과 키워드 알림 설정 모두 초기화",
                 onClick = {
-                    if (blockStats.total == 0) {
-                        infoMessage = "차단된 유저가 없습니다."
+                    if (blockStats.total == 0 && alertCount == 0) {
+                        infoMessage = "삭제할 데이터가 없습니다."
                     } else {
                         pendingClearAll = true
                     }
@@ -249,7 +250,7 @@ fun SettingsScreen(
             onDismissRequest = { pendingClearAll = false },
             title = { Text("전체 삭제") },
             text = {
-                Text("${blockStats.total}명의 차단을 모두 해제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.")
+                Text("차단 목록과 키워드 알림 설정을 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.")
             },
             confirmButton = {
                 TextButton(onClick = {

@@ -60,6 +60,12 @@ class SettingsViewModel(
         blockRepo.showWebViewToolbar
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    /** "전체 삭제" 가드용 — 키워드 알림 개수. 차단 0명 + 알림 0개일 때만 가드. */
+    val alertCount: StateFlow<Int> =
+        alertRepo.alertsFlow
+            .map { it.size }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
     private val _myStats = MutableStateFlow(MyStatsUiState())
     val myStats: StateFlow<MyStatsUiState> = _myStats.asStateFlow()
 
@@ -86,7 +92,10 @@ class SettingsViewModel(
     }
 
     fun clearAll() {
-        viewModelScope.launch { blockRepo.clearAll() }
+        viewModelScope.launch {
+            blockRepo.clearAll()
+            alertRepo.clearAll()
+        }
     }
 
     /**

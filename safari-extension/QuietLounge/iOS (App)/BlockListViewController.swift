@@ -33,14 +33,20 @@ class BlockListViewController: UIViewController, UITableViewDataSource, UITableV
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        reload()
+        // viewWillAppear 시점엔 view.window 가 아직 nil 일 수 있으므로 가드 우회 — 항상 갱신.
+        refreshFromStorage()
     }
 
     @objc private func reload() {
-        // 비활성 탭일 땐 view 가 hierarchy 에서 빠진 상태 (MainTabViewController 가 removeFromSuperview 함).
-        // 그 때 reloadData 를 호출하면 UITableView 가 visible cell layout 을 시도하면서
-        // "UITableViewAlertForLayoutOutsideViewHierarchy" 경고가 뜸. 어차피 viewWillAppear 가 다시 호출되므로 skip.
+        // 알림 콜백 경로 (.blockDataChanged / scene·app activate 등) 에선 가드 사용.
+        // 비활성 탭일 땐 view 가 hierarchy 에서 빠진 상태 (MainTabViewController 가 removeFromSuperview 함) 라
+        // reloadData 가 "UITableViewAlertForLayoutOutsideViewHierarchy" 경고를 발생시킴.
+        // 비활성이라도 viewWillAppear 가 다음 탭 전환 때 어차피 갱신하므로 skip 안전.
         guard isViewLoaded, view.window != nil else { return }
+        refreshFromStorage()
+    }
+
+    private func refreshFromStorage() {
         let data = BlockDataManager.shared.load()
         let users = data["blockedUsers"] as? [String: [String: Any]] ?? [:]
         personaBlocked = users.values.sorted {

@@ -772,15 +772,21 @@ class SettingsViewController: UITableViewController {
     }
 
     private func clearAll() {
-        let total = BlockDataManager.shared.totalBlockedCount
-        guard total > 0 else {
-            showAlert(title: "알림", message: "차단된 유저가 없습니다.")
+        let blockTotal = BlockDataManager.shared.totalBlockedCount
+        let alertTotal = KeywordAlertManager.shared.alerts.count
+        guard blockTotal > 0 || alertTotal > 0 else {
+            showAlert(title: "알림", message: "삭제할 데이터가 없습니다.")
             return
         }
-        let alert = UIAlertController(title: "전체 삭제", message: "\(total)명의 차단을 모두 해제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.", preferredStyle: .alert)
+        let alert = UIAlertController(
+            title: "전체 삭제",
+            message: "차단 목록과 키워드 알림 설정을 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
+            preferredStyle: .alert
+        )
         alert.addAction(UIAlertAction(title: "취소", style: .cancel))
         alert.addAction(UIAlertAction(title: "전체 삭제", style: .destructive) { _ in
             BlockDataManager.shared.clearAll()
+            KeywordAlertManager.shared.clearAll()
         })
         present(alert, animated: true)
     }

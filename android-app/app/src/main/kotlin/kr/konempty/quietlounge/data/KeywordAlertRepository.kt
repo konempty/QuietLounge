@@ -95,6 +95,15 @@ class KeywordAlertRepository(
         saveAlerts(list)
     }
 
+    /** "전체 삭제" 시 호출 — alerts/interval/lastChecked 모두 초기화. */
+    suspend fun clearAll() {
+        context.qlDataStore.edit { prefs ->
+            prefs.remove(PreferencesKeys.KEYWORD_ALERTS)
+            prefs.remove(PreferencesKeys.ALERT_INTERVAL)
+            prefs.remove(PreferencesKeys.ALERT_LAST_CHECKED)
+        }
+    }
+
     suspend fun getLastChecked(): Map<String, String> {
         val raw =
             context.qlDataStore.data.first()[PreferencesKeys.ALERT_LAST_CHECKED]

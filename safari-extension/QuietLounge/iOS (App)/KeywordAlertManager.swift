@@ -142,6 +142,15 @@ class KeywordAlertManager {
         alerts = list
     }
 
+    /// "전체 삭제" 시 호출 — alerts/interval/lastChecked 모두 초기화하고 익스텐션에 변경 통지.
+    func clearAll() {
+        defaults.removeObject(forKey: alertsKey)
+        defaults.removeObject(forKey: intervalKey)
+        defaults.removeObject(forKey: lastCheckedKey)
+        NotificationCenter.default.post(name: .keywordAlertsChanged, object: nil)
+        postDarwin(AppGroup.darwinKeywordAlertsNotification)
+    }
+
     // MARK: - Timer
 
     func startTimer() {
