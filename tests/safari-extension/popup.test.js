@@ -139,13 +139,23 @@ describe('safari popup.html + popup.js', () => {
     expect(ctx.win.browser._store._data.quiet_lounge_filter_mode).toBe('blur');
   });
 
-  it('커피 버튼 → QR 모달 open', async () => {
+  it('커피 버튼 → fairy.hada.io 새 탭 이동 + 팝업 닫기', async () => {
     const ctx = await setup();
     dom = ctx.dom;
     const doc = ctx.win.document;
+    const closeSpy = vi.spyOn(ctx.win, 'close').mockImplementation(() => {});
     doc.getElementById('btn-support').click();
-    const modal = doc.getElementById('qr-modal');
-    expect(modal.classList.contains('active')).toBe(true);
+    expect(ctx.win.browser.tabs.create).toHaveBeenCalledWith({
+      url: 'https://fairy.hada.io/@quite-lounge',
+    });
+    expect(closeSpy).toHaveBeenCalled();
+  });
+
+  it('iOS popup 에는 QR 모달/이미지 마크업이 더이상 존재하지 않는다', async () => {
+    const html = await fs.readFile(POPUP_HTML, 'utf8');
+    expect(html).not.toContain('qr-modal');
+    expect(html).not.toContain('kakaoPayQR.png');
+    expect(html).not.toContain('qr.kakaopay.com');
   });
 
   it('macOS 전용 popup.html 에는 후원 마크업과 외부 결제 링크가 없다', async () => {
@@ -157,6 +167,7 @@ describe('safari popup.html + popup.js', () => {
     expect(doc.querySelector('.support-desc')).toBeNull();
     expect(html).not.toContain('qr.kakaopay.com');
     expect(html).not.toContain('kakaoPayQR.png');
+    expect(html).not.toContain('fairy.hada.io');
   });
 
   it('키워드 알림 추가 버튼 → 모달 active', async () => {

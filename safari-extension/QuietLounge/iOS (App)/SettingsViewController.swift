@@ -653,7 +653,7 @@ class SettingsViewController: UITableViewController {
         tableView.deselectRow(at: indexPath, animated: true)
 
         if indexPath.section == 5 && indexPath.row == 1 {
-            if let url = URL(string: "https://qr.kakaopay.com/FG31jvTdV") {
+            if let url = URL(string: "https://fairy.hada.io/@quite-lounge") {
                 UIApplication.shared.open(url)
             }
             return

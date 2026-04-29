@@ -199,31 +199,25 @@ describe('chrome popup.html + popup.js', () => {
     expect(doc.getElementById('filter-mode-toggle').checked).toBe(true);
   });
 
-  it('커피 버튼 → QR 모달 열림', async () => {
+  it('커피 버튼 → fairy.hada.io 새 탭 이동 + 팝업 닫기', async () => {
     const ctx = await setupPopup();
     dom = ctx.dom;
     const doc = ctx.win.document;
 
-    const btn = doc.getElementById('btn-support');
-    btn.click();
-    const modal = doc.getElementById('qr-modal');
-    expect(modal.classList.contains('active') || modal.style.display !== 'none').toBe(
-      true,
-    );
+    const closeSpy = vi.spyOn(ctx.win, 'close').mockImplementation(() => {});
+    doc.getElementById('btn-support').click();
+
+    expect(ctx.chrome.tabs.create).toHaveBeenCalledWith({
+      url: 'https://fairy.hada.io/@quite-lounge',
+    });
+    expect(closeSpy).toHaveBeenCalled();
   });
 
-  it('QR 모달 닫기 버튼 → 모달 닫힘', async () => {
-    const ctx = await setupPopup();
-    dom = ctx.dom;
-    const doc = ctx.win.document;
-
-    doc.getElementById('btn-support').click();
-    doc.getElementById('qr-modal-close').click();
-    const modal = doc.getElementById('qr-modal');
-    // active 클래스가 빠졌거나 display none 이 적용됨
-    expect(
-      !modal.classList.contains('active') || modal.style.display === 'none',
-    ).toBe(true);
+  it('Chrome popup 에는 QR 모달/이미지 마크업이 더이상 존재하지 않는다', async () => {
+    const html = await fs.readFile(POPUP_HTML, 'utf8');
+    expect(html).not.toContain('qr-modal');
+    expect(html).not.toContain('kakaoPayQR.png');
+    expect(html).not.toContain('qr.kakaopay.com');
   });
 
   it('키워드 알림 모달 — 추가 버튼 클릭 시 열림', async () => {

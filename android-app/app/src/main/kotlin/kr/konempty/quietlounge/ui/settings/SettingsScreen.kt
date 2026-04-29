@@ -226,7 +226,7 @@ fun SettingsScreen(
                 onClick = {
                     runCatching {
                         ctx.startActivity(
-                            Intent(Intent.ACTION_VIEW, "https://qr.kakaopay.com/FG31jvTdV".toUri()),
+                            Intent(Intent.ACTION_VIEW, "https://fairy.hada.io/@quite-lounge".toUri()),
                         )
                     }
                 },

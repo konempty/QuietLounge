@@ -770,27 +770,13 @@ document.getElementById('btn-back-channel').addEventListener('click', () => {
   document.getElementById('keyword-input').value = '';
 });
 
-// ── iOS 감지 ──
-if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
-  const mobileLink = document.getElementById('qr-modal-mobile-link');
-  if (mobileLink) mobileLink.style.display = '';
-}
-
-// ── QR 모달 ──
+// ── 후원 버튼 — 외부 후원 페이지(fairy.hada.io)로 새 탭 이동 ──
+// macOS 전용 popup-macos/popup.html 에는 btn-support 자체가 없으므로 null guard.
 const btnSupport = document.getElementById('btn-support');
-const qrModal = document.getElementById('qr-modal');
-const qrModalClose = document.getElementById('qr-modal-close');
-if (btnSupport && qrModal) {
+if (btnSupport) {
   btnSupport.addEventListener('click', () => {
-    qrModal.classList.add('active');
-  });
-  qrModalClose?.addEventListener('click', () => {
-    qrModal.classList.remove('active');
-  });
-  qrModal.addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) {
-      e.currentTarget.classList.remove('active');
-    }
+    browser.tabs.create({ url: 'https://fairy.hada.io/@quite-lounge' });
+    window.close();
   });
 }
 

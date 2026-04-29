@@ -315,17 +315,10 @@ document.getElementById('btn-refresh-stats').addEventListener('click', () => {
   });
 });
 
-// ── QR 모달 ──
+// ── 후원 버튼 — 외부 후원 페이지(fairy.hada.io)로 새 탭 이동 ──
 document.getElementById('btn-support').addEventListener('click', () => {
-  document.getElementById('qr-modal').classList.add('active');
-});
-document.getElementById('qr-modal-close').addEventListener('click', () => {
-  document.getElementById('qr-modal').classList.remove('active');
-});
-document.getElementById('qr-modal').addEventListener('click', (e) => {
-  if (e.target === e.currentTarget) {
-    e.currentTarget.classList.remove('active');
-  }
+  chrome.tabs.create({ url: 'https://fairy.hada.io/@quite-lounge' });
+  window.close();
 });
 
 // ── 키워드 알림 ──
