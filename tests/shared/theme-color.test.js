@@ -57,9 +57,10 @@ describe('content-scripts — QL_PRIMARY 하드코딩 동기화', () => {
   for (const rel of files) {
     it(`${rel} — QL_PRIMARY 선언 패턴이 프로덕션/테스트 사이 동기화`, () => {
       const src = fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8');
-      // 핵심: 다크 = #6A86F8, 라이트 = #4A6CF7 가 함께 등장해야 함
-      expect(src).toContain("'#6A86F8'");
-      expect(src).toContain("'#4A6CF7'");
+      // 핵심: 다크 = #6A86F8, 라이트 = #4A6CF7 가 함께 등장해야 함.
+      // esbuild 산출물이 double quote 를 쓸 수 있으니 따옴표 종류는 무관하게 매칭.
+      expect(src).toMatch(/['"]#6A86F8['"]/);
+      expect(src).toMatch(/['"]#4A6CF7['"]/);
       // matchMedia 기반 분기
       expect(src).toMatch(/matchMedia\(['"]?\(prefers-color-scheme:\s*dark\)['"]?\)/);
     });

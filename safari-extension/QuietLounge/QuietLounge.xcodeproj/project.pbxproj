@@ -40,6 +40,7 @@
 		C2C98C892F7A61E900588733 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7F2F7A61E900588733 /* icons */; };
 		C2C98C8A2F7A61E900588733 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C802F7A61E900588733 /* manifest.json */; };
 		E11D4F012FA0000100AAB001 /* popup (macOS) in Resources */ = {isa = PBXBuildFile; fileRef = E11D4F022FA0000100AAB001 /* popup (macOS) */; };
+		E1B05F022FB0000100AAB001 /* webview-scripts in Resources */ = {isa = PBXBuildFile; fileRef = E1B05F012FB0000100AAB001 /* webview-scripts */; };
 		C2D68CD12F7BBA6100033FEF /* WebViewScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CD02F7BBA6100033FEF /* WebViewScripts.swift */; };
 		C2D68CD22F7BBA6100033FEF /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCD2F7BBA6100033FEF /* SettingsViewController.swift */; };
 		C2D68CD32F7BBA6100033FEF /* BlockDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCB2F7BBA6100033FEF /* BlockDataManager.swift */; };
@@ -122,6 +123,7 @@
 		C2C98C7F2F7A61E900588733 /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = Resources/icons; sourceTree = "<group>"; };
 		C2C98C802F7A61E900588733 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = Resources/manifest.json; sourceTree = "<group>"; };
 		E11D4F022FA0000100AAB001 /* popup (macOS) */ = {isa = PBXFileReference; lastKnownFileType = folder; name = popup; path = Resources/popup-macos; sourceTree = "<group>"; };
+		E1B05F012FB0000100AAB001 /* webview-scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "webview-scripts"; path = "Resources/webview-scripts"; sourceTree = "<group>"; };
 		C2D68CCB2F7BBA6100033FEF /* BlockDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockDataManager.swift; sourceTree = "<group>"; };
 		C2D68CCC2F7BBA6100033FEF /* BlockListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockListViewController.swift; sourceTree = "<group>"; };
 		C2D68CCD2F7BBA6100033FEF /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
@@ -243,6 +245,7 @@
 				C2C98C392F7A61E800588733 /* Main.storyboard */,
 				C2C98C3C2F7A61E800588733 /* Info.plist */,
 				C2D68CE12F7BBA6100033FEF /* QuietLounge.entitlements */,
+				E1B05F012FB0000100AAB001 /* webview-scripts */,
 			);
 			path = "iOS (App)";
 			sourceTree = "<group>";
@@ -454,6 +457,7 @@
 				C2C98C672F7A61E900588733 /* Assets.xcassets in Resources */,
 				C2C98C3B2F7A61E800588733 /* Main.storyboard in Resources */,
 				C2C98C612F7A61E900588733 /* Style.css in Resources */,
+				E1B05F022FB0000100AAB001 /* webview-scripts in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

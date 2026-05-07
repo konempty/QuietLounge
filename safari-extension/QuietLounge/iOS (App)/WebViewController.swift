@@ -130,19 +130,10 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
         let config = WKWebViewConfiguration()
         config.userContentController.add(self, name: "qlBridge")
 
-        let beforeScript = WKUserScript(
-            source: WebViewScripts.beforeScript,
-            injectionTime: .atDocumentStart,
-            forMainFrameOnly: true
-        )
-        config.userContentController.addUserScript(beforeScript)
-
-        let afterScript = WKUserScript(
-            source: WebViewScripts.afterScript(blockData: BlockDataManager.shared.load(), filterMode: BlockDataManager.shared.filterMode),
-            injectionTime: .atDocumentEnd,
-            forMainFrameOnly: true
-        )
-        config.userContentController.addUserScript(afterScript)
+        // before/after WKUserScript 등록은 setup 시점 + 데이터 변경 시점에 모두 호출되므로 헬퍼로 분리.
+        // (setup 시 webView 가 아직 없어 config.userContentController 를 직접 넘긴다.
+        //  이후엔 webView.configuration.userContentController 가 같은 인스턴스라 헬퍼가 양쪽 다 동작.)
+        registerUserScripts(on: config.userContentController)
 
         webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
@@ -443,11 +434,41 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
         let data = BlockDataManager.shared.load()
         let js = WebViewScripts.blockListUpdateScript(blockData: data)
         webView.evaluateJavaScript(js)
+        // 다음 페이지 로드/새로고침에 stale blockData 가 다시 주입되지 않도록 WKUserScript 재등록.
+        registerUserScripts(on: webView.configuration.userContentController)
     }
 
     @objc private func filterModeChanged() {
         let mode = BlockDataManager.shared.filterMode
         webView.evaluateJavaScript("if(window.__QL_setFilterMode) window.__QL_setFilterMode('\(mode)'); true;")
+        // 다음 페이지 로드/새로고침에 stale filterMode 가 다시 주입되지 않도록 WKUserScript 재등록.
+        // 라이브 setFilterMode 는 현재 페이지에만 적용되므로 새로고침 시 baked-in 값으로 회귀하는 회귀를
+        // 차단. (이전 PR 에서 placeholder substitution 이 처음 정상 동작하면서 가시화된 staleness)
+        registerUserScripts(on: webView.configuration.userContentController)
+    }
+
+    /// before/after WKUserScript 를 (재)등록한다.
+    /// `WKUserScript` 의 source 는 immutable 이므로 blockData / filterMode 변경 시 새로 만들어 교체.
+    /// `removeAllUserScripts()` 는 user script 만 제거하고 message handler (qlBridge) 는 그대로 둔다.
+    private func registerUserScripts(on controller: WKUserContentController) {
+        controller.removeAllUserScripts()
+
+        let beforeScript = WKUserScript(
+            source: WebViewScripts.beforeScript,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        )
+        controller.addUserScript(beforeScript)
+
+        let afterScript = WKUserScript(
+            source: WebViewScripts.afterScript(
+                blockData: BlockDataManager.shared.load(),
+                filterMode: BlockDataManager.shared.filterMode
+            ),
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        )
+        controller.addUserScript(afterScript)
     }
 
     @objc private func navigateToPost(_ notification: Notification) {
@@ -482,9 +503,10 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
         case "PERSONA_MAP_UPDATE":
             guard let payload = json["payload"] as? [String: Any],
                   let cache = payload["personaCache"] as? [String: String] else { return }
-            for (pid, nick) in cache {
-                BlockDataManager.shared.updatePersonaCache(personaId: pid, nickname: nick)
-            }
+            // 단건 for-loop 호출은 매 항목마다 전체 데이터를 JSON 직렬화/역직렬화 + UserDefaults
+            // 쓰기 + Darwin notification 발생 → Main thread 가 점유돼 다른 탭 토글 UI 가 먹통이 되는
+            // 회귀 발생. 배치로 1 회만 save 한다.
+            BlockDataManager.shared.updatePersonaCacheBatch(cache)
 
         default:
             break

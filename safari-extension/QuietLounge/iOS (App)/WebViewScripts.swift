@@ -2,7 +2,18 @@ import Foundation
 
 enum WebViewScripts {
 
-    /// fetch monkey-patch — 페이지 로드 전 주입
+    /// 빌드된 산출물 (Resources/webview-scripts/after.js) 의 placeholder 토큰.
+    /// shared/web/entries/ios-after.ts 와 일치해야 한다 — Android Kotlin 과도 동일한 규약.
+    ///
+    /// 두 토큰 모두 **bare identifier 형태로 매칭** — 산출물의 따옴표 종류 (single vs double)
+    /// 와 무관하게 동작해야 한다. esbuild 가 string literal 을 double-quote 로 출력하므로
+    /// `"'__QL_FILTER_MODE_PLACEHOLDER__'"` (single quote 포함) 으로 검색하면 매치 실패하는 회귀.
+    /// 따옴표는 산출물 측에 그대로 두고 안쪽 토큰만 치환해 단순 식별자로 들어가게 한다.
+    static let blockDataPlaceholder = "__QL_BLOCK_DATA_PLACEHOLDER__"
+    static let filterModePlaceholder = "__QL_FILTER_MODE_PLACEHOLDER__"
+
+    /// fetch monkey-patch — 페이지 로드 전 주입.
+    /// (이 PR 에서는 String literal 그대로 유지 — 후속 PR 에서 Bundle 의 before.js 로 옮길 예정.)
     static let beforeScript: String = """
     (function() {
       'use strict';
@@ -91,357 +102,65 @@ enum WebViewScripts {
     true;
     """
 
-    /// 필터링 + 차단 버튼 + 프로필 통계 — 페이지 로드 후 주입
+    /// 필터링 + 차단 버튼 + 프로필 통계 — 페이지 로드 후 주입.
+    /// Bundle 의 webview-scripts/after.js (esbuild 산출물) 를 읽고 placeholder 두 개를 치환.
     static func afterScript(blockData: [String: Any], filterMode: String) -> String {
-        let blockDataJSON = (try? JSONSerialization.data(withJSONObject: blockData))
-            .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-        return """
-        (function() {
-          'use strict';
-          if (window.__QL_AFTER_INSTALLED) {
-            window.__QL_BLOCK_DATA = \(blockDataJSON);
-            window.__QL_FILTER_MODE = '\(filterMode)';
-            if (window.__QL_onBlockListUpdate) window.__QL_onBlockListUpdate();
-            return;
-          }
-          window.__QL_AFTER_INSTALLED = true;
-          window.__QL_BLOCK_DATA = \(blockDataJSON);
-          window.__QL_FILTER_MODE = '\(filterMode)';
+        renderTemplate(loadAfterTemplate(), blockData: blockData, filterMode: filterMode)
+    }
 
-          // QuietLounge 브랜드 컬러 — 다크 모드에선 어두운 배경 위 시인성을 위해 한 톤 밝게 사용.
-          var QL_PRIMARY = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
-            ? '#6A86F8' : '#4A6CF7';
+    /// 순수 placeholder 치환 — Bundle I/O 와 분리해 unit test 가능.
+    /// `__QL_BLOCK_DATA_PLACEHOLDER__` 와 `__QL_FILTER_MODE_PLACEHOLDER__` 두 bare token 을 치환.
+    /// 따옴표는 산출물 측에 그대로 두고 식별자만 치환하는 패턴 — Android Kotlin 과 동일 규약.
+    static func renderTemplate(
+        _ template: String,
+        blockData: [String: Any],
+        filterMode: String
+    ) -> String {
+        return template
+            .replacingOccurrences(of: blockDataPlaceholder, with: serializeBlockData(blockData))
+            .replacingOccurrences(of: filterModePlaceholder, with: filterMode)
+    }
 
-          var SEL = {
-            scrollContainer: '.infinite-scroll-component',
-            postLink: 'a[href^="/posts/"]',
-            postContainer: '.relative[tabindex]',
-            nickname: '[data-slot="profile-name-label"] span.truncate',
-            profileName: '[data-slot="profile-name"]',
-            separator: '[data-slot="separator"]',
-            card: '[data-slot="card"]',
-            cardItem: '[data-slot="carousel-item"]',
-          };
+    /// blockData 직렬화 실패 시 `"{}"` 로 fallback. `try?` 만으론 `JSONSerialization` 이 던지는
+    /// `NSInvalidArgumentException` (Date 등 비호환 타입) 을 못 잡아 앱이 크래시할 수 있어
+    /// `isValidJSONObject` 로 사전 검증한다.
+    private static func serializeBlockData(_ blockData: [String: Any]) -> String {
+        guard JSONSerialization.isValidJSONObject(blockData),
+              let data = try? JSONSerialization.data(withJSONObject: blockData),
+              let str = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+        return str
+    }
 
-          function isActivePage() { var p = window.location.pathname; return p === '/' || p.startsWith('/posts') || p.startsWith('/channels'); }
-          function isBlockButtonPage() { var p = window.location.pathname; return p.startsWith('/posts') || p.startsWith('/channels'); }
+    private static var afterTemplateCache: String?
 
-          function isBlocked(personaId, nickname) {
-            var d = window.__QL_BLOCK_DATA; if (!d) return false;
-            if (personaId && d.blockedUsers && d.blockedUsers[personaId]) return true;
-            if (nickname) {
-              var users = d.blockedUsers || {};
-              for (var key in users) { if (users[key].nickname === nickname) return true; }
-              var nbs = d.nicknameOnlyBlocks || [];
-              for (var i = 0; i < nbs.length; i++) { if (nbs[i].nickname === nickname) return true; }
-            }
-            return false;
-          }
-
-          function applyStyle(el, blocked) {
-            if (!el) return;
-            var mode = window.__QL_FILTER_MODE || 'hide';
-            if (blocked) {
-              if (mode === 'blur') { el.style.filter='blur(5px)'; el.style.opacity='0.3'; el.style.pointerEvents='none'; el.style.display=''; }
-              else { el.style.display='none'; el.style.filter=''; el.style.opacity=''; el.style.pointerEvents=''; }
-            } else { el.style.display=''; el.style.filter=''; el.style.opacity=''; el.style.pointerEvents=''; }
-          }
-
-          function filterAll() {
-            if (!isActivePage()) return;
-            var ql = window.__QL || { personaMap: {} };
-            document.querySelectorAll(SEL.postLink).forEach(function(link) {
-              var postId = link.getAttribute('href').replace('/posts/','');
-              var nickname = (link.querySelector(SEL.nickname)||{}).textContent;
-              if (nickname) nickname = nickname.trim();
-              var pid = postId ? ql.personaMap[postId] : undefined;
-              var container = link.closest(SEL.postContainer) || (link.parentElement && link.parentElement.parentElement);
-              if (!container) return;
-              var blocked = isBlocked(pid, nickname);
-              applyStyle(container, blocked);
-              var sep = container.parentElement && container.parentElement.nextElementSibling;
-              if (sep && sep.getAttribute && sep.getAttribute('data-slot') === 'separator') applyStyle(sep, blocked);
-            });
-            // 캐러셀/카드 (주간 베스트 등) — postLink 가 없는 카드형 글도 차단/해제 일관 적용.
-            document.querySelectorAll(SEL.card).forEach(function(card) {
-              var n = (card.querySelector(SEL.nickname)||{}).textContent;
-              if (!n) return;
-              n = n.trim();
-              var blocked = isBlocked(undefined, n);
-              var item = card.closest(SEL.cardItem);
-              if (item) applyStyle(item, blocked);
-            });
-          }
-
-          function sendBlockMessage(pid, nickname) {
-            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.qlBridge) {
-              window.webkit.messageHandlers.qlBridge.postMessage(JSON.stringify({
-                type: 'BLOCK_USER', payload: { personaId: pid || null, nickname: nickname }
-              }));
-            }
-          }
-
-          // 라운지 자체 AI(클린봇)에 의해 본문이 가려진 게시글에는 차단 버튼을 붙이지 않는다.
-          // 검출은 두 신호의 AND — false-positive 방지:
-          //  • 구조 신호: 클린봇 글 컨테이너엔 작성자/썸네일 등 메타 슬롯이 전혀 없다.
-          //               (사용자가 "클린봇 ... 감지" 류 문자열을 제목에 적어도 본인 작성자
-          //                정보가 살아있어 [data-slot] 매칭에 걸려 가드가 발동되지 않음)
-          //  • 텍스트 신호: "클린봇" + "감지" 두 키워드 동시 포함 — 라운지 카피 변경에 관대.
-          function isCleanbotFiltered(container) {
-            if (!container) return false;
-            if (container.querySelector('[data-slot]')) return false;
-            var text = container.textContent || '';
-            return text.indexOf('클린봇') !== -1 && text.indexOf('감지') !== -1;
-          }
-
-          function makeBlockBtn() {
-            var btn = document.createElement('button');
-            btn.className = 'ql-btn';
-            btn.textContent = '\\u2715';
-            btn.style.cssText = 'margin-left:6px;cursor:pointer;opacity:0.5;font-size:16px;border:none;background:rgba(200,50,50,0.12);padding:4px 8px;color:#e74c3c;border-radius:4px;transition:opacity 0.15s;line-height:1;min-width:28px;min-height:28px;display:inline-flex;align-items:center;justify-content:center;';
-            btn.ontouchstart = function() { btn.style.opacity='1'; };
-            btn.ontouchend = function() { btn.style.opacity='0.5'; };
-            return btn;
-          }
-
-          function injectButtons() {
-            if (!isBlockButtonPage()) return;
-            // 방법 A — profile-name 슬롯이 있는 일반 글
-            document.querySelectorAll(SEL.profileName).forEach(function(el) {
-              if (el.querySelector('.ql-btn')) return;
-              // 클린봇 검열 글 — 작성자 정보가 가려진 채 안내문만 있어 차단 의미 없음.
-              if (isCleanbotFiltered(el.closest(SEL.postContainer) || el.closest(SEL.postLink))) return;
-              var btn = makeBlockBtn();
-              btn.onclick = function(e) {
-                e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-                var nickname = (el.querySelector('[data-slot="profile-name-label"] span.truncate')||{}).textContent;
-                if (!nickname) return; nickname = nickname.trim();
-                var pid, ql = window.__QL || { personaMap: {} };
-                var profileLink = el.querySelector('a[href^="/profiles/"]');
-                if (profileLink) pid = profileLink.getAttribute('href').replace('/profiles/','');
-                if (!pid) {
-                  var postLink = el.closest('a[href^="/posts/"]') || (el.closest(SEL.postContainer)||{}).querySelector && el.closest(SEL.postContainer).querySelector('a[href^="/posts/"]');
-                  if (postLink) { var postId = postLink.getAttribute('href').replace('/posts/',''); if (postId) pid = ql.personaMap[postId]; }
-                }
-                if (!pid) { var pm = window.location.pathname.match(/^\\/posts\\/([^/]+)/); if (pm) pid = ql.personaMap[pm[1]]; }
-                sendBlockMessage(pid, nickname);
-              };
-              el.appendChild(btn);
-            });
-            // 방법 B — profile-name 슬롯이 없는 카드 (주간 베스트 등). personaId 가 매핑돼 있어야 차단 가능.
-            // pid 가 안 잡힌 카드엔 버튼 자체를 만들지 않음 — 눌러도 반응 없는 silent no-op 방지.
-            // personaMap 이 채워지면 다음 injectButtons() 호출 (스크롤/네비게이션 debounce) 때 자동 등장.
-            document.querySelectorAll(SEL.postContainer).forEach(function(container) {
-              if (container.querySelector('.ql-btn')) return;
-              if (container.querySelector(SEL.profileName)) return; // 방법 A 가 처리
-              if (isCleanbotFiltered(container)) return;
-              var postLink = container.querySelector(SEL.postLink) || container.closest(SEL.postLink);
-              if (!postLink) return;
-              var ql = window.__QL || { personaMap: {}, personaCache: {} };
-              var postId = postLink.getAttribute('href').replace('/posts/','');
-              var pid = postId ? ql.personaMap[postId] : undefined;
-              if (!pid) return; // 매핑 없는 카드는 버튼 미노출
-              var btn = makeBlockBtn();
-              btn.onclick = function(e) {
-                e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-                var nickname = ql.personaCache[pid] || pid;
-                sendBlockMessage(pid, nickname);
-              };
-              var firstRow = container.querySelector('a > div');
-              if (firstRow) firstRow.appendChild(btn); else container.appendChild(btn);
-            });
-          }
-
-          window.__QL_onBlockListUpdate = function() { filterAll(); injectButtons(); };
-          window.__QL_setFilterMode = function(mode) { window.__QL_FILTER_MODE = mode; filterAll(); };
-
-          if (isActivePage()) { filterAll(); injectButtons(); }
-
-          var timer;
-          var debounced = function() { clearTimeout(timer); timer = setTimeout(function() { if (isActivePage()) { filterAll(); injectButtons(); } }, 200); };
-          var target = document.querySelector(SEL.scrollContainer) || document.body;
-          new MutationObserver(debounced).observe(target, { childList: true, subtree: true });
-
-          // ── 프로필 통계 ──
-          var profileStatsCache = { personaId: null, stats: null, monthlyPosts: null, monthlyComments: null };
-          var profileStatsRafId = null;
-          var profileStatsObserver2 = null;
-
-          function isProfilePage() { return window.location.pathname.startsWith('/profiles/'); }
-          function getProfilePersonaId() {
-            var m = window.location.pathname.match(/^\\/profiles\\/([^/?]+)/);
-            return m ? m[1] : null;
-          }
-
-          function buildProfileStatsHtml() {
-            var stats = profileStatsCache.stats;
-            var totalPosts = stats.totalPostCount || 0;
-            var totalComments = stats.totalCommentCount || 0;
-            var mp = profileStatsCache.monthlyPosts;
-            var mc = profileStatsCache.monthlyComments;
-            var spinner = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:' + QL_PRIMARY + ';border-radius:50%;animation:ql-spin 0.8s linear infinite;vertical-align:middle;"></span>';
-            var mpt = mp !== null ? mp : spinner;
-            var mct = mc !== null ? mc : spinner;
-            return '<div style="font-weight:600;font-size:14px;margin-bottom:10px;color:' + QL_PRIMARY + ';">활동 통계</div>' +
-              '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
-              '<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;"><div style="font-size:20px;font-weight:700;">' + totalPosts + '</div><div style="font-size:11px;opacity:0.7;margin-top:2px;">총 작성글</div></div>' +
-              '<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;"><div style="font-size:20px;font-weight:700;">' + totalComments + '</div><div style="font-size:11px;opacity:0.7;margin-top:2px;">총 댓글</div></div>' +
-              '<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;"><div style="font-size:20px;font-weight:700;">' + mpt + '</div><div style="font-size:11px;opacity:0.7;margin-top:2px;">이번달 작성글</div></div>' +
-              '<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;"><div style="font-size:20px;font-weight:700;">' + mct + '</div><div style="font-size:11px;opacity:0.7;margin-top:2px;">이번달 댓글</div></div></div>';
-          }
-
-          function insertProfileStatsBox() {
-            if (document.getElementById('ql-profile-stats')) return;
-            var tabsEl = document.querySelector('[data-slot="tabs"]');
-            if (!tabsEl) return;
-            var box = document.createElement('div');
-            box.id = 'ql-profile-stats';
-            box.style.cssText = 'margin:12px 20px 0;padding:14px 16px;background:rgba(74,108,247,0.08);border:1px solid rgba(74,108,247,0.2);border-radius:10px;font-size:13px;color:var(--color-neutral-foreground-default,#e0e0e0);';
-            box.innerHTML = buildProfileStatsHtml();
-            tabsEl.before(box);
-          }
-
-          if (!document.getElementById('ql-spinner-style')) {
-            var spStyle = document.createElement('style');
-            spStyle.id = 'ql-spinner-style';
-            spStyle.textContent = '@keyframes ql-spin { to { transform: rotate(360deg); } }';
-            document.head.appendChild(spStyle);
-          }
-
-          function profileDebounce(fn, d) { var t; return function() { clearTimeout(t); t = setTimeout(fn, d); }; }
-
-          function stopProfileStatsGuard() {
-            if (profileStatsRafId) { cancelAnimationFrame(profileStatsRafId); profileStatsRafId = null; }
-            if (profileStatsObserver2) { profileStatsObserver2.disconnect(); profileStatsObserver2 = null; }
-          }
-
-          function startProfileStatsGuard() {
-            stopProfileStatsGuard();
-            var startTime = Date.now();
-            function tick() {
-              if (!isProfilePage() || !profileStatsCache.stats) { profileStatsRafId = null; return; }
-              insertProfileStatsBox();
-              if (Date.now() - startTime < 3000) { profileStatsRafId = requestAnimationFrame(tick); }
-              else {
-                profileStatsRafId = null;
-                profileStatsObserver2 = new MutationObserver(profileDebounce(function() {
-                  if (isProfilePage() && profileStatsCache.stats) insertProfileStatsBox();
-                }, 100));
-                profileStatsObserver2.observe(document.body, { childList: true, subtree: true });
-              }
-            }
-            profileStatsRafId = requestAnimationFrame(tick);
-          }
-
-          function fetchMonthlyCount(personaId, type, monthStart) {
-            var count = 0; var cursor = ''; var isComments = type === 'comments';
-            function fetchPage(page) {
-              if (page >= 50) return Promise.resolve(count);
-              var actUrl = 'https://api.lounge.naver.com/user-api/v1/personas/' + personaId + '/activities/' + type + '?limit=100' + (cursor ? '&cursor=' + cursor : '');
-              return fetch(actUrl, { credentials: 'include' }).then(function(r) {
-                if (!r.ok) return count;
-                return r.json().then(function(j) {
-                  var items = j.data && j.data.items ? j.data.items : [];
-                  if (items.length === 0) return count;
-                  var ids, params, detailUrl;
-                  if (isComments) {
-                    ids = items.map(function(it) { return it.commentId; });
-                    params = ids.map(function(id) { return 'commentNoList=' + id; }).join('&');
-                    detailUrl = 'https://api.lounge.naver.com/content-api/v1/comments?' + params;
-                  } else {
-                    ids = items.map(function(it) { return it.postId; });
-                    params = ids.map(function(id) { return 'postIds=' + id; }).join('&');
-                    detailUrl = 'https://api.lounge.naver.com/content-api/v1/posts?' + params;
-                  }
-                  return fetch(detailUrl, { credentials: 'include' }).then(function(dr) {
-                    if (!dr.ok) return count;
-                    return dr.json().then(function(dj) {
-                      var hasThisMonth = false;
-                      if (isComments) {
-                        var raw = dj.data && dj.data.rawResponse ? dj.data.rawResponse : null;
-                        var parsed = raw ? JSON.parse(raw) : null;
-                        var cl = parsed && parsed.result ? parsed.result.commentList || [] : [];
-                        for (var i = 0; i < cl.length; i++) {
-                          var rd = cl[i].regTimeGmt || '';
-                          if (rd && new Date(rd) >= monthStart) { count++; hasThisMonth = true; }
-                        }
-                      } else {
-                        var details = Array.isArray(dj.data) ? dj.data : [];
-                        for (var k = 0; k < details.length; k++) {
-                          var ds = details[k].createTime || '';
-                          if (ds && new Date(ds) >= monthStart) { count++; hasThisMonth = true; }
-                        }
-                      }
-                      if (!hasThisMonth) return count;
-                      if (!j.data.cursorInfo || !j.data.cursorInfo.hasNext) return count;
-                      cursor = j.data.cursorInfo.endCursor || '';
-                      if (!cursor) return count;
-                      return fetchPage(page + 1);
-                    });
-                  });
-                });
-              }).catch(function() { return count; });
-            }
-            return fetchPage(0);
-          }
-
-          function injectProfileStats() {
-            if (!isProfilePage()) return;
-            var personaId = getProfilePersonaId();
-            if (!personaId) return;
-            if (profileStatsCache.personaId === personaId && profileStatsCache.stats) {
-              startProfileStatsGuard();
-              return;
-            }
-            fetch('https://api.lounge.naver.com/user-api/v1/personas/' + personaId, { credentials: 'include' })
-              .then(function(r) { return r.ok ? r.json() : null; })
-              .then(function(j) {
-                if (!j || !j.data) return;
-                var stats = j.data;
-                profileStatsCache = { personaId: personaId, stats: stats, monthlyPosts: null, monthlyComments: null };
-                var now = new Date();
-                var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-                var createTime = stats.createTime ? new Date(stats.createTime) : null;
-                var createdThisMonth = createTime && createTime >= monthStart;
-                if (createdThisMonth) {
-                  profileStatsCache.monthlyPosts = stats.totalPostCount || 0;
-                  profileStatsCache.monthlyComments = stats.totalCommentCount || 0;
-                } else {
-                  fetchMonthlyCount(personaId, 'posts', monthStart).then(function(c) {
-                    profileStatsCache.monthlyPosts = c;
-                    var el = document.getElementById('ql-profile-stats');
-                    if (el) el.innerHTML = buildProfileStatsHtml();
-                  });
-                  fetchMonthlyCount(personaId, 'comments', monthStart).then(function(c) {
-                    profileStatsCache.monthlyComments = c;
-                    var el = document.getElementById('ql-profile-stats');
-                    if (el) el.innerHTML = buildProfileStatsHtml();
-                  });
-                }
-                startProfileStatsGuard();
-              });
-          }
-
-          var lastPath = window.location.pathname;
-          function onNavigate() {
-            var newPath = window.location.pathname;
-            if (newPath === lastPath) return;
-            lastPath = newPath;
-            profileStatsCache = { personaId: null, stats: null, monthlyPosts: null, monthlyComments: null };
-            stopProfileStatsGuard();
-            if (isActivePage()) { setTimeout(function() { filterAll(); injectButtons(); }, 500); }
-            if (isProfilePage()) { setTimeout(injectProfileStats, 500); }
-          }
-          window.addEventListener('popstate', onNavigate);
-          var origPush = history.pushState;
-          history.pushState = function() { origPush.apply(this, arguments); onNavigate(); };
-          var origReplace = history.replaceState;
-          history.replaceState = function() { origReplace.apply(this, arguments); onNavigate(); };
-
-          if (isProfilePage()) injectProfileStats();
-        })();
-        true;
-        """
+    /// `Bundle.main.url(forResource:withExtension:subdirectory:)` 로 산출물 1 회 read 후 캐시.
+    /// Copy Bundle Resources 에 webview-scripts blue folder 가 등록되지 않은 경우 nil 반환 →
+    /// `preconditionFailure` 로 즉시 크래시 (릴리즈 빌드 포함).
+    ///
+    /// 이전에는 `assertionFailure` + `return ""` 였지만, `assertionFailure` 는 release config 에서
+    /// no-op 이라 빈 WKUserScript 가 등록되어 iOS native 의 차단/블러/버튼 주입이 통째로 죽어도
+    /// 크래시 없이 silent 사망하는 회귀 (P2 리뷰 피드백). 또 xcodebuild 자체는 이 함수를 실행하지
+    /// 않으므로 CI 가 리소스 누락을 자동 검출 못함 — Swift unit test (afterScript 가 정상 헤더와
+    /// `window.__QL_BLOCK_DATA` 를 포함하는지) 와 fail-fast 로 두 겹 가드.
+    private static func loadAfterTemplate() -> String {
+        if let cached = afterTemplateCache { return cached }
+        guard let url = Bundle.main.url(
+            forResource: "after",
+            withExtension: "js",
+            subdirectory: "webview-scripts"
+        ),
+              let text = try? String(contentsOf: url, encoding: .utf8)
+        else {
+            preconditionFailure(
+                "QuietLounge: Resources/webview-scripts/after.js 를 Bundle 에서 로드 실패. " +
+                "pbxproj 의 iOS App target Copy Bundle Resources 에 webview-scripts blue folder 가 " +
+                "등록되어 있는지, `pnpm build` 가 실행되어 산출물이 생성되었는지 확인."
+            )
+        }
+        afterTemplateCache = text
+        return text
     }
 
     /// 차단 목록 업데이트 push

@@ -206,6 +206,24 @@ class BlockDataManager {
         save(updated)
     }
 
+    /// 다수 persona 항목 일괄 갱신 — 라운지 페이지 새로고침/네비게이션 후 JS 가 한꺼번에 보내는
+    /// PERSONA_MAP_UPDATE 처리용. 단건 [updatePersonaCache] 를 for 루프로 호출하면 매 항목마다
+    /// 전체 BlockListData 를 JSON 직렬화/역직렬화하고 UserDefaults 에 쓰면서 Darwin notification 까지
+    /// 발생 → Main thread 가 수십 초간 점유되어 다른 탭의 토글 UI 가 먹통이 되는 회귀 발생.
+    /// 한 번의 load() + 누적 update + 1 회 save() 로 처리해 비용을 N배 절감.
+    func updatePersonaCacheBatch(_ entries: [String: String]) {
+        guard !entries.isEmpty else { return }
+        var current = load()
+        for (pid, nick) in entries {
+            current = QuietLoungeCore.applyPersonaCacheUpdate(
+                to: current,
+                personaId: pid,
+                nickname: nick
+            )
+        }
+        save(current)
+    }
+
     func clearAll() {
         save(createEmpty())
     }

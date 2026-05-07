@@ -148,7 +148,7 @@ describe('chrome popup.html + popup.js', () => {
     expect(doc.querySelector('#block-list-container').innerHTML).toContain('B_닉네임');
   });
 
-  it('해제 버튼 클릭 시 blockedUser 제거', async () => {
+  it('해제 버튼 클릭 → confirm 후 blockedUser 제거 (4 플랫폼 통일 UX)', async () => {
     const seed = {
       quiet_lounge_data: JSON.stringify({
         version: 2,
@@ -167,14 +167,45 @@ describe('chrome popup.html + popup.js', () => {
     dom = ctx.dom;
     const doc = ctx.win.document;
 
+    // 4 플랫폼 통일 — Chrome popup 도 native confirm() 으로 한 번 더 확인.
+    ctx.win.confirm = vi.fn(() => true);
+
     const btn = doc.querySelector('button[data-type="persona"][data-id="p1"]');
     expect(btn).toBeTruthy();
     btn.click();
     for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
 
+    expect(ctx.win.confirm).toHaveBeenCalledWith(
+      expect.stringContaining('"X" 유저의 차단을 해제하시겠습니까?'),
+    );
     expect(doc.getElementById('blocked-count').textContent).toBe('0');
     const stored = JSON.parse(ctx.chrome._storage._store.quiet_lounge_data);
     expect(stored.blockedUsers.p1).toBeUndefined();
+  });
+
+  it('해제 버튼 클릭 → confirm 취소 시 차단 유지', async () => {
+    const seed = {
+      quiet_lounge_data: JSON.stringify({
+        version: 2,
+        blockedUsers: {
+          p1: { personaId: 'p1', nickname: 'X', blockedAt: '2026-04-01T00:00:00Z' },
+        },
+        nicknameOnlyBlocks: [],
+        personaCache: {},
+      }),
+    };
+    const ctx = await setupPopup({ seed });
+    dom = ctx.dom;
+    const doc = ctx.win.document;
+    ctx.win.confirm = vi.fn(() => false);
+
+    doc.querySelector('button[data-type="persona"][data-id="p1"]').click();
+    for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
+
+    expect(ctx.win.confirm).toHaveBeenCalled();
+    expect(doc.getElementById('blocked-count').textContent).toBe('1');
+    const stored = JSON.parse(ctx.chrome._storage._store.quiet_lounge_data);
+    expect(stored.blockedUsers.p1).toBeDefined();
   });
 
   it('필터 모드 토글 — 체크 시 blur 저장', async () => {

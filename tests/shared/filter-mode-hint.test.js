@@ -45,8 +45,9 @@ describe('content-scripts — filter hint 구현 동기화', () => {
       const src = fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8');
 
       it('DONT_SHOW_FILTER_HINT_KEY 상수 선언', () => {
-        // 정확한 storage key 컨벤션 — Android/iOS 와 동일 ("quiet_lounge_dont_show_filter_hint")
-        expect(src).toContain("DONT_SHOW_FILTER_HINT_KEY = 'quiet_lounge_dont_show_filter_hint'");
+        // 정확한 storage key 컨벤션 — Android/iOS 와 동일 ("quiet_lounge_dont_show_filter_hint").
+        // esbuild 산출물은 const + 따옴표 종류 무관 — 문자열 리터럴만 매칭.
+        expect(src).toMatch(/DONT_SHOW_FILTER_HINT_KEY\s*=\s*['"]quiet_lounge_dont_show_filter_hint['"]/);
       });
 
       it('dontShowFilterHint 변수 선언 (캐시)', () => {
@@ -55,11 +56,11 @@ describe('content-scripts — filter hint 구현 동기화', () => {
 
       it('qlFilterHintDialog 함수 정의 — DOM modal 패턴', () => {
         expect(src).toMatch(/function\s+qlFilterHintDialog\s*\(\s*\)\s*\{/);
-        // 모달 안에 "다시 보지 않기" 와 "확인" 두 버튼이 존재해야 함
-        expect(src).toContain("dontBtn.textContent = '다시 보지 않기'");
-        expect(src).toContain("okBtn.textContent = '확인'");
+        // 모달 안에 "다시 보지 않기" 와 "확인" 두 버튼이 존재해야 함 (따옴표 종류 무관).
+        expect(src).toMatch(/dontBtn\.textContent\s*=\s*['"]다시 보지 않기['"]/);
+        expect(src).toMatch(/okBtn\.textContent\s*=\s*['"]확인['"]/);
         // resolve 값으로 'dontShow' 가 사용돼야 storage 분기가 됨
-        expect(src).toContain("close('dontShow')");
+        expect(src).toMatch(/close\(\s*['"]dontShow['"]\s*\)/);
       });
 
       it('maybeShowFilterModeHint 함수 — pure 로직과 동일 시맨틱', () => {

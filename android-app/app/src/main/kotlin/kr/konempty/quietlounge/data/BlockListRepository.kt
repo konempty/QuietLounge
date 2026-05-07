@@ -142,6 +142,26 @@ class BlockListRepository(
         }
     }
 
+    /**
+     * 여러 persona 항목을 한 번에 갱신 — 페이지 로드/네비게이션 후 JS 가 한꺼번에 보내는
+     * PERSONA_MAP_UPDATE 처리용. 단건 [updatePersonaCache] 를 forEach 로 호출하면 매 항목마다
+     * 전체 BlockListData 를 JSON 직렬화하고 DataStore 에 쓰는 비용이 누적되어 (~100 항목이면
+     * 수십 초간 DataStore 쓰기 큐가 점유됨), 같은 시점에 발생하는 사용자 토글 write 가 뒤에서
+     * 대기하는 freezing 회귀가 발생. 한 트랜잭션으로 모든 항목을 engine 에 적용하고 단 1 회만
+     * persist 한다.
+     */
+    suspend fun updatePersonaCacheBatch(entries: Map<String, String>) {
+        if (entries.isEmpty()) return
+        val before = engine.snapshot()
+        var current = before
+        for ((pid, nick) in entries) {
+            current = engine.updatePersonaCache(pid, nick)
+        }
+        if (current != before) {
+            persist(current)
+        }
+    }
+
     suspend fun clearAll() {
         persist(engine.clear())
     }

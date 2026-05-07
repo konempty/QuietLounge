@@ -95,9 +95,9 @@ fun LoungeScreen(
                     }
 
                     is BridgeMessage.PersonaMapUpdate -> {
-                        msg.personaCache.forEach { (pid, nick) ->
-                            viewModel.updatePersonaCache(pid, nick)
-                        }
+                        // forEach 로 단건 호출하면 DataStore 쓰기 큐가 누적되어 다른 탭의 토글이
+                        // 수십 초 대기하는 회귀 발생. 한 번에 배치로 처리.
+                        viewModel.updatePersonaCacheBatch(msg.personaCache)
                     }
 
                     is BridgeMessage.PageChanged -> Unit

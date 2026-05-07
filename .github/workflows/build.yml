@@ -86,6 +86,16 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # shared/web/ 변경이 commit 되지 않은 산출물로 PR 에 올라오는 회귀 차단.
+      - name: Build esbuild artifacts
+        run: pnpm build
+      - name: Build artifacts up-to-date
+        run: |
+          git diff --exit-code -- \
+            chrome-extension/content-scripts/main.js \
+            'safari-extension/QuietLounge/Shared (Extension)/Resources/content-scripts/main.js' \
+            'safari-extension/QuietLounge/iOS (App)/Resources/webview-scripts/after.js' \
+            android-app/app/src/main/assets/webview-scripts/after.js
       - run: pnpm test
 
   build:
@@ -94,6 +104,15 @@ jobs:
     needs: [safari-extension-check, js-tests]
     steps:
       - uses: actions/checkout@v5
+
+      # ── shared/web/ 산출물 빌드 (Chrome zip / Android assets 가 픽업) ──
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
 
       # ── Chrome Extension ZIP ──
       - name: Create Chrome Extension ZIP

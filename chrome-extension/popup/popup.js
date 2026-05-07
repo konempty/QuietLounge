@@ -102,10 +102,16 @@ function render() {
 
   container.innerHTML = html;
 
-  // 해제 버튼 이벤트
+  // 해제 버튼 이벤트 — 4 플랫폼 (Chrome / Safari ext iOS·macOS / iOS native / Android) 통일된
+  // UX: confirm popup 으로 한 번 더 확인 후 해제. Android 는 이미 동일 패턴.
   container.querySelectorAll('.btn-unblock').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const type = btn.dataset.type;
+      const nickname =
+        type === 'persona'
+          ? blockData.blockedUsers[btn.dataset.id]?.nickname || ''
+          : btn.dataset.nickname;
+      if (!confirm(`"${nickname}" 유저의 차단을 해제하시겠습니까?`)) return;
       if (type === 'persona') {
         delete blockData.blockedUsers[btn.dataset.id];
       } else {

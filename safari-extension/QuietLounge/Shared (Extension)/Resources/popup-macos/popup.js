@@ -113,10 +113,16 @@ function render() {
 
   container.innerHTML = html;
 
-  // 해제 버튼 이벤트
+  // 해제 버튼 이벤트 — 4 플랫폼 통일된 UX: confirm popup 한 번 더 확인 후 해제.
   container.querySelectorAll('.btn-unblock').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const type = btn.dataset.type;
+      const nickname =
+        type === 'persona'
+          ? blockData.blockedUsers[btn.dataset.id]?.nickname || ''
+          : btn.dataset.nickname;
+      const ok = await popupConfirm(`"${nickname}" 유저의 차단을 해제하시겠습니까?`, '해제');
+      if (!ok) return;
       if (type === 'persona') {
         delete blockData.blockedUsers[btn.dataset.id];
       } else {
@@ -198,12 +204,12 @@ function popupAlert(message) {
   return popupModal({ message, buttons: [{ label: '확인', value: true, style: 'primary' }] });
 }
 
-function popupConfirm(message) {
+function popupConfirm(message, confirmLabel = '삭제') {
   return popupModal({
     message,
     buttons: [
       { label: '취소', value: false, style: 'cancel' },
-      { label: '삭제', value: true, style: 'destructive' },
+      { label: confirmLabel, value: true, style: 'destructive' },
     ],
   }).then((v) => v === true);
 }

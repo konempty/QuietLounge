@@ -37,3 +37,4 @@ coverage/
 /swift-tests/.swiftpm/
 /swift-tests/Package.resolved
 /safari-extension/QuietLounge/build/
+/review/

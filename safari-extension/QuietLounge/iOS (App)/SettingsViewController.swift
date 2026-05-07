@@ -19,7 +19,12 @@ class SettingsViewController: UITableViewController {
         super.viewDidLoad()
         title = "설정"
         tableView = UITableView(frame: .zero, style: .insetGrouped)
+        // 두 가지 reuse identifier — grid 셀 (section 0/1, addSubview) 과 text/toggle 셀 (section 2-5)
+        // 의 reuse 풀을 분리한다. 같은 풀을 쓰면 텍스트 셀의 contentConfiguration 잔재가 grid 셀에서
+        // 비쳐 보이고 (Bug #2), grid 셀의 빈 영역이 텍스트 셀에서 height 0 으로 collapse 되는 회귀가
+        // 동시에 발생. 풀을 분리하면 양쪽 모두 자연스럽게 해결된다.
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "gridCell")
 
         NotificationCenter.default.addObserver(self, selector: #selector(reloadData), name: .blockDataChanged, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(reloadData), name: .keywordAlertsChanged, object: nil)
@@ -448,7 +453,11 @@ class SettingsViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
+        // section 0/1 은 addSubview 로 grid/spinner 를 직접 넣고, 나머지는 contentConfiguration
+        // 기반 텍스트 셀. reuse 풀을 분리하지 않으면 (a) 텍스트 셀의 옛 config 가 grid 셀에서
+        // 비쳐 보이거나 (b) 빈 config 가 grid 셀의 자동 높이를 collapse 시키는 문제가 발생한다.
+        let identifier = (indexPath.section == 0 || indexPath.section == 1) ? "gridCell" : "cell"
+        let cell = tableView.dequeueReusableCell(withIdentifier: identifier, for: indexPath)
         cell.accessoryType = .none
         cell.selectionStyle = .none
         cell.accessoryView = nil

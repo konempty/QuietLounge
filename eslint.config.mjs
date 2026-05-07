@@ -16,6 +16,8 @@ export default [
             'safari-extension/',
             'tests/',
             '**/*.d.ts',
+            // 빌드 산출물 — shared/web/ 의 source 만 lint 대상.
+            'chrome-extension/content-scripts/main.js',
         ],
     },
     js.configs.recommended,
