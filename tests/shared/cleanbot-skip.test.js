@@ -32,7 +32,7 @@ function isCleanbotFiltered(container) {
 }
 
 function makeContainer(innerHtml) {
-  const dom = new JSDOM(`<!doctype html><html><body>
+  const dom = new JSDOM(`<!doctype html><html lang="ko"><body>
     <a href="/posts/abc123" class="relative" tabindex="0">${innerHtml}</a>
   </body></html>`);
   return dom.window.document.querySelector('.relative[tabindex]');
@@ -79,7 +79,7 @@ describe('현실적 혼재 피드 — cleanbot 만 정확히 skip', () => {
 
   function buildFeed(htmls) {
     const dom = new JSDOM(
-      `<!doctype html><html><body>${htmls
+      `<!doctype html><html lang="ko"><body>${htmls
         .map((h, i) => `<a href="/posts/p${i}" class="relative" tabindex="0">${h}</a>`)
         .join('<div data-orientation="horizontal" data-slot="separator"></div>')}</body></html>`,
     );
@@ -141,7 +141,7 @@ describe('sample13.txt 실제 마크업 fixture — 클래스 노이즈 영향 �
       ' text-[color:var(--color-neutral-foreground-decorative-1)]">' +
       '클린봇이 부적절한 표현을 감지한 게시글입니다</div>' +
       '</div></a>';
-    const dom = new JSDOM(`<!doctype html><html><body>${html}</body></html>`);
+    const dom = new JSDOM(`<!doctype html><html lang="ko"><body>${html}</body></html>`);
     const container = dom.window.document.querySelector('.relative[tabindex]');
     expect(isCleanbotFiltered(container)).toBe(true);
   });
@@ -159,7 +159,7 @@ describe('sample13.txt 실제 마크업 fixture — 클래스 노이즈 영향 �
       '</div>' +
       '<div data-slot="thumbnail"><img data-slot="thumbnail-image"/></div>' +
       '</div></a>';
-    const dom = new JSDOM(`<!doctype html><html><body>${html}</body></html>`);
+    const dom = new JSDOM(`<!doctype html><html lang="ko"><body>${html}</body></html>`);
     const container = dom.window.document.querySelector('.relative[tabindex]');
     expect(isCleanbotFiltered(container)).toBe(false);
   });

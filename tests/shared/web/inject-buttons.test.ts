@@ -10,7 +10,7 @@ import { injectBlockButtons, findPersonaId } from '../../../shared/web/core/inje
 import type { InjectButtonsAdapter } from '../../../shared/web/platform/adapter';
 
 function setupDom(html: string): Document {
-  const dom = new JSDOM(`<!doctype html><html><body>${html}</body></html>`, {
+  const dom = new JSDOM(`<!doctype html><html lang="ko"><body>${html}</body></html>`, {
     url: 'https://lounge.naver.com/posts/abc',
   });
   globalThis.document = dom.window.document as unknown as Document;
@@ -289,7 +289,7 @@ describe('findPersonaId — 3 단계 fallback', () => {
     // 가리킴. card 는 personaMap 미매핑, current 는 매핑됨. fallback 으로 넘어가면 카드 버튼이
     // *current 작성자* 를 잘못 반환해 엉뚱한 사람을 차단하게 됨.
     const dom = new JSDOM(
-      '<!doctype html><html><body><div class="container"><a href="/posts/card">카드</a></div></body></html>',
+      '<!doctype html><html lang="ko"><body><div class="container"><a href="/posts/card">카드</a></div></body></html>',
       { url: 'https://lounge.naver.com/posts/current' },
     );
     globalThis.document = dom.window.document as unknown as Document;

@@ -12,7 +12,7 @@ import { runFilterPass } from '../../../shared/web/core/filter-engine';
 import type { BlockListData } from '../../../shared/types';
 
 function setupDom(html: string): Document {
-  const dom = new JSDOM(`<!doctype html><html><body>${html}</body></html>`, {
+  const dom = new JSDOM(`<!doctype html><html lang="ko"><body>${html}</body></html>`, {
     url: 'https://lounge.naver.com/',
   });
   // filter-engine 은 `document.querySelectorAll` 같은 글로벌 DOM API 에 의존 → globalThis 에 주입.

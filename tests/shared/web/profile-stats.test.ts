@@ -21,7 +21,7 @@ import {
 import type { ProfileStatsAdapter } from '../../../shared/web/platform/adapter';
 
 function setupDom(html: string, url: string): Document {
-  const dom = new JSDOM(`<!doctype html><html><body>${html}</body></html>`, { url });
+  const dom = new JSDOM(`<!doctype html><html lang="ko"><body>${html}</body></html>`, { url });
   globalThis.document = dom.window.document as unknown as Document;
   globalThis.window = dom.window as unknown as Window & typeof globalThis;
   globalThis.HTMLElement = dom.window.HTMLElement as unknown as typeof HTMLElement;

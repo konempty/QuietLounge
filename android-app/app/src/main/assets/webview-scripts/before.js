@@ -26,16 +26,16 @@
   function parseHydrationScripts(ql) {
     document.querySelectorAll("script").forEach((s) => {
       const t = s.textContent;
-      if (!t) return;
-      const regex1 = /\\"postId\\":\\"([^"\\]+)\\",\\"personaId\\":\\"([^"\\]+)\\"/g;
+      if (!t || t.length < 20) return;
+      const regex1 = /\\?"postId\\?":\\?"([^"\\]+)\\?",\\?"personaId\\?":\\?"([^"\\]+)\\?"/g;
       let m;
       while ((m = regex1.exec(t)) !== null) {
         ql.personaMap[m[1]] = m[2];
       }
       const postIds = [];
       const pIds = [];
-      const regex2 = /\\"postId\\":\\"([^"\\]+)\\"/g;
-      const regex3 = /\\"personaId\\":\\"([^"\\]+)\\"/g;
+      const regex2 = /\\?"postId\\?":\\?"([^"\\]+)\\?"/g;
+      const regex3 = /\\?"personaId\\?":\\?"([^"\\]+)\\?"/g;
       while ((m = regex2.exec(t)) !== null) postIds.push({ id: m[1], idx: m.index });
       while ((m = regex3.exec(t)) !== null) pIds.push({ id: m[1], idx: m.index });
       postIds.forEach((pm) => {
@@ -51,7 +51,7 @@
         });
         if (closest) ql.personaMap[pm.id] = closest;
       });
-      const regex4 = /\\"personaId\\":\\"([^"\\]+)\\",\\"nickname\\":\\"([^"\\]+)\\"/g;
+      const regex4 = /\\?"personaId\\?":\\?"([^"\\]+)\\?",\\?"nickname\\?":\\?"([^"\\]+)\\?"/g;
       while ((m = regex4.exec(t)) !== null) {
         ql.personaCache[m[1]] = m[2];
       }
@@ -104,12 +104,18 @@
       }
       return resp;
     };
-    document.addEventListener("DOMContentLoaded", () => {
+    function runHydration() {
       parseHydrationScripts(ql);
       extractFromProfileLinks(ql);
       extractAuthorFromDetailPage(ql);
       pushAll();
-    });
+    }
+    __name(runHydration, "runHydration");
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", runHydration);
+    } else {
+      runHydration();
+    }
   }
   __name(setupPersonaExtractor, "setupPersonaExtractor");
   function __resetForTests() {

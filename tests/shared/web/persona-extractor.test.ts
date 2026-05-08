@@ -13,8 +13,14 @@ import {
   __resetForTests,
 } from '../../../shared/web/core/persona-extractor';
 
+type Ql = { personaMap: Record<string, string>; personaCache: Record<string, string> };
+
+function makeQl(): Ql {
+  return { personaMap: {}, personaCache: {} };
+}
+
 function setupDom(html: string, url: string): { doc: Document; dom: JSDOM } {
-  const dom = new JSDOM(`<!doctype html><html><body>${html}</body></html>`, { url });
+  const dom = new JSDOM(`<!doctype html><html lang="ko"><body>${html}</body></html>`, { url });
   globalThis.document = dom.window.document as unknown as Document;
   globalThis.window = dom.window as unknown as Window & typeof globalThis;
   globalThis.HTMLElement = dom.window.HTMLElement as unknown as typeof HTMLElement;
@@ -44,19 +50,19 @@ afterEach(() => {
 
 describe('extractMappings — 트리 순회', () => {
   it('flat object 의 postId+personaId pair', () => {
-    const ql = { personaMap: {}, personaCache: {} };
+    const ql = makeQl();
     extractMappings({ postId: 'p1', personaId: 'pid1' }, ql);
     expect(ql.personaMap.p1).toBe('pid1');
   });
 
   it('flat object 의 personaId+nickname pair', () => {
-    const ql = { personaMap: {}, personaCache: {} };
+    const ql = makeQl();
     extractMappings({ personaId: 'pid1', nickname: '홍길동' }, ql);
     expect(ql.personaCache.pid1).toBe('홍길동');
   });
 
   it('nested array + object 모두 재귀', () => {
-    const ql = { personaMap: {}, personaCache: {} };
+    const ql = makeQl();
     extractMappings(
       {
         data: {
@@ -75,14 +81,14 @@ describe('extractMappings — 트리 순회', () => {
   });
 
   it('postId 또는 personaId 가 string 이 아니면 무시', () => {
-    const ql = { personaMap: {}, personaCache: {} };
+    const ql = makeQl();
     extractMappings({ postId: 123, personaId: 'pid' }, ql);
     extractMappings({ postId: 'p', personaId: null }, ql);
     expect(ql.personaMap).toEqual({});
   });
 
   it('null / undefined / primitive 는 안전하게 무시', () => {
-    const ql = { personaMap: {}, personaCache: {} };
+    const ql = makeQl();
     expect(() => extractMappings(null, ql)).not.toThrow();
     expect(() => extractMappings(undefined, ql)).not.toThrow();
     expect(() => extractMappings('string', ql)).not.toThrow();
@@ -161,66 +167,48 @@ describe('setupPersonaExtractor — fetch monkey-patch', () => {
 });
 
 describe('setupPersonaExtractor — DOMContentLoaded hydration parser', () => {
-  it('인접 패턴 ("postId":"x","personaId":"y") 추출', async () => {
-    const html = `<script>window.__INITIAL = "{\\"postId\\":\\"p1\\",\\"personaId\\":\\"pid1\\"}";</script>`;
-    setupDom(html, 'https://lounge.naver.com/');
-    globalThis.fetch = vi.fn() as unknown as typeof fetch;
+  // 4 케이스가 setupDom + fetch stub + setupPersonaExtractor + dispatchEvent 패턴을 공유.
+  // 중복 코드 제거 위해 helper 로 추출 — 각 it 은 html / url 만 다르고 본문은 1 줄.
+  async function runHydration(
+    html: string,
+    url: string,
+  ): Promise<{ personaMap: Record<string, string>; personaCache: Record<string, string> }> {
+    setupDom(html, url);
+    (window as unknown as { fetch: unknown }).fetch = vi.fn();
     const pushPersonaMap = vi.fn();
     setupPersonaExtractor({ pushPersonaMap });
-
     document.dispatchEvent(new window.Event('DOMContentLoaded'));
     await new Promise((r) => setTimeout(r, 0));
+    return pushPersonaMap.mock.lastCall![0];
+  }
 
-    expect(pushPersonaMap).toHaveBeenCalled();
-    const payload = pushPersonaMap.mock.lastCall![0];
+  it('인접 패턴 ("postId":"x","personaId":"y") 추출', async () => {
+    const html = `<script>window.__INITIAL = "{\\"postId\\":\\"p1\\",\\"personaId\\":\\"pid1\\"}";</script>`;
+    const payload = await runHydration(html, 'https://lounge.naver.com/');
     expect(payload.personaMap.p1).toBe('pid1');
   });
 
   it('DOM `a[href^="/profiles/"]` 에서 personaId-닉네임 추출', async () => {
-    setupDom(
+    const payload = await runHydration(
       `<a href="/profiles/persona_long_id">홍길동</a>`,
       'https://lounge.naver.com/',
     );
-    globalThis.fetch = vi.fn() as unknown as typeof fetch;
-    const pushPersonaMap = vi.fn();
-    setupPersonaExtractor({ pushPersonaMap });
-
-    document.dispatchEvent(new window.Event('DOMContentLoaded'));
-    await new Promise((r) => setTimeout(r, 0));
-
-    const payload = pushPersonaMap.mock.lastCall![0];
     expect(payload.personaCache.persona_long_id).toBe('홍길동');
   });
 
   it('persona id 가 6자 미만이면 신뢰하지 않음', async () => {
-    setupDom(
+    const payload = await runHydration(
       `<a href="/profiles/short">짧</a>`,
       'https://lounge.naver.com/',
     );
-    globalThis.fetch = vi.fn() as unknown as typeof fetch;
-    const pushPersonaMap = vi.fn();
-    setupPersonaExtractor({ pushPersonaMap });
-
-    document.dispatchEvent(new window.Event('DOMContentLoaded'));
-    await new Promise((r) => setTimeout(r, 0));
-
-    const payload = pushPersonaMap.mock.lastCall![0];
     expect(payload.personaCache).toEqual({});
   });
 
   it('/posts/{postId} URL 에서 작성자 personaId DOM fallback', async () => {
-    setupDom(
+    const payload = await runHydration(
       `<div data-slot="profile-name"><a href="/profiles/author_pid">작성자</a></div>`,
       'https://lounge.naver.com/posts/post_42',
     );
-    globalThis.fetch = vi.fn() as unknown as typeof fetch;
-    const pushPersonaMap = vi.fn();
-    setupPersonaExtractor({ pushPersonaMap });
-
-    document.dispatchEvent(new window.Event('DOMContentLoaded'));
-    await new Promise((r) => setTimeout(r, 0));
-
-    const payload = pushPersonaMap.mock.lastCall![0];
     expect(payload.personaMap.post_42).toBe('author_pid');
   });
 
@@ -230,15 +218,7 @@ describe('setupPersonaExtractor — DOMContentLoaded hydration parser', () => {
       <script>window.X = "{\\"postId\\":\\"post_42\\",\\"personaId\\":\\"pid_from_script\\"}";</script>
       <div data-slot="profile-name"><a href="/profiles/author_pid">작성자</a></div>
     `;
-    setupDom(html, 'https://lounge.naver.com/posts/post_42');
-    globalThis.fetch = vi.fn() as unknown as typeof fetch;
-    const pushPersonaMap = vi.fn();
-    setupPersonaExtractor({ pushPersonaMap });
-
-    document.dispatchEvent(new window.Event('DOMContentLoaded'));
-    await new Promise((r) => setTimeout(r, 0));
-
-    const payload = pushPersonaMap.mock.lastCall![0];
+    const payload = await runHydration(html, 'https://lounge.naver.com/posts/post_42');
     expect(payload.personaMap.post_42).toBe('pid_from_script');
   });
 });

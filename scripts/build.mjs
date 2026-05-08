@@ -47,6 +47,19 @@ const TARGETS = [
     ),
   },
   {
+    name: 'chrome-api-interceptor',
+    entryPoints: [path.join(ROOT, 'shared/web/entries/web-api-interceptor.ts')],
+    outfile: path.join(ROOT, 'chrome-extension/content-scripts/api-interceptor.js'),
+  },
+  {
+    name: 'safari-api-interceptor',
+    entryPoints: [path.join(ROOT, 'shared/web/entries/web-api-interceptor.ts')],
+    outfile: path.join(
+      ROOT,
+      'safari-extension/QuietLounge/Shared (Extension)/Resources/content-scripts/api-interceptor.js',
+    ),
+  },
+  {
     name: 'ios-after',
     entryPoints: [path.join(ROOT, 'shared/web/entries/ios-after.ts')],
     outfile: path.join(

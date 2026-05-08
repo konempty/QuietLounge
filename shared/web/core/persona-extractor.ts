@@ -53,10 +53,12 @@ export function extractMappings(obj: unknown, ql: QlNamespace): void {
 function parseHydrationScripts(ql: QlNamespace): void {
   document.querySelectorAll('script').forEach((s) => {
     const t = s.textContent;
-    if (!t) return;
+    // 짧은 script (예: type 만 있고 거의 빈 placeholder) 는 비용 회피 위해 skip.
+    if (!t || t.length < 20) return;
 
+    // 백슬래시는 옵셔널 — 페이지에 따라 escaped (RSC payload) 와 unescaped (일반 JSON) 둘 다 가능.
     // 인접 패턴.
-    const regex1 = /\\"postId\\":\\"([^"\\]+)\\",\\"personaId\\":\\"([^"\\]+)\\"/g;
+    const regex1 = /\\?"postId\\?":\\?"([^"\\]+)\\?",\\?"personaId\\?":\\?"([^"\\]+)\\?"/g;
     let m: RegExpExecArray | null;
     while ((m = regex1.exec(t)) !== null) {
       ql.personaMap[m[1]] = m[2];
@@ -65,8 +67,8 @@ function parseHydrationScripts(ql: QlNamespace): void {
     // 비인접 패턴 — postId 위치와 가장 가까운 후행 personaId.
     const postIds: { id: string; idx: number }[] = [];
     const pIds: { id: string; idx: number }[] = [];
-    const regex2 = /\\"postId\\":\\"([^"\\]+)\\"/g;
-    const regex3 = /\\"personaId\\":\\"([^"\\]+)\\"/g;
+    const regex2 = /\\?"postId\\?":\\?"([^"\\]+)\\?"/g;
+    const regex3 = /\\?"personaId\\?":\\?"([^"\\]+)\\?"/g;
     while ((m = regex2.exec(t)) !== null) postIds.push({ id: m[1], idx: m.index });
     while ((m = regex3.exec(t)) !== null) pIds.push({ id: m[1], idx: m.index });
 
@@ -84,7 +86,8 @@ function parseHydrationScripts(ql: QlNamespace): void {
       if (closest) ql.personaMap[pm.id] = closest;
     });
 
-    const regex4 = /\\"personaId\\":\\"([^"\\]+)\\",\\"nickname\\":\\"([^"\\]+)\\"/g;
+    const regex4 =
+      /\\?"personaId\\?":\\?"([^"\\]+)\\?",\\?"nickname\\?":\\?"([^"\\]+)\\?"/g;
     while ((m = regex4.exec(t)) !== null) {
       ql.personaCache[m[1]] = m[2];
     }
@@ -153,12 +156,21 @@ export function setupPersonaExtractor(adapter: PersonaExtractorAdapter): void {
     return resp;
   };
 
-  document.addEventListener('DOMContentLoaded', () => {
+  function runHydration(): void {
     parseHydrationScripts(ql);
     extractFromProfileLinks(ql);
     extractAuthorFromDetailPage(ql);
     pushAll();
-  });
+  }
+
+  // DOMContentLoaded 가 *이미 발사된 후* 에 setup 이 호출되는 케이스 (예: api-interceptor 가
+  // injector.js 의 동적 <script> 로 늦게 inject 되거나, idle 시점 inject) 를 대응 — listener 에만
+  // 의존하면 hydration 이 영영 안 돌고 매핑이 비는 회귀가 생긴다.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runHydration);
+  } else {
+    runHydration();
+  }
 }
 
 // 테스트 전용 — `__QL_BEFORE_INSTALLED` 가드를 우회하기 위해 reset.

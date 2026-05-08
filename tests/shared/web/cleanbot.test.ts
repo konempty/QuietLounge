@@ -7,7 +7,7 @@ import { JSDOM } from 'jsdom';
 import { isCleanbotFiltered } from '../../../shared/web/core/cleanbot';
 
 function makeContainer(innerHtml: string): Element | null {
-  const dom = new JSDOM(`<!doctype html><html><body>
+  const dom = new JSDOM(`<!doctype html><html lang="ko"><body>
     <a href="/posts/abc123" class="relative" tabindex="0">${innerHtml}</a>
   </body></html>`);
   return dom.window.document.querySelector('.relative[tabindex]');
