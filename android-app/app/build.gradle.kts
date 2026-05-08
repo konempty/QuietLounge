@@ -124,6 +124,8 @@ dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     implementation(libs.core.ktx)
+    // WebMessageListener — frame origin allowlist 로 iframe bridge bypass 차단 (52 라운드 P1).
+    implementation(libs.androidx.webkit)
     implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)

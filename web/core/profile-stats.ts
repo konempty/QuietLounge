@@ -13,6 +13,7 @@
 // MutationObserver 가 매 mutation 시 inject 호출해도 fetch 중복 안 함.
 
 import type { MyStatsRecord, ProfileStatsAdapter } from '../platform/adapter';
+import { debounce } from './utils';
 
 const PROFILE_BOX_ID = 'ql-profile-stats';
 const SPINNER_STYLE_ID = 'ql-spinner-style';
@@ -218,14 +219,6 @@ function insertProfileStatsBox(qlPrimary: string): void {
     'color:var(--color-neutral-foreground-default,#e0e0e0);';
   box.innerHTML = buildProfileStatsHtml(qlPrimary);
   tabsEl.before(box);
-}
-
-function debounce<T extends (...args: unknown[]) => unknown>(fn: T, delay: number): T {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  return ((...args: unknown[]) => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  }) as T;
 }
 
 /**

@@ -143,14 +143,23 @@ async function buildAll() {
 }
 
 async function watchAll() {
-  await Promise.all(
+  const contexts = await Promise.all(
     TARGETS.map(async (t) => {
       const opts = { ...COMMON, entryPoints: t.entryPoints, outfile: t.outfile };
       const ctx = await context(opts);
       await ctx.watch();
       console.log(`👀 watching ${t.name.padEnd(11)} → ${path.relative(ROOT, t.outfile)}`);
+      return ctx;
     }),
   );
+  // SIGINT/SIGTERM 시 esbuild context 명시 dispose — IDE 통합 / CI 임시 watch 시
+  // file watcher / worker thread 누수 방지 (Claude 50 F4).
+  const shutdown = async () => {
+    await Promise.all(contexts.map((c) => c.dispose()));
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 }
 
 function checkDrift() {

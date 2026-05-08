@@ -474,4 +474,21 @@ describe('safari service-worker', () => {
       expect.objectContaining({ ok: true }),
     );
   });
+
+  it('회귀 가드: Safari ext manifest 의 background 가 service_worker 가 아닌 scripts 형식 (P1 회귀 방지)', async () => {
+    // Safari MV3 의 service worker context 에서는 sendNativeMessage 가 노출되지 않아 native bridge
+    // 가 끊긴다 — service-worker.js 상단 주석에 명시. manifest 를 service_worker 로 바꾸면 storage
+    // bridge 가 실패해 차단 목록 / 필터 모드 / 키워드 알림이 모두 동작 안 함.
+    const fs = await import('node:fs/promises');
+    const manifestPath = path.resolve(
+      process.cwd(),
+      'safari-extension/QuietLounge/Shared (Extension)/Resources/manifest.json',
+    );
+    const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+    expect(manifest.manifest_version).toBe(3);
+    expect(manifest.background).toBeDefined();
+    expect(manifest.background.service_worker).toBeUndefined();
+    expect(Array.isArray(manifest.background.scripts)).toBe(true);
+    expect(manifest.background.scripts).toContain('background/service-worker.js');
+  });
 });

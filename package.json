@@ -2,7 +2,7 @@
   "name": "lounge",
   "version": "1.0.0",
   "description": "네이버 라운지(`lounge.naver.com`)에서 특정 유저의 게시글을 숨기는 클라이언트 사이드 차단 도구.",
-  "main": "tampermonkey-test.user.js",
+  "main": "scripts/build.mjs",
   "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": ">=20",
@@ -12,12 +12,13 @@
     "build": "node scripts/build.mjs",
     "build:watch": "node scripts/build.mjs --watch",
     "build:check": "node scripts/build.mjs --check",
-    "lint": "eslint shared web chrome-extension/background chrome-extension/popup tampermonkey-test.user.js",
-    "lint:fix": "eslint shared web chrome-extension/background chrome-extension/popup tampermonkey-test.user.js --fix",
-    "format": "prettier --write \"shared/**/*.ts\" \"web/**/*.ts\" \"chrome-extension/{background,popup}/**/*.{js,json}\" \"scripts/**/*.mjs\" \"*.user.js\"",
+    "lint": "eslint shared web chrome-extension/background chrome-extension/popup",
+    "lint:fix": "eslint shared web chrome-extension/background chrome-extension/popup --fix",
+    "format": "prettier --write \"shared/**/*.ts\" \"web/**/*.ts\" \"chrome-extension/{background,popup}/**/*.{js,json}\" \"scripts/**/*.mjs\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
@@ -25,17 +26,17 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/jsdom": "^28.0.1",
-    "@vitest/coverage-v8": "^4.1.4",
-    "esbuild": "^0.27.0",
-    "eslint": "10",
+    "@vitest/coverage-v8": "^4.1.5",
+    "esbuild": "^0.28.0",
+    "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
-    "globals": "^17.5.0",
-    "jsdom": "^29.0.2",
+    "globals": "^17.6.0",
+    "jsdom": "^29.1.1",
     "prettier": "^3.8.3",
-    "typescript": "^6.0.2",
-    "typescript-eslint": "^8.58.2",
-    "vite": "^8.0.8",
-    "vitest": "^4.1.4"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.2",
+    "vite": "^8.0.11",
+    "vitest": "^4.1.5"
   }
 }

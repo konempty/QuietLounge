@@ -125,10 +125,15 @@ function render() {
   });
 }
 
+// text-node 만이 아니라 *attribute 값* 으로도 안전한 5-char escape.
+// 닉네임/채널명에 `"` 가 들어와도 `data-nickname="..."` 경계가 깨지지 않도록 quote 까지 escape.
 function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ── 전체 삭제 ──
@@ -169,9 +174,8 @@ document.getElementById('btn-export').addEventListener('click', async () => {
   // personaCache 는 런타임 캐시 — README 및 다른 플랫폼과 일치시키기 위해 export 에서 제외
   const { personaCache: _cache, ...exportData } = blockData;
   // keywordAlerts 는 길이와 무관하게 항상 포함 — 빈 배열도 "전부 해제" 라는 유효한 상태.
-  exportData.keywordAlerts = alertResult[KEYWORD_ALERTS_KEY]
-    ? JSON.parse(alertResult[KEYWORD_ALERTS_KEY])
-    : [];
+  // 손상된 값이어도 빈 배열로 fallback (parseKeywordAlerts 정의는 아래 키워드 알림 섹션).
+  exportData.keywordAlerts = parseKeywordAlerts(alertResult[KEYWORD_ALERTS_KEY]);
   const interval = alertResult[ALERT_INTERVAL_KEY];
   if (interval) {
     exportData.alertInterval = interval;
@@ -308,16 +312,24 @@ chrome.storage.onChanged.addListener((changes) => {
   }
 });
 
-// 갱신 버튼 — 라운지 탭의 content script에 갱신 요청
+// 갱신 버튼 — 라운지 탭의 content script에 갱신 요청.
+// Safari popup 과 동일하게 *기존 stats 가 없으면 사전 안내* 후 종료 — 사용자가 본인 프로필을 한 번도
+// 방문 안 한 케이스에서 "갱신 중..." 으로 영영 멈추지 않도록.
 document.getElementById('btn-refresh-stats').addEventListener('click', () => {
-  document.getElementById('my-stats-hint').textContent = '갱신 중...';
-  chrome.tabs.query({ url: 'https://lounge.naver.com/*' }, (tabs) => {
-    if (tabs.length > 0) {
-      chrome.tabs.sendMessage(tabs[0].id, { type: 'REFRESH_MY_STATS' });
-    } else {
-      document.getElementById('my-stats-hint').textContent =
-        '라운지 탭이 열려있어야 갱신할 수 있습니다';
+  const hint = document.getElementById('my-stats-hint');
+  chrome.storage.local.get('quiet_lounge_my_stats', (result) => {
+    if (!result.quiet_lounge_my_stats) {
+      hint.textContent = '라운지에 접속하면 통계가 자동으로 갱신됩니다';
+      return;
     }
+    hint.textContent = '갱신 중...';
+    chrome.tabs.query({ url: 'https://lounge.naver.com/*' }, (tabs) => {
+      if (tabs.length > 0) {
+        chrome.tabs.sendMessage(tabs[0].id, { type: 'REFRESH_MY_STATS' });
+      } else {
+        hint.textContent = '라운지 탭이 열려있어야 갱신할 수 있습니다';
+      }
+    });
   });
 });
 
@@ -336,10 +348,23 @@ let keywordAlerts = [];
 let pendingKeywords = [];
 let selectedChannel = null;
 
+// 손상된 storage 값으로부터 keywordAlerts 를 빈 배열로 정규화 — Safari popup 의 동일 패턴.
+// 깨진 JSON / 배열 아닌 값 (null, {}, 숫자 등) 모두 [] 로 fallback. 실패 시 popup UI / export
+// / pending alert finalize 가 통째로 멈추는 P3 회귀 (Codex 49 F2) 차단.
+function parseKeywordAlerts(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 async function loadKeywordAlerts() {
   return new Promise((resolve) => {
     chrome.storage.local.get([KEYWORD_ALERTS_KEY, ALERT_INTERVAL_KEY], (result) => {
-      keywordAlerts = result[KEYWORD_ALERTS_KEY] ? JSON.parse(result[KEYWORD_ALERTS_KEY]) : [];
+      keywordAlerts = parseKeywordAlerts(result[KEYWORD_ALERTS_KEY]);
       const interval = result[ALERT_INTERVAL_KEY] || 5;
       document.getElementById('alert-interval').value = interval;
       updateIntervalWarning(interval);
@@ -663,7 +688,16 @@ async function finalizePendingAlert() {
 
   if (!hasPermission) return;
 
-  const pending = JSON.parse(raw);
+  // 손상된 PENDING_ALERT 값에서 throw 안 함 + shape 검증 (Codex 55 F2).
+  // valid object 라도 channelId/channelName/keywords 가 잘못된 타입이면 push 후 renderKeywordAlerts 가
+  // `keywords.map(...)` 에서 TypeError → 모달 깨짐 + storage 에 malformed alert 저장. strict 검증.
+  let pending;
+  try {
+    pending = JSON.parse(raw);
+  } catch {
+    return;
+  }
+  if (!isValidPendingAlert(pending)) return;
   keywordAlerts.push({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     channelId: pending.channelId,
@@ -674,6 +708,17 @@ async function finalizePendingAlert() {
   });
   await saveKeywordAlerts();
   renderKeywordAlerts();
+}
+
+// Shape validator — `pending` 이 valid object 이고 channelId/channelName 이 non-empty string,
+// keywords 가 non-empty string array 인 경우만 통과. 배열 / 빈 객체 / wrong type 모두 reject.
+function isValidPendingAlert(pending) {
+  if (!pending || typeof pending !== 'object' || Array.isArray(pending)) return false;
+  if (typeof pending.channelId !== 'string' || !pending.channelId) return false;
+  if (typeof pending.channelName !== 'string' || !pending.channelName) return false;
+  if (!Array.isArray(pending.keywords) || pending.keywords.length === 0) return false;
+  if (pending.keywords.some((k) => typeof k !== 'string' || !k)) return false;
+  return true;
 }
 
 // 모달 버튼 이벤트
@@ -692,12 +737,11 @@ document.getElementById('btn-back-channel').addEventListener('click', () => {
   document.getElementById('keyword-input').value = '';
 });
 
-// 스토리지 변경 감지
+// 스토리지 변경 감지 — onChanged 는 다른 surface (탭 / 백그라운드 / 동기화 / 개발자 도구) 에서
+// 손상된 값이 들어올 가능성이 가장 높은 경로. parseKeywordAlerts 로 동일 정규화 (Codex 52 F2).
 chrome.storage.onChanged.addListener((changes) => {
   if (changes[KEYWORD_ALERTS_KEY]) {
-    keywordAlerts = changes[KEYWORD_ALERTS_KEY].newValue
-      ? JSON.parse(changes[KEYWORD_ALERTS_KEY].newValue)
-      : [];
+    keywordAlerts = parseKeywordAlerts(changes[KEYWORD_ALERTS_KEY].newValue);
     renderKeywordAlerts();
   }
 });

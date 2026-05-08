@@ -45,12 +45,14 @@ async function loadData() {
 }
 
 async function saveData() {
-  // personaCache는 용량이 크고 content script에서 재구축되므로 저장에서 제외
+  // personaCache 는 *옛 닉네임 매칭* 의 source 라 보존해야 한다 — popup 에서 한 번 비우면
+  // content script 측 applyPersonaCacheUpdate (web/core/persona-cache.ts) 가 oldname → newname
+  // 승격을 잡지 못해 stale 차단이 회귀한다.
   const toSave = {
     version: blockData.version || 2,
     blockedUsers: blockData.blockedUsers || {},
     nicknameOnlyBlocks: blockData.nicknameOnlyBlocks || [],
-    personaCache: {},
+    personaCache: blockData.personaCache || {},
   };
   const value = JSON.stringify(toSave);
   // Safari quota 버그 대응: 기존 키 삭제 후 저장
@@ -137,10 +139,15 @@ function render() {
   });
 }
 
+// text-node 만이 아니라 *attribute 값* 으로도 안전한 5-char escape.
+// 닉네임/채널명에 `"` 가 들어와도 `data-nickname="..."` 경계가 깨지지 않도록 quote 까지 escape.
 function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ── In-popup DOM modal ──
@@ -561,11 +568,23 @@ function showStep(step) {
 }
 
 // ── 카테고리/채널 fetch (popup이 host_permissions로 직접 호출) ──
+// 느린 네트워크에서 popup 모달이 "불러오는 중..." 으로 무한 대기하는 회귀 (Claude 50 F2) 방지.
+// Android `LoungeApi.kt:TIMEOUT_MS=10_000` 와 정책 대칭.
+async function fetchWithTimeout(url, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function loadCategories() {
   const list = document.getElementById('category-list');
   list.innerHTML = '<p class="loading-message">불러오는 중...</p>';
   try {
-    const resp = await fetch('https://api.lounge.naver.com/content-api/v1/categories?depth=2');
+    const resp = await fetchWithTimeout('https://api.lounge.naver.com/content-api/v1/categories?depth=2');
     if (!resp.ok) throw new Error('http ' + resp.status);
     const json = await resp.json();
     const items = json.data?.items || [];
@@ -614,7 +633,7 @@ async function fetchAllChannels(categoryId) {
   let hasMore = true;
   while (hasMore) {
     const url = `https://api.lounge.naver.com/content-api/v1/channels?categoryId=${categoryId}&page=${page}&size=${size}`;
-    const resp = await fetch(url);
+    const resp = await fetchWithTimeout(url);
     if (!resp.ok) break;
     const json = await resp.json();
     const items = json.data?.items || [];

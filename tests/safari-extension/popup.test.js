@@ -734,6 +734,55 @@ describe('safari popup.html + popup.js', () => {
       doc.getElementById('block-list-container').innerHTML,
     ).toContain('갱신유저');
   });
+
+  it('회귀 가드: 닉네임에 따옴표가 들어와도 data-* attribute 가 깨지지 않음 (escapeHtml 5-char)', async () => {
+    // 이전 escapeHtml 은 textContent → innerHTML 패턴으로 `"` 를 escape 하지 않아
+    // `data-nickname="${escapeHtml(...)}"` attribute 경계가 깨져 다른 닉네임이 unblock 되는 P2 회귀.
+    const tricky = 'A" data-x="1';
+    const seed = {
+      quiet_lounge_data: JSON.stringify({
+        version: 2,
+        blockedUsers: {},
+        nicknameOnlyBlocks: [
+          { nickname: tricky, blockedAt: '2026-04-01T00:00:00Z' },
+          { nickname: 'normal', blockedAt: '2026-04-02T00:00:00Z' },
+        ],
+        personaCache: {},
+      }),
+    };
+    const ctx = await setup({ seed });
+    dom = ctx.dom;
+    const btns = ctx.win.document.querySelectorAll('button[data-type="nickname"]');
+    expect(btns).toHaveLength(2);
+    const nicknames = Array.from(btns).map((b) => b.dataset.nickname).sort();
+    expect(nicknames).toEqual([tricky, 'normal'].sort());
+  });
+
+  it('회귀 가드: saveData() 가 storage 의 personaCache 를 보존 (oldname → newname 승격 회귀 방지)', async () => {
+    // popup 측 saveData() 가 personaCache: {} 로 비우면 content script 의
+    // applyPersonaCacheUpdate (web/core/persona-cache.ts) 가 옛 닉네임 매칭을 잃어 stale 차단 회귀.
+    const seed = {
+      quiet_lounge_data: JSON.stringify({
+        version: 2,
+        blockedUsers: {
+          p1: { personaId: 'p1', nickname: 'cur', blockedAt: '2026-04-01T00:00:00Z' },
+        },
+        nicknameOnlyBlocks: [{ nickname: '닉B', blockedAt: '2026-04-02T00:00:00Z' }],
+        personaCache: {
+          p1: { nickname: 'cur', lastSeen: '2026-04-10T00:00:00Z' },
+          p2: { nickname: 'oldname', lastSeen: '2026-04-10T00:00:00Z' },
+        },
+      }),
+    };
+    const ctx = await setup({ seed });
+    dom = ctx.dom;
+    await ctx.win.saveData();
+    const stored = JSON.parse(ctx.win.browser._store._data.quiet_lounge_data);
+    expect(stored.personaCache).toEqual({
+      p1: { nickname: 'cur', lastSeen: '2026-04-10T00:00:00Z' },
+      p2: { nickname: 'oldname', lastSeen: '2026-04-10T00:00:00Z' },
+    });
+  });
 });
 
 // ── popup-macos/popup.js 검증 ──────────────────────────────────
@@ -786,4 +835,87 @@ describe('safari popup-macos/popup.html + popup.js — 핵심 동작 회귀 가�
     expect(doc.getElementById('block-list-container').innerHTML).toContain('맥유저');
   });
 
+  it('필터 토글 — blur 저장', async () => {
+    const ctx = await macSetup();
+    dom = ctx.dom;
+    const doc = ctx.win.document;
+    const toggle = doc.getElementById('filter-mode-toggle');
+    toggle.checked = true;
+    toggle.dispatchEvent(new ctx.win.Event('change'));
+    for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
+    expect(ctx.win.browser._store._data.quiet_lounge_filter_mode).toBe('blur');
+  });
+
+  it('키워드 알림 추가 버튼 → 모달 active', async () => {
+    const ctx = await macSetup();
+    dom = ctx.dom;
+    const doc = ctx.win.document;
+    const modal = doc.getElementById('alert-modal');
+    expect(modal.classList.contains('active')).toBe(false);
+    doc.getElementById('btn-add-alert').click();
+    expect(modal.classList.contains('active')).toBe(true);
+  });
+
+  it('키워드 알림 리스트 렌더', async () => {
+    const ctx = await macSetup({
+      seed: {
+        quiet_lounge_keyword_alerts: JSON.stringify([
+          {
+            id: 'a1',
+            channelId: 'c1',
+            channelName: 'M채널',
+            keywords: ['mk1'],
+            enabled: true,
+            createdAt: '2026-04-01T00:00:00Z',
+          },
+        ]),
+      },
+    });
+    dom = ctx.dom;
+    const list = ctx.win.document.getElementById('keyword-alerts-list');
+    expect(list.innerHTML).toContain('M채널');
+  });
+
+  it('내 통계 stats 가 있으면 값 렌더', async () => {
+    const ctx = await macSetup({
+      seed: {
+        quiet_lounge_my_stats: JSON.stringify({
+          personaId: 'mac_me',
+          nickname: '맥나',
+          totalPosts: 11,
+          totalComments: 22,
+          monthlyPosts: 3,
+          monthlyComments: 4,
+          updatedAt: '2026-05-01T00:00:00Z',
+        }),
+      },
+    });
+    dom = ctx.dom;
+    const doc = ctx.win.document;
+    expect(doc.getElementById('my-total-posts').textContent).toBe('11');
+    expect(doc.getElementById('my-total-comments').textContent).toBe('22');
+    expect(doc.getElementById('my-monthly-posts').textContent).toBe('3');
+    expect(doc.getElementById('my-monthly-comments').textContent).toBe('4');
+  });
+
+  it('회귀 가드: macOS popup saveData() 도 personaCache 를 보존', async () => {
+    const seed = {
+      quiet_lounge_data: JSON.stringify({
+        version: 2,
+        blockedUsers: {},
+        nicknameOnlyBlocks: [],
+        personaCache: {
+          mp1: { nickname: 'macOldname', lastSeen: '2026-04-10T00:00:00Z' },
+        },
+      }),
+    };
+    const ctx = await macSetup({ seed });
+    dom = ctx.dom;
+    await ctx.win.saveData();
+    const stored = JSON.parse(ctx.win.browser._store._data.quiet_lounge_data);
+    expect(stored.personaCache.mp1).toEqual({
+      nickname: 'macOldname',
+      lastSeen: '2026-04-10T00:00:00Z',
+    });
+  });
 });

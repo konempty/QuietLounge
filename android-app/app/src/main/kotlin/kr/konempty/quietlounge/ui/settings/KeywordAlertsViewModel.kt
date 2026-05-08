@@ -86,9 +86,14 @@ class KeywordAlertsViewModel(
         if (_categories.value.isNotEmpty()) return
         viewModelScope.launch {
             _modalLoading.value = true
-            val root = LoungeApi.get("${LoungeApi.base()}/content-api/v1/categories?depth=2")
-            _categories.value = parseCategories(root?.jsonObject)
-            _modalLoading.value = false
+            // try/finally — parseCategories 가 throw 하거나 LoungeApi 가 cancellation 을 propagate
+            // 하면 _modalLoading 이 true 로 남아 모달이 영원히 로딩되는 회귀 (Claude 50 F3) 차단.
+            try {
+                val root = LoungeApi.get("${LoungeApi.base()}/content-api/v1/categories?depth=2")
+                _categories.value = parseCategories(root?.jsonObject)
+            } finally {
+                _modalLoading.value = false
+            }
         }
     }
 
@@ -96,22 +101,25 @@ class KeywordAlertsViewModel(
         viewModelScope.launch {
             _modalLoading.value = true
             _channels.value = emptyList()
-            val all = mutableListOf<ChannelItem>()
-            var page = 1
-            val size = 50
-            while (true) {
-                val url =
-                    "${LoungeApi.base()}/content-api/v1/channels?categoryId=$categoryId&page=$page&size=$size"
-                val root = LoungeApi.get(url)?.jsonObject ?: break
-                val data = root["data"] as? JsonObject
-                val items = data?.get("items") as? JsonArray ?: break
-                all += parseChannelsPage(items)
-                val total = parseTotalElements(data)
-                if (page * size >= total) break
-                page++
+            try {
+                val all = mutableListOf<ChannelItem>()
+                var page = 1
+                val size = 50
+                while (true) {
+                    val url =
+                        "${LoungeApi.base()}/content-api/v1/channels?categoryId=$categoryId&page=$page&size=$size"
+                    val root = LoungeApi.get(url)?.jsonObject ?: break
+                    val data = root["data"] as? JsonObject
+                    val items = data?.get("items") as? JsonArray ?: break
+                    all += parseChannelsPage(items)
+                    val total = parseTotalElements(data)
+                    if (page * size >= total) break
+                    page++
+                }
+                _channels.value = all
+            } finally {
+                _modalLoading.value = false
             }
-            _channels.value = all
-            _modalLoading.value = false
         }
     }
 

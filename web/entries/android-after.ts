@@ -11,6 +11,7 @@
 
 import { isActivePage } from '../core/pages';
 import { runFilterPass } from '../core/filter-engine';
+import { debounce } from '../core/utils';
 import { injectBlockButtons, findPersonaId as sharedFindPersonaId } from '../core/inject-buttons';
 import {
   injectProfileStats as sharedInjectProfileStats,
@@ -41,9 +42,18 @@ import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adap
   window.__QL_BLOCK_DATA = __QL_BLOCK_DATA_PLACEHOLDER__;
   window.__QL_FILTER_MODE = '__QL_FILTER_MODE_PLACEHOLDER__';
 
+  // Bridge 가용성 — `WebViewCompat.addWebMessageListener` 가 등록되면 `window.QuietLounge` 노출.
+  // `WEB_MESSAGE_LISTENER` 미지원 환경에서는 LoungeScreen 측 fail-closed 로 등록 자체 안 됨 (Codex 55 F1).
+  // 이 경우 차단/키워드 알림 native handler 가 없으므로 *차단 버튼 자체 미주입* — silent fail UX 회귀 방지 (Codex 58 F1).
+  function isBridgeAvailable() {
+    return !!(
+      window.QuietLounge && typeof window.QuietLounge.postMessage === 'function'
+    );
+  }
+
   function postNative(payload) {
     try {
-      if (window.QuietLounge && typeof window.QuietLounge.postMessage === 'function') {
+      if (isBridgeAvailable()) {
         window.QuietLounge.postMessage(JSON.stringify(payload));
       }
     } catch {
@@ -108,6 +118,9 @@ import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adap
   };
 
   function injectButtons() {
+    // bridge 미지원 환경에서는 버튼을 눌러도 native confirm/차단이 발화 안 됨 → 버튼 자체 미주입.
+    // 필터링 (filterAll) 은 차단 목록만 있으면 작동하므로 유지 — 라운지 보기는 그대로.
+    if (!isBridgeAvailable()) return;
     injectBlockButtons(injectButtonsAdapter, {
       findPersonaId: function (container) {
         const ql = window.__QL || { personaMap: {} };
@@ -133,15 +146,21 @@ import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adap
     filterAll();
   };
 
-  // SPA 네비게이션 감지
+  // ── 프로필 통계 (web/core/profile-stats 로 이전. 어댑터만 entry 에 둠) ──
+  // Android WebView 의 popup 은 Compose UI 라 saveOwnerPersonaId / saveMyStats / removeMyStats 미구현.
+  // 색상만 어댑터로 전달.
+  const profileStatsAdapter: ProfileStatsAdapter = { qlPrimaryColor: QL_PRIMARY };
+
+  // SPA 네비게이션 감지 — iOS entry 와 동일 패턴 (단일 onNavigate 함수, base/wrapper 분리 없음).
   let lastPath = window.location.pathname;
 
-  function onNavigateBase() {
+  function onNavigate() {
     const newPath = window.location.pathname;
     if (newPath === lastPath) return;
     lastPath = newPath;
 
     postNative({ type: 'PAGE_CHANGED', payload: { path: newPath } });
+    sharedResetProfileStatsCache();
 
     if (isActivePage()) {
       setTimeout(function () {
@@ -149,13 +168,16 @@ import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adap
         injectButtons();
       }, 500);
     }
+    if (sharedIsProfilePage()) {
+      setTimeout(function () {
+        sharedInjectProfileStats(profileStatsAdapter);
+      }, 500);
+    }
   }
 
-  let onNavigate = onNavigateBase;
-
-  window.addEventListener('popstate', function () {
-    onNavigate();
-  });
+  // bfcache `pageshow` 가드는 Chrome / Safari ext 만 추가 — Android WebView 는 일반적으로 bfcache
+  // 적용이 약하고 native bridge 가 페이지 전환 시점을 직접 알리므로 의도적 제외.
+  window.addEventListener('popstate', onNavigate);
   const origPush = history.pushState;
   history.pushState = function () {
     origPush.apply(this, arguments);
@@ -172,39 +194,18 @@ import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adap
     injectButtons();
   }
 
-  // ── 프로필 통계 (web/core/profile-stats 로 이전. 어댑터만 entry 에 둠) ──
-  // Android WebView 의 popup 은 Compose UI 라 saveOwnerPersonaId / saveMyStats / removeMyStats 미구현.
-  // 색상만 어댑터로 전달.
-  const profileStatsAdapter: ProfileStatsAdapter = { qlPrimaryColor: QL_PRIMARY };
-
-  let mutationTimer;
-  const debounced = function () {
-    clearTimeout(mutationTimer);
-    mutationTimer = setTimeout(function () {
-      if (isActivePage()) {
-        filterAll();
-        injectButtons();
-      }
-      // 프로필 페이지 진입 직후 SPA layout 이 비동기로 그려져 [data-slot="tabs"] 가 늦게 등장하는 케이스를
-      // 위해 매 mutation 마다 inject 재시도 — shared 측이 in-flight 가드 + cache hit 으로 cheap.
-      if (sharedIsProfilePage()) sharedInjectProfileStats(profileStatsAdapter);
-    }, 200);
-  };
   // SEL.scrollContainer 는 페이지마다 다르고 SPA 전환 시 detach 되는 element 라 observer 가
-  // 끊겨 mutation 을 놓치는 timing 케이스가 발생한다 (Android 에서 글 상세 → 프로필 race 로 활동 통계
-  // 미노출 재현). document.body 는 SPA 라이프사이클 내내 살아있어 안전.
+  // 끊겨 mutation 을 놓치는 timing 케이스가 발생 (Android 에서 글 상세 → 프로필 race 로 활동 통계 미노출).
+  // document.body 는 SPA 라이프사이클 내내 살아있어 안전. 프로필 페이지에서 SPA layout 이 늦게 그려지는
+  // 케이스용으로 매 mutation 마다 inject 재시도 — shared 측 in-flight 가드 + cache hit 으로 cheap.
+  const debounced = debounce(function () {
+    if (isActivePage()) {
+      filterAll();
+      injectButtons();
+    }
+    if (sharedIsProfilePage()) sharedInjectProfileStats(profileStatsAdapter);
+  }, 200);
   new MutationObserver(debounced).observe(document.body, { childList: true, subtree: true });
-
-  // 네비게이션 시 프로필 캐시 리셋
-  const origOnNavigate = onNavigate;
-  onNavigate = function () {
-    sharedResetProfileStatsCache();
-    origOnNavigate();
-    if (sharedIsProfilePage())
-      setTimeout(function () {
-        sharedInjectProfileStats(profileStatsAdapter);
-      }, 500);
-  };
 
   if (sharedIsProfilePage()) sharedInjectProfileStats(profileStatsAdapter);
 })();

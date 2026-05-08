@@ -284,4 +284,16 @@ enum QuietLoungeCore {
         result["blockedUsers"] = users
         return result
     }
+
+    // MARK: - WebView host allowlist
+
+    /// 라운지 native WebView 의 native bridge 진입점에서 사용하는 host 허용 검사.
+    ///
+    /// `lounge.naver.com.evil.com` 같은 prefix 함정을 차단하기 위해 *exact match* 만 허용.
+    /// Codex 49 라운드 finding (P1) — `WKScriptMessage` 또는 `@JavascriptInterface` 호출이
+    /// 외부 페이지에서 들어왔을 때 native handler 가 그대로 처리해 BLOCK_USER 트리거 / personaCache 오염
+    /// 가능했던 회귀를 차단. Android `NativeBridge` 와 정책 대칭.
+    static func isLoungeHost(_ host: String?) -> Bool {
+        return host == "lounge.naver.com"
+    }
 }

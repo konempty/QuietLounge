@@ -408,4 +408,47 @@ describe('chrome service-worker', () => {
     listener('something_else');
     expect(chrome.tabs.create).not.toHaveBeenCalled();
   });
+
+  // ── keywordAlerts 손상 회귀 가드 (Codex 49 F2 — P3) ────────────────────────────
+  // service worker 의 setupAlarm / checkKeywordAlerts 가 손상된 storage 값에 의해 throw 하면
+  // 알람 재설정 / 키워드 체크가 통째로 스킵 — 사용자가 알림 설정 켜둬도 동작 안 함.
+
+  it('회귀 가드: setupAlarm 이 손상된 keywordAlerts 에서 throw 하지 않고 [] 로 fallback', async () => {
+    globalThis.chrome.storage.local._store = {
+      quiet_lounge_keyword_alerts: '{broken-json',
+      quiet_lounge_alert_interval: 10,
+    };
+    await loadWorker();
+    await new Promise((r) => setTimeout(r, 0));
+    // throw 없이 — alerts = [] 라 hasEnabled = false → create 호출 안 함, clear 만 호출.
+    expect(chrome.alarms.clear).toHaveBeenCalled();
+    expect(chrome.alarms.create).not.toHaveBeenCalled();
+  });
+
+  it('회귀 가드: setupAlarm 이 keywordAlerts 가 array 가 아닌 값 (object) 에서도 fallback', async () => {
+    globalThis.chrome.storage.local._store = {
+      quiet_lounge_keyword_alerts: '{"not":"array"}',
+      quiet_lounge_alert_interval: 10,
+    };
+    await loadWorker();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(chrome.alarms.clear).toHaveBeenCalled();
+    expect(chrome.alarms.create).not.toHaveBeenCalled();
+  });
+
+  it('회귀 가드: checkKeywordAlerts 가 손상된 lastChecked 에서 throw 하지 않음', async () => {
+    globalThis.chrome.storage.local._store = {
+      quiet_lounge_keyword_alerts: JSON.stringify([
+        { id: 'a', channelId: 'c1', channelName: 'n', keywords: ['k'], enabled: true },
+      ]),
+      quiet_lounge_alert_last_checked: 'corrupted-not-json',
+    };
+    globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ data: { items: [] } }) }));
+    await loadWorker();
+    const alarmListener = chrome._alarmsListeners[0];
+    // throw 없이 알람 처리 진행 (lastChecked = {} fallback).
+    await expect(
+      Promise.resolve(alarmListener({ name: 'quiet_lounge_keyword_check' })),
+    ).resolves.not.toThrow();
+  });
 });

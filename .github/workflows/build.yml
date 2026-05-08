@@ -97,9 +97,14 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # 의존성 advisory drift 자동 차단 — moderate 이상 1 건이라도 있으면 CI 실패.
+      - name: Audit (moderate+)
+        run: pnpm audit --audit-level moderate
       # 산출물은 .gitignore — 매 빌드 시 esbuild 가 결정론적으로 재생성.
       - name: Build esbuild artifacts
         run: pnpm build
+      - name: Typecheck (tsc)
+        run: pnpm typecheck
       - run: pnpm test
 
   build:
@@ -137,6 +142,11 @@ jobs:
       - name: Android unit tests
         working-directory: android-app
         run: ./gradlew :app:testDebugUnitTest
+
+      # SDK / dependency drift 가시화 — error 면 실패, warning 은 informational.
+      - name: Android lint (debug)
+        working-directory: android-app
+        run: ./gradlew :app:lintDebug
 
       - name: Decode keystore
         env:

@@ -11,7 +11,7 @@
 //   - applyStyle 통합 vs 분리 시그너처 (Chrome 의 applyBlockStyle/clearBlockStyle): shared `applyStyle`
 //     은 `(el, blocked, mode)` 통합형. entry 의 wrapper 가 매개해 호출부 변경 없이 유지.
 
-import type { BlockListData, FilterMode } from '../../types';
+import type { BlockListData, FilterMode } from '../../shared/types';
 import { SEL } from './selectors';
 import { isBlocked } from './block-check';
 import { applyStyle } from './style';

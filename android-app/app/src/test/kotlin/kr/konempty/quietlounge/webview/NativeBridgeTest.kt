@@ -1,14 +1,25 @@
 package kr.konempty.quietlounge.webview
 
+import android.content.Context
+import android.net.Uri
+import android.webkit.WebView
+import androidx.test.core.app.ApplicationProvider
+import androidx.webkit.JavaScriptReplyProxy
+import androidx.webkit.WebMessageCompat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 class NativeBridgeTest {
+    // 기본 helper — host guard 통과를 위해 currentHost = "lounge.naver.com" 으로 시작.
+    // 외부 host 시 차단되는지 검증은 별도 host guard 테스트 그룹에서.
     private fun collect(): Pair<NativeBridge, MutableList<BridgeMessage>> {
         val received = mutableListOf<BridgeMessage>()
         val bridge = NativeBridge { received += it }
+        bridge.setCurrentHost("lounge.naver.com")
         return bridge to received
     }
 
@@ -139,5 +150,172 @@ class NativeBridgeTest {
     @Test
     fun `NAME 상수 값 고정`() {
         assertEquals("QuietLounge", NativeBridge.NAME)
+    }
+
+    // ── Host guard 회귀 가드 (49 라운드 Codex F1 — P1) ────────────────────────────────────
+
+    @Test
+    fun `host 미설정 (기본 null) 시 모든 메시지 차단 — 외부 페이지 frame race 방어`() {
+        val received = mutableListOf<BridgeMessage>()
+        val bridge = NativeBridge { received += it }
+        // setCurrentHost 호출 없이 — currentHost = null
+        bridge.postMessage("""{"type":"BLOCK_USER","payload":{"nickname":"x"}}""")
+        bridge.postMessage("""{"type":"PERSONA_MAP_UPDATE","payload":{"personaCache":{"p":"n"}}}""")
+        bridge.postMessage("""{"type":"PAGE_CHANGED","payload":{"path":"/x"}}""")
+        assertTrue(received.isEmpty())
+    }
+
+    @Test
+    fun `host 가 외부 도메인이면 차단 — BLOCK_USER 트리거 차단`() {
+        val received = mutableListOf<BridgeMessage>()
+        val bridge = NativeBridge { received += it }
+        bridge.setCurrentHost("evil.com")
+        bridge.postMessage("""{"type":"BLOCK_USER","payload":{"nickname":"악의"}}""")
+        assertTrue(received.isEmpty())
+    }
+
+    @Test
+    fun `host 가 prefix 함정 (lounge_naver_com_evil_com) 이면 차단`() {
+        val received = mutableListOf<BridgeMessage>()
+        val bridge = NativeBridge { received += it }
+        bridge.setCurrentHost("lounge.naver.com.evil.com")
+        bridge.postMessage("""{"type":"PERSONA_MAP_UPDATE","payload":{"personaCache":{"p":"n"}}}""")
+        assertTrue(received.isEmpty())
+    }
+
+    @Test
+    fun `host 가 정확히 lounge_naver_com 일 때만 통과`() {
+        val received = mutableListOf<BridgeMessage>()
+        val bridge = NativeBridge { received += it }
+        bridge.setCurrentHost("lounge.naver.com")
+        bridge.postMessage("""{"type":"PAGE_CHANGED","payload":{"path":"/x"}}""")
+        assertEquals(1, received.size)
+    }
+
+    @Test
+    fun `host 가 라운지 → 외부 → 라운지 전환 시 마지막 host 가 결정`() {
+        val received = mutableListOf<BridgeMessage>()
+        val bridge = NativeBridge { received += it }
+
+        // 1) 라운지 → 메시지 통과
+        bridge.setCurrentHost("lounge.naver.com")
+        bridge.postMessage("""{"type":"PAGE_CHANGED","payload":{"path":"/a"}}""")
+
+        // 2) 외부 페이지로 navigate → 차단
+        bridge.setCurrentHost("nid.naver.com")
+        bridge.postMessage("""{"type":"BLOCK_USER","payload":{"nickname":"x"}}""")
+
+        // 3) 다시 라운지 → 통과
+        bridge.setCurrentHost("lounge.naver.com")
+        bridge.postMessage("""{"type":"PAGE_CHANGED","payload":{"path":"/b"}}""")
+
+        assertEquals(2, received.size)
+        assertEquals("/a", (received[0] as BridgeMessage.PageChanged).path)
+        assertEquals("/b", (received[1] as BridgeMessage.PageChanged).path)
+    }
+
+    @Test
+    fun `companion isLoungeHost — exact match 만 허용`() {
+        // iOS QuietLoungeCore_isLoungeHost 와 정책 대칭 검증.
+        assertTrue(NativeBridge.isLoungeHost("lounge.naver.com"))
+        assertEquals(false, NativeBridge.isLoungeHost(null))
+        assertEquals(false, NativeBridge.isLoungeHost(""))
+        assertEquals(false, NativeBridge.isLoungeHost("lounge.naver.com.evil.com"))
+        assertEquals(false, NativeBridge.isLoungeHost("api.lounge.naver.com"))
+        assertEquals(false, NativeBridge.isLoungeHost("naver.com"))
+        assertEquals(false, NativeBridge.isLoungeHost("LOUNGE.NAVER.COM"))
+        assertEquals(false, NativeBridge.isLoungeHost("evil.com"))
+    }
+}
+
+// ── WebMessageListener (1차 origin guard) 회귀 가드 (52 라운드 Codex F1 — P1) ─────────
+//
+// `addWebMessageListener` 의 allowed origin rule 이 lounge.naver.com 외 frame 의 listener 호출을
+// 차단하지만, 방어적으로 `onPostMessage` 진입점에서도 sourceOrigin host 검증. iframe bypass 시도가
+// listener 까지 도달하더라도 차단되는지 확인. Robolectric 으로 Uri.parse / WebView 인스턴스화 지원.
+@RunWith(RobolectricTestRunner::class)
+class NativeBridgeWebMessageListenerTest {
+    private fun mkBridge(): Pair<NativeBridge, MutableList<BridgeMessage>> {
+        val received = mutableListOf<BridgeMessage>()
+        return NativeBridge { received += it } to received
+    }
+
+    private val noopReplyProxy =
+        object : JavaScriptReplyProxy() {
+            override fun postMessage(message: String) {}
+
+            override fun postMessage(byteArray: ByteArray) {}
+        }
+
+    private fun simulate(
+        bridge: NativeBridge,
+        sourceOrigin: String,
+        data: String,
+        isMainFrame: Boolean = true,
+    ) {
+        val ctx: Context = ApplicationProvider.getApplicationContext()
+        val view = WebView(ctx)
+        bridge.onPostMessage(
+            view = view,
+            message = WebMessageCompat(data),
+            sourceOrigin = Uri.parse(sourceOrigin),
+            isMainFrame = isMainFrame,
+            replyProxy = noopReplyProxy,
+        )
+    }
+
+    @Test
+    fun `onPostMessage — main frame lounge_naver_com 통과`() {
+        val (bridge, received) = mkBridge()
+        simulate(bridge, "https://lounge.naver.com", """{"type":"PAGE_CHANGED","payload":{"path":"/x"}}""")
+        assertEquals(1, received.size)
+    }
+
+    @Test
+    fun `onPostMessage — main frame 이 아니어도 sourceOrigin 이 lounge면 통과 (same-origin iframe)`() {
+        // 라운지 도메인 내부 iframe 은 trust boundary 안 — 처리 허용.
+        val (bridge, received) = mkBridge()
+        simulate(
+            bridge,
+            "https://lounge.naver.com",
+            """{"type":"PAGE_CHANGED","payload":{"path":"/y"}}""",
+            isMainFrame = false,
+        )
+        assertEquals(1, received.size)
+    }
+
+    @Test
+    fun `onPostMessage — cross-origin iframe (evil_example) 차단 (P1 회귀 가드)`() {
+        // 핵심 가드 — `addJavascriptInterface` 패턴에서 우회됐던 iframe bypass.
+        val (bridge, received) = mkBridge()
+        simulate(
+            bridge,
+            "https://evil.example",
+            """{"type":"BLOCK_USER","payload":{"nickname":"악의"}}""",
+            isMainFrame = false,
+        )
+        assertTrue(received.isEmpty())
+    }
+
+    @Test
+    fun `onPostMessage — prefix 함정 (lounge_naver_com_evil_com) 차단`() {
+        val (bridge, received) = mkBridge()
+        simulate(
+            bridge,
+            "https://lounge.naver.com.evil.com",
+            """{"type":"PERSONA_MAP_UPDATE","payload":{"personaCache":{"p":"n"}}}""",
+        )
+        assertTrue(received.isEmpty())
+    }
+
+    @Test
+    fun `onPostMessage — 다른 sub-domain (api_lounge_naver_com) 차단`() {
+        val (bridge, received) = mkBridge()
+        simulate(
+            bridge,
+            "https://api.lounge.naver.com",
+            """{"type":"PAGE_CHANGED","payload":{"path":"/z"}}""",
+        )
+        assertTrue(received.isEmpty())
     }
 }

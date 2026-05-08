@@ -1,8 +1,8 @@
 // 빌드 산출물 회귀 가드 — `pnpm build` 산출물이 4 플랫폼 디렉토리에 모두 존재하고
 // 핵심 토큰 / placeholder / auto-generated 헤더가 보존되는지.
 //
-// CI 의 drift 가드 (`git diff --exit-code`) 가 산출물 != source 를 잡지만, 그 가드는
-// "현재 트리의 산출물 상태"만 본다. 이 테스트는 "산출물 자체가 의도대로 생긴 모양인가"
+// 산출물은 .gitignore (모든 빌드 진입점이 esbuild 선행 호출 + Xcode/Gradle 측 파일 존재 검증)
+// 라 git diff drift 검사는 의미 없음. 이 테스트는 "산출물 자체가 의도대로 생긴 모양인가"
 // 를 검증 — esbuild 옵션 변경 / placeholder 처리 변경 등 byte-level 회귀 차단.
 
 import { describe, it, expect } from 'vitest';
@@ -129,6 +129,15 @@ describe('iOS / Android 산출물 — placeholder 보존', () => {
         expect(subbed).toMatch(/window\.__QL_FILTER_MODE\s*=\s*['"`]hide['"`]/);
       });
     }
+  });
+
+  // android-after 의 bridge availability guard — Codex 58 F1 (P3) 회귀 가드.
+  // bridge 미지원 환경에서 차단 버튼이 silent fail 하지 않도록 isBridgeAvailable() 분기로 inject skip.
+  it('android-after — isBridgeAvailable / window.QuietLounge guard 가 산출물에 보존', () => {
+    const text = read(ARTIFACTS.androidAfter);
+    // helper 자체가 minify 안 됐으므로 식별자 + 가용성 체크 패턴 보존 검증.
+    expect(text).toMatch(/window\.QuietLounge/);
+    expect(text).toMatch(/typeof.*postMessage.*===.*['"`]function['"`]/);
   });
 });
 

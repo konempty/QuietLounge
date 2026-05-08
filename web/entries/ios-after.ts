@@ -12,6 +12,7 @@
 
 import { isActivePage } from '../core/pages';
 import { runFilterPass } from '../core/filter-engine';
+import { debounce } from '../core/utils';
 import { injectBlockButtons, findPersonaId as sharedFindPersonaId } from '../core/inject-buttons';
 import {
   injectProfileStats as sharedInjectProfileStats,
@@ -128,19 +129,15 @@ import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adap
   // 색상만 어댑터로 전달 — fetch / DOM 가드 / 캐시 전부 shared.
   var profileStatsAdapter: ProfileStatsAdapter = { qlPrimaryColor: QL_PRIMARY };
 
-  var timer;
-  var debounced = function () {
-    clearTimeout(timer);
-    timer = setTimeout(function () {
-      if (isActivePage()) {
-        filterAll();
-        injectButtons();
-      }
-      // 프로필 페이지에서 SPA layout 이 늦게 그려지는 케이스용 — shared in-flight / cache 가드로 cheap.
-      if (sharedIsProfilePage()) sharedInjectProfileStats(profileStatsAdapter);
-    }, 200);
-  };
   // SEL.scrollContainer 는 SPA 전환 시 detach 되어 observer 가 끊길 수 있어 document.body 사용.
+  // 프로필 페이지 SPA layout 이 늦게 그려지는 케이스용 — shared in-flight / cache 가드로 cheap.
+  var debounced = debounce(function () {
+    if (isActivePage()) {
+      filterAll();
+      injectButtons();
+    }
+    if (sharedIsProfilePage()) sharedInjectProfileStats(profileStatsAdapter);
+  }, 200);
   new MutationObserver(debounced).observe(document.body, { childList: true, subtree: true });
 
   var lastPath = window.location.pathname;
@@ -161,6 +158,8 @@ import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adap
       }, 500);
     }
   }
+  // bfcache `pageshow` 가드는 Chrome / Safari ext 만 추가 — iOS WKWebView 는 일반적으로 bfcache
+  // 적용이 약하고 native bridge 가 페이지 전환 시점을 직접 알리므로 의도적 제외.
   window.addEventListener('popstate', onNavigate);
   var origPush = history.pushState;
   history.pushState = function () {

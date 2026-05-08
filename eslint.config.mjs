@@ -54,19 +54,6 @@ export default [
         },
     },
     {
-        files: ['*.user.js'],
-        languageOptions: {
-            ecmaVersion: 2020,
-            sourceType: 'script',
-            globals: { ...globals.browser, ...globals.greasemonkey },
-        },
-        rules: {
-            '@typescript-eslint/no-explicit-any': 'off',
-            '@typescript-eslint/no-unused-vars': 'off',
-            'no-undef': 'off',
-        },
-    },
-    {
         // web/entries/* — IIFE 빌드 + 4 플랫폼 globalThis 차이 때문에 entry 단위 `// @ts-nocheck`,
         // iOS WKWebView 의 옛 JS 엔진 호환을 위한 var/arguments, 네이티브 bridge evaluateJavascript 가
         // JSON 결과 반환하도록 IIFE 끝의 `true;` 같은 의도된 패턴 — entry 에서 관련 룰을 풀어 둔다.

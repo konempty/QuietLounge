@@ -219,12 +219,12 @@ class BlockListEngineTest {
     // ── 빈 문자열 / edge case ─────────────────────────────────────
 
     @Test
-    fun `빈 닉네임은 nicknameOnlyBlocks 추가 안 함 — 동일 닉네임 체크로 막힘`() {
+    fun `엔진은 빈 닉네임 자체를 검증하지 않음 — 1차만 추가, 동일 닉네임 중복은 dedup 으로 막힘`() {
         val engine = BlockListEngine()
         engine.blockByNickname("")
-        engine.blockByNickname("") // 중복이라 막힘
+        engine.blockByNickname("") // 중복이라 dedup 으로 막힘
         assertEquals(1, engine.snapshot().nicknameOnlyBlocks.size)
-        // 참고: 빈 닉네임 허용 여부는 상위 레이어가 결정. 엔진은 중복만 막음.
+        // 참고: 빈 닉네임 *허용 여부* 는 상위 레이어가 결정. 엔진은 중복 dedup 만 한다.
     }
 
     @Test

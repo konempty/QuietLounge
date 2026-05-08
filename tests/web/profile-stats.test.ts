@@ -576,4 +576,56 @@ describe('fetchAndStoreMyStats', () => {
     // activities API 호출 안 했어야 함.
     expect(fetchMock.mock.calls.some((c) => /activities/.test(c[0]))).toBe(false);
   });
+
+  it('personas API 가 throw → activities API fallback 으로 totalCount 추출', async () => {
+    // 회귀 가드: personas API 가 일시 fail 해도 activities API 의 totalPostCount/totalCommentCount
+    // 에서 fallback 추출되는 path. profile-stats.ts:386-401 분기.
+    setupDom('', 'https://lounge.naver.com/');
+    globalThis.fetch = vi.fn(async (url: string) => {
+      if (/members\/me\/personas/.test(url)) {
+        return jsonResp({ data: [{ personaId: 'fb', nickname: '폴백', createTime: '2099-01-01T00:00:00Z' }] });
+      }
+      // /personas/fb$ — throw 로 catch 분기 진입
+      if (/personas\/fb$/.test(url)) {
+        throw new Error('personas API down');
+      }
+      if (/personas\/fb\/activities\/posts/.test(url)) {
+        return jsonResp({ data: { totalPostCount: 42 } });
+      }
+      if (/personas\/fb\/activities\/comments/.test(url)) {
+        // totalCommentCount 가 없는 응답 형태 — totalCount fallback 으로 가는 분기
+        return jsonResp({ data: { totalCount: 17 } });
+      }
+      return notOkResp();
+    }) as unknown as typeof fetch;
+
+    const saveMyStats = vi.fn();
+    await fetchAndStoreMyStats({ qlPrimaryColor: '#4A6CF7', saveMyStats });
+    await new Promise((r) => setTimeout(r, 10));
+
+    const first = saveMyStats.mock.calls[0]?.[0];
+    expect(first.personaId).toBe('fb');
+    expect(first.totalPosts).toBe(42);
+    expect(first.totalComments).toBe(17); // totalCount fallback 적용
+  });
+
+  it('personas + activities 모두 throw → totalCounts 0 으로 saveMyStats 만 (silent)', async () => {
+    setupDom('', 'https://lounge.naver.com/');
+    globalThis.fetch = vi.fn(async (url: string) => {
+      if (/members\/me\/personas/.test(url)) {
+        return jsonResp({ data: [{ personaId: 'x', nickname: 'X', createTime: '2099-01-01T00:00:00Z' }] });
+      }
+      throw new Error('all down');
+    }) as unknown as typeof fetch;
+
+    const saveMyStats = vi.fn();
+    await fetchAndStoreMyStats({ qlPrimaryColor: '#4A6CF7', saveMyStats });
+    await new Promise((r) => setTimeout(r, 10));
+
+    // saveMyStats 가 호출되지만 total{Posts,Comments} 0 + monthly '?' (createdThisMonth=false 이므로 활동 fetch 시도 후 catch).
+    expect(saveMyStats).toHaveBeenCalled();
+    const first = saveMyStats.mock.calls[0]?.[0];
+    expect(first.totalPosts).toBe(0);
+    expect(first.totalComments).toBe(0);
+  });
 });

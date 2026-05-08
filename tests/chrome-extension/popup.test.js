@@ -464,4 +464,157 @@ describe('chrome popup.html + popup.js', () => {
       doc.getElementById('keyword-alerts-list').innerHTML,
     ).toContain('새채널');
   });
+
+  it('회귀 가드: 닉네임에 따옴표가 들어와도 data-* attribute 가 깨지지 않음 (escapeHtml 5-char)', async () => {
+    // 이전 escapeHtml 은 textContent → innerHTML 패턴으로 `"` 를 escape 하지 않아
+    // `data-nickname="${escapeHtml(...)}"` 안 따옴표가 attribute 경계를 깨뜨림 → dataset 값 잘림 →
+    // 다른 닉네임이 unblock 되는 P2 회귀.
+    const tricky = 'A" data-x="1';
+    const seed = {
+      quiet_lounge_data: JSON.stringify({
+        version: 2,
+        blockedUsers: {},
+        nicknameOnlyBlocks: [
+          { nickname: tricky, blockedAt: '2026-04-01T00:00:00Z' },
+          { nickname: 'normal', blockedAt: '2026-04-02T00:00:00Z' },
+        ],
+        personaCache: {},
+      }),
+    };
+    const ctx = await setupPopup({ seed });
+    dom = ctx.dom;
+    const doc = ctx.win.document;
+
+    const btns = doc.querySelectorAll('button[data-type="nickname"]');
+    expect(btns).toHaveLength(2);
+    // dataset 이 원본과 정확히 일치 — attribute 경계 깨짐 없음.
+    const nicknames = Array.from(btns).map((b) => b.dataset.nickname).sort();
+    expect(nicknames).toEqual([tricky, 'normal'].sort());
+
+    // tricky 닉네임 unblock — 정확히 그 entry 만 제거.
+    ctx.win.confirm = vi.fn(() => true);
+    const trickyBtn = Array.from(btns).find((b) => b.dataset.nickname === tricky);
+    trickyBtn.click();
+    for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
+
+    const stored = JSON.parse(ctx.chrome._storage._store.quiet_lounge_data);
+    expect(stored.nicknameOnlyBlocks).toHaveLength(1);
+    expect(stored.nicknameOnlyBlocks[0].nickname).toBe('normal');
+  });
+
+  it('회귀 가드: 손상된 keywordAlerts JSON 은 빈 배열로 정규화 — popup UI 가 멈추지 않음 (Codex 49 F2)', async () => {
+    // 깨진 JSON / 배열 아닌 값 모두 [] 로 fallback. 이전엔 JSON.parse 가 throw 해
+    // loadKeywordAlerts() 가 reject → popup 초기화 / pending alert finalize / export 모두 멈춤.
+    const seed = { quiet_lounge_keyword_alerts: '{broken-json' };
+    const ctx = await setupPopup({ seed });
+    dom = ctx.dom;
+    const doc = ctx.win.document;
+    // popup 이 정상 로드 — empty 메시지 표시 (UI 멈춤 없음)
+    expect(doc.getElementById('keyword-alerts-list').textContent).toContain(
+      '등록된 키워드 알림이 없습니다',
+    );
+  });
+
+  it('회귀 가드: JSON 은 valid 지만 배열이 아닌 값 (object) 도 빈 배열로 정규화', async () => {
+    const seed = { quiet_lounge_keyword_alerts: '{"not":"array"}' };
+    const ctx = await setupPopup({ seed });
+    dom = ctx.dom;
+    const doc = ctx.win.document;
+    expect(doc.getElementById('keyword-alerts-list').textContent).toContain(
+      '등록된 키워드 알림이 없습니다',
+    );
+  });
+
+  it('회귀 가드: finalizePendingAlert 가 malformed shape 거부 (Codex 55 F2 — array / empty / wrong types)', async () => {
+    // pending = JSON 은 valid 지만 shape 가 잘못된 경우 (배열, empty object, wrong types).
+    // 이전엔 typeof === "object" 만 검사 → push 후 keywords.map(...) TypeError → 모달 깨짐 + storage 오염.
+    const cases = [
+      JSON.stringify([]), // array
+      JSON.stringify({}), // empty object
+      JSON.stringify({ channelId: 'c1', channelName: 'n', keywords: 'wrong' }), // keywords non-array
+      JSON.stringify({ channelId: 'c1', channelName: 'n', keywords: [] }), // empty keywords
+      JSON.stringify({ channelId: 'c1', channelName: 'n', keywords: [123, 'k'] }), // keywords mixed type
+      JSON.stringify({ channelId: '', channelName: 'n', keywords: ['k'] }), // empty channelId
+      JSON.stringify({ channelId: 'c1', channelName: null, keywords: ['k'] }), // channelName null
+    ];
+    for (const raw of cases) {
+      const ctx = await setupPopup({ seed: { quiet_lounge_pending_alert: raw } });
+      // finalizePendingAlert 는 popup 로드 후 자동 호출 — 비동기.
+      for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
+
+      // PENDING_ALERT_KEY 는 항상 remove (정상 / malformed 모두) — 그 부분은 변경 없음.
+      expect(ctx.chrome._storage._store.quiet_lounge_pending_alert).toBeUndefined();
+      // keywordAlerts 에 push 되지 *않아야* — storage 미오염.
+      const stored = ctx.chrome._storage._store.quiet_lounge_keyword_alerts;
+      if (stored !== undefined) {
+        expect(JSON.parse(stored)).toEqual([]);
+      }
+      ctx.dom.window.close();
+    }
+    dom = null;
+  });
+
+  it('회귀 가드: finalizePendingAlert 정상 shape 만 통과', async () => {
+    const valid = JSON.stringify({
+      channelId: 'c1',
+      channelName: '정상채널',
+      keywords: ['k1', 'k2'],
+    });
+    const ctx = await setupPopup({ seed: { quiet_lounge_pending_alert: valid } });
+    dom = ctx.dom;
+    for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
+
+    const stored = JSON.parse(ctx.chrome._storage._store.quiet_lounge_keyword_alerts);
+    expect(stored).toHaveLength(1);
+    expect(stored[0].channelId).toBe('c1');
+    expect(stored[0].channelName).toBe('정상채널');
+    expect(stored[0].keywords).toEqual(['k1', 'k2']);
+  });
+
+  it('회귀 가드: storage onChanged 가 손상된 keywordAlerts 에서 throw 하지 않음 (Codex 52 F2)', async () => {
+    // 다른 surface 에서 손상된 값이 들어와도 listener throw 없이 빈 배열로 정규화.
+    // 이전엔 listener 안 raw JSON.parse 가 throw → 키워드 알림 UI 갱신 멈춤.
+    const ctx = await setupPopup();
+    dom = ctx.dom;
+    const doc = ctx.win.document;
+    // popup.js 가 storage.onChanged 를 3번 등록 — 키워드 알림 리스너는 마지막 (line 720 부근).
+    const listener =
+      ctx.chrome._storage._listeners[ctx.chrome._storage._listeners.length - 1];
+
+    expect(() =>
+      listener({ quiet_lounge_keyword_alerts: { newValue: '{broken-json' } }),
+    ).not.toThrow();
+    expect(doc.getElementById('keyword-alerts-list').textContent).toContain(
+      '등록된 키워드 알림이 없습니다',
+    );
+
+    // 배열 아닌 valid JSON 도 빈 배열로 정규화.
+    expect(() =>
+      listener({ quiet_lounge_keyword_alerts: { newValue: '{"not":"array"}' } }),
+    ).not.toThrow();
+    expect(doc.getElementById('keyword-alerts-list').textContent).toContain(
+      '등록된 키워드 알림이 없습니다',
+    );
+  });
+
+  it('회귀 가드: 손상된 keywordAlerts 라도 export 가 throw 하지 않고 keywordAlerts:[] 으로 백업', async () => {
+    const seed = { quiet_lounge_keyword_alerts: 'corrupted' };
+    const ctx = await setupPopup({ seed });
+    dom = ctx.dom;
+    const doc = ctx.win.document;
+    // export 클릭 시 throw 없이 keywordAlerts:[] 인 export 데이터 생성.
+    let captured = null;
+    ctx.win.URL.createObjectURL = (blob) => {
+      blob.text().then((t) => {
+        captured = t;
+      });
+      return 'blob:mock';
+    };
+    ctx.win.URL.revokeObjectURL = vi.fn();
+    doc.getElementById('btn-export').click();
+    for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
+    expect(captured).toBeTruthy();
+    const parsed = JSON.parse(captured);
+    expect(parsed.keywordAlerts).toEqual([]);
+  });
 });

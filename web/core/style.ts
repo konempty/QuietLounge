@@ -1,4 +1,4 @@
-import type { FilterMode } from '../../types';
+import type { FilterMode } from '../../shared/types';
 
 // 차단된 글에 적용할 스타일 — `hide` 모드는 display:none, `blur` 모드는 흐림 + 클릭 차단.
 // 항상 호출해서 unblock 시에도 흐림이 풀리도록 (4 플랫폼 동일).

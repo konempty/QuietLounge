@@ -31,10 +31,34 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   }
 });
 
+// 손상된 storage 값으로부터 keywordAlerts 를 빈 배열로 정규화. Safari popup 의 동일 패턴.
+// service worker 의 setupAlarm / checkKeywordAlerts 가 throw 하면 알람 재설정/체크가 통째로
+// 스킵되는 P3 회귀 (Codex 49 F2) 차단.
+function parseKeywordAlerts(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// lastChecked 는 channelId → ISO string 매핑. 손상 시 빈 객체로 fallback.
+function parseLastChecked(raw) {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 // ── 알람 설정/해제 ──
 async function setupAlarm() {
   const result = await chrome.storage.local.get([KEYWORD_ALERTS_KEY, ALERT_INTERVAL_KEY]);
-  const alerts = result[KEYWORD_ALERTS_KEY] ? JSON.parse(result[KEYWORD_ALERTS_KEY]) : [];
+  const alerts = parseKeywordAlerts(result[KEYWORD_ALERTS_KEY]);
   const rawInterval = result[ALERT_INTERVAL_KEY];
   // README 문서상 허용 범위 1~60 분. 저장된 값이 범위를 벗어나 있어도 정상 폴링을 보장.
   const interval = Math.min(
@@ -53,10 +77,8 @@ async function setupAlarm() {
 // ── 키워드 체크 로직 ──
 async function checkKeywordAlerts() {
   const result = await chrome.storage.local.get([KEYWORD_ALERTS_KEY, ALERT_LAST_CHECKED_KEY]);
-  const alerts = result[KEYWORD_ALERTS_KEY] ? JSON.parse(result[KEYWORD_ALERTS_KEY]) : [];
-  const lastChecked = result[ALERT_LAST_CHECKED_KEY]
-    ? JSON.parse(result[ALERT_LAST_CHECKED_KEY])
-    : {};
+  const alerts = parseKeywordAlerts(result[KEYWORD_ALERTS_KEY]);
+  const lastChecked = parseLastChecked(result[ALERT_LAST_CHECKED_KEY]);
 
   const enabledAlerts = alerts.filter((a) => a.enabled);
   if (enabledAlerts.length === 0) return;
@@ -111,10 +133,22 @@ async function checkKeywordAlerts() {
   });
 }
 
+// 느린 네트워크에서 service-worker / popup-via-sw fetch 가 무한 대기하는 회귀 (Claude 50 F2) 방지.
+// Android `LoungeApi.kt:TIMEOUT_MS=10_000` 와 정책 대칭.
+async function fetchWithTimeout(url, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // 채널의 최신 글 postId 목록만 가져오기
 async function fetchRecentPostIds(channelId) {
   const url = `https://api.lounge.naver.com/discovery-api/v1/feed/channels/${channelId}/recent?limit=50`;
-  const resp = await fetch(url);
+  const resp = await fetchWithTimeout(url);
   if (!resp.ok) return [];
   const json = await resp.json();
   const items = json.data?.items || [];
@@ -131,7 +165,7 @@ async function fetchPostTitles(postIds) {
     const batch = postIds.slice(i, i + 50);
     const params = batch.map((id) => `postIds=${id}`).join('&');
     const url = `https://api.lounge.naver.com/content-api/v1/posts?${params}`;
-    const resp = await fetch(url);
+    const resp = await fetchWithTimeout(url);
     if (!resp.ok) continue;
     const json = await resp.json();
     const posts = json.data || [];
@@ -189,7 +223,7 @@ chrome.storage.onChanged.addListener((changes) => {
 // ── 메시지 핸들러 ──
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'FETCH_CATEGORIES') {
-    fetch('https://api.lounge.naver.com/content-api/v1/categories?depth=2')
+    fetchWithTimeout('https://api.lounge.naver.com/content-api/v1/categories?depth=2')
       .then((r) => r.json())
       .then((json) => sendResponse({ data: json.data }))
       .catch((e) => sendResponse({ error: e.message }));
@@ -220,7 +254,7 @@ async function fetchAllChannels(categoryId) {
   let hasMore = true;
   while (hasMore) {
     const url = `https://api.lounge.naver.com/content-api/v1/channels?categoryId=${categoryId}&page=${page}&size=${size}`;
-    const resp = await fetch(url);
+    const resp = await fetchWithTimeout(url);
     if (!resp.ok) break;
     const json = await resp.json();
     const items = json.data?.items || [];

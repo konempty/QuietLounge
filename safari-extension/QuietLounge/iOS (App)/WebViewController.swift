@@ -437,14 +437,14 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
     @objc private func blockDataChanged() {
         let data = BlockDataManager.shared.load()
         let js = WebViewScripts.blockListUpdateScript(blockData: data)
-        webView.evaluateJavaScript(js)
+        webView.evaluateJavaScript(js, completionHandler: nil)
         // 다음 페이지 로드/새로고침에 stale blockData 가 다시 주입되지 않도록 WKUserScript 재등록.
         registerUserScripts(on: webView.configuration.userContentController)
     }
 
     @objc private func filterModeChanged() {
         let mode = BlockDataManager.shared.filterMode
-        webView.evaluateJavaScript("if(window.__QL_setFilterMode) window.__QL_setFilterMode('\(mode)'); true;")
+        webView.evaluateJavaScript("if(window.__QL_setFilterMode) window.__QL_setFilterMode('\(mode)'); true;", completionHandler: nil)
         // 다음 페이지 로드/새로고침에 stale filterMode 가 다시 주입되지 않도록 WKUserScript 재등록.
         // 라이브 setFilterMode 는 현재 페이지에만 적용되므로 새로고침 시 baked-in 값으로 회귀하는 회귀를
         // 차단. (이전 PR 에서 placeholder substitution 이 처음 정상 동작하면서 가시화된 staleness)
@@ -477,11 +477,19 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
 
     @objc private func navigateToPost(_ notification: Notification) {
         guard let postId = notification.userInfo?["postId"] as? String else { return }
-        let url = "https://lounge.naver.com/posts/\(postId)"
-        webView.evaluateJavaScript("window.location.href = '\(url)'; true;")
+        // postId 를 JS literal 안에 보간하던 이전 패턴은 trust boundary 위험 (Claude 50 F1).
+        // `URL(string:)` 으로 검증 후 `webView.load` 로 navigate — JS injection 표면 자체 제거.
+        guard let url = URL(string: "https://lounge.naver.com/posts/\(postId)") else { return }
+        webView.load(URLRequest(url: url))
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        // Host guard — 외부 페이지가 같은 WebView 안에서 열린 경우 native bridge 차단.
+        // `WKWebViewConfiguration` 의 message handler 가 모든 frame 에 노출되어 외부 JS 도
+        // `webkit.messageHandlers.qlBridge.postMessage()` 호출 가능했던 P1 회귀 (49 라운드 Codex F1).
+        // `frameInfo.request.url?.host` 가 message 가 발신된 frame 의 host — main frame 외에 iframe 도 정확히 차단.
+        guard QuietLoungeCore.isLoungeHost(message.frameInfo.request.url?.host) else { return }
+
         guard let body = message.body as? String,
               let data = body.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],

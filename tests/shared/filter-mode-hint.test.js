@@ -54,8 +54,9 @@ describe('content-scripts — filter hint 구현 동기화', () => {
         expect(src).toMatch(/let\s+dontShowFilterHint\s*=\s*false/);
       });
 
-      it('qlFilterHintDialog 함수 정의 — DOM modal 패턴', () => {
-        expect(src).toMatch(/function\s+qlFilterHintDialog\s*\(\s*\)\s*\{/);
+      it('showFilterModeHintDialog (web/core/filter-mode-hint) DOM modal 패턴 보존', () => {
+        // web/core/filter-mode-hint.ts 에서 export — 산출물에 함수 정의가 그대로 들어옴.
+        expect(src).toMatch(/function\s+showFilterModeHintDialog\s*\(/);
         // 모달 안에 "다시 보지 않기" 와 "확인" 두 버튼이 존재해야 함 (따옴표 종류 무관).
         expect(src).toMatch(/dontBtn\.textContent\s*=\s*['"]다시 보지 않기['"]/);
         expect(src).toMatch(/okBtn\.textContent\s*=\s*['"]확인['"]/);

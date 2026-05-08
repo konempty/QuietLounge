@@ -1,6 +1,7 @@
 package kr.konempty.quietlounge.ui.lounge
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.JsPromptResult
@@ -46,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import kr.konempty.quietlounge.webview.BridgeMessage
 import kr.konempty.quietlounge.webview.NativeBridge
 import kr.konempty.quietlounge.webview.WebViewScripts
@@ -232,7 +235,10 @@ fun LoungeScreen(
         onDispose {
             webView?.apply {
                 stopLoading()
-                removeJavascriptInterface(NativeBridge.NAME)
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+                    WebViewCompat.removeWebMessageListener(this, NativeBridge.NAME)
+                }
+                // 미지원 환경에서는 등록 자체를 안 했으니 해제도 불필요 (fail-closed).
                 (parent as? ViewGroup)?.removeView(this)
                 destroy()
             }
@@ -277,7 +283,28 @@ private fun createLoungeWebView(
             displayZoomControls = false
         }
 
-        addJavascriptInterface(bridge, NativeBridge.NAME)
+        // Bridge 등록 — `WebViewCompat.addWebMessageListener` 가 frame allowed-origin rule 로
+        // cross-origin iframe bypass (52 라운드 Codex F1 P1) 차단.
+        //
+        // 미지원 환경 (구버전 Chromium WebView) 은 **fail-closed** — legacy `addJavascriptInterface`
+        // 는 모든 frame 에 같은 객체를 노출해 iframe bypass 회귀 (Codex 55 F1 P2). 차단 / personaCache
+        // 기능을 안전하게 노출할 방법이 없으므로 bridge 등록 자체 skip — 라운지 보기는 그대로 작동,
+        // 차단 / 키워드 알림 native handler 만 비활성. WebView 87+ (2020-11) 가 minSdk 24 의 거의
+        // 모든 OEM 에 도달했지만 1% 미만의 stale 빌드에서 보안을 fail-open 하지 않기 위함.
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            WebViewCompat.addWebMessageListener(
+                this,
+                NativeBridge.NAME,
+                setOf("https://lounge.naver.com"),
+                bridge,
+            )
+        } else {
+            android.util.Log.w(
+                "QuietLounge",
+                "WEB_MESSAGE_LISTENER not supported — native bridge disabled (block / keyword alert " +
+                    "features unavailable). System WebView 업데이트 권장.",
+            )
+        }
 
         // 기본 WebChromeClient() 만 쓰면 JS alert / confirm / prompt 가 silent 봉쇄된다 — 라운지가
         // 사용자 확인을 받는 흐름에서 dialog 가 안 뜨고 JS 스레드가 응답을 못 받아 다음 동작이 멈춤.
@@ -291,6 +318,9 @@ private fun createLoungeWebView(
                     favicon: android.graphics.Bitmap?,
                 ) {
                     super.onPageStarted(view, url, favicon)
+                    // 외부 페이지에서 native bridge 호출 차단 — NativeBridge.postMessage 의 host guard 가
+                    // 이 currentHost 를 본다. (Codex 49 P1)
+                    bridge.setCurrentHost(Uri.parse(url ?: "").host)
                     // before script — document_start 대체 (페이지가 막 시작될 때 주입)
                     view?.evaluateJavascript(beforeScriptProvider(), null)
                     onPageStarted(url)
@@ -301,6 +331,7 @@ private fun createLoungeWebView(
                     url: String?,
                 ) {
                     super.onPageFinished(view, url)
+                    bridge.setCurrentHost(Uri.parse(url ?: "").host)
                     // after script — document_idle 대체
                     view?.evaluateJavascript(afterScriptProvider(), null)
                     onPageFinished(url)
@@ -315,6 +346,7 @@ private fun createLoungeWebView(
                     isReload: Boolean,
                 ) {
                     super.doUpdateVisitedHistory(view, url, isReload)
+                    bridge.setCurrentHost(Uri.parse(url ?: "").host)
                     onUrlChanged(url)
                 }
             }

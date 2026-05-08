@@ -634,3 +634,43 @@ final class NavigationToolbarStateTests: XCTestCase {
         ))
     }
 }
+
+// MARK: - WebView host allowlist 회귀 가드 (49 라운드 Codex F1 — P1)
+
+final class LoungeHostAllowlistTests: XCTestCase {
+
+    func test_라운지_정확한_host만_허용() {
+        XCTAssertTrue(QuietLoungeCore.isLoungeHost("lounge.naver.com"))
+    }
+
+    func test_nil_은_차단() {
+        XCTAssertFalse(QuietLoungeCore.isLoungeHost(nil))
+    }
+
+    func test_빈_문자열_차단() {
+        XCTAssertFalse(QuietLoungeCore.isLoungeHost(""))
+    }
+
+    func test_prefix_함정_차단_evil_도메인() {
+        // P1 회귀의 핵심 가드 — `endsWith` / `contains` 로 구현하면 통과해 버리는 prefix 함정.
+        XCTAssertFalse(QuietLoungeCore.isLoungeHost("lounge.naver.com.evil.com"))
+    }
+
+    func test_subdomain_차단() {
+        XCTAssertFalse(QuietLoungeCore.isLoungeHost("api.lounge.naver.com"))
+        XCTAssertFalse(QuietLoungeCore.isLoungeHost("nid.naver.com"))
+        XCTAssertFalse(QuietLoungeCore.isLoungeHost("naver.com"))
+    }
+
+    func test_대소문자_혼합_차단() {
+        // *exact match* 정책 — host 는 보통 lowercase 로 normalized 되지만 방어적으로 명시 가드.
+        XCTAssertFalse(QuietLoungeCore.isLoungeHost("LOUNGE.NAVER.COM"))
+        XCTAssertFalse(QuietLoungeCore.isLoungeHost("Lounge.Naver.Com"))
+    }
+
+    func test_무관_도메인_차단() {
+        XCTAssertFalse(QuietLoungeCore.isLoungeHost("evil.com"))
+        XCTAssertFalse(QuietLoungeCore.isLoungeHost("www.naver.com"))
+        XCTAssertFalse(QuietLoungeCore.isLoungeHost("localhost"))
+    }
+}

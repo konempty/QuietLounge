@@ -38,9 +38,9 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
 #if os(iOS)
-        webView.evaluateJavaScript("show('ios')")
+        webView.evaluateJavaScript("show('ios')", completionHandler: nil)
 #elseif os(macOS)
-        webView.evaluateJavaScript("show('mac')")
+        webView.evaluateJavaScript("show('mac')", completionHandler: nil)
 
         SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: extensionBundleIdentifier) { (state, error) in
             guard let state = state, error == nil else {
@@ -50,9 +50,9 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
 
             DispatchQueue.main.async {
                 if #available(macOS 13, *) {
-                    webView.evaluateJavaScript("show('mac', \(state.isEnabled), true)")
+                    webView.evaluateJavaScript("show('mac', \(state.isEnabled), true)", completionHandler: nil)
                 } else {
-                    webView.evaluateJavaScript("show('mac', \(state.isEnabled), false)")
+                    webView.evaluateJavaScript("show('mac', \(state.isEnabled), false)", completionHandler: nil)
                 }
             }
         }

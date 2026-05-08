@@ -18,6 +18,9 @@ import {
   isProfilePage as sharedIsProfilePage,
 } from '../core/profile-stats';
 import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adapter';
+import { debounce } from '../core/utils';
+import { showFilterModeHintDialog } from '../core/filter-mode-hint';
+import { applyPersonaCacheBatch } from '../core/persona-cache';
 // applyStyle 직접 import 제거 — runFilterPass 가 내부에서 사용. 다른 entry 도 동일.
 
 (function () {
@@ -30,15 +33,6 @@ import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adap
     window.matchMedia('(prefers-color-scheme: dark)').matches
       ? '#6A86F8'
       : '#4A6CF7';
-
-  // ── 유틸 ──
-  function debounce(fn, delay) {
-    let timer;
-    return function () {
-      clearTimeout(timer);
-      timer = setTimeout(fn, delay);
-    };
-  }
 
   // ── 차단 목록 관리 ──
   function createEmptyData() {
@@ -108,82 +102,15 @@ import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adap
     await saveBlockData();
   }
 
-  // ── 차단 직후 "흐림 처리 모드 안내" Hint 다이얼로그 ──
-  // 사용자가 매 차단마다 안내를 받게 됨 (HIDE 모드 + "다시 보지 않기" 미선택 한정).
-  // browser confirm() 으로는 "다시 보지 않기" UX 가 안 되므로 커스텀 DOM modal.
-  function qlFilterHintDialog() {
-    return new Promise((resolve) => {
-      const overlay = document.createElement('div');
-      overlay.style.cssText =
-        'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999999;' +
-        'display:flex;align-items:center;justify-content:center;';
-
-      const dialog = document.createElement('div');
-      dialog.style.cssText =
-        'background:#1a1a1a;color:#e0e0e0;border-radius:14px;padding:20px;' +
-        'max-width:340px;width:90%;font-family:-apple-system,BlinkMacSystemFont,sans-serif;' +
-        'box-shadow:0 4px 24px rgba(0,0,0,0.4);';
-
-      const title = document.createElement('p');
-      title.textContent = '팁: 흐림 처리 모드';
-      title.style.cssText = 'font-size:16px;font-weight:600;margin:0 0 10px;';
-
-      const msg = document.createElement('p');
-      msg.textContent =
-        "차단된 글을 완전히 숨기는 대신 흐리게만 처리할 수도 있어요. 익스텐션 팝업의 '흐림 처리' 토글에서 켤 수 있습니다.";
-      msg.style.cssText = 'font-size:14px;margin:0 0 18px;line-height:1.5;color:#bbb;';
-
-      const btnRow = document.createElement('div');
-      btnRow.style.cssText = 'display:flex;gap:10px;';
-
-      const dontBtn = document.createElement('button');
-      dontBtn.textContent = '다시 보지 않기';
-      dontBtn.style.cssText =
-        'flex:1;padding:10px;border:1px solid #444;background:transparent;color:#aaa;' +
-        'border-radius:8px;font-size:13px;cursor:pointer;';
-
-      const okBtn = document.createElement('button');
-      okBtn.textContent = '확인';
-      okBtn.style.cssText =
-        'flex:1;padding:10px;border:none;background:#4A6CF7;color:#fff;' +
-        'border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;';
-
-      function close(result) {
-        overlay.remove();
-        resolve(result);
-      }
-
-      dontBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        close('dontShow');
-      });
-      okBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        close('confirm');
-      });
-      overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) close('confirm');
-      });
-
-      btnRow.appendChild(dontBtn);
-      btnRow.appendChild(okBtn);
-      dialog.appendChild(title);
-      dialog.appendChild(msg);
-      dialog.appendChild(btnRow);
-      overlay.appendChild(dialog);
-      document.body.appendChild(overlay);
-    });
-  }
-
   /**
-   * 차단 직후 호출 — HIDE 모드 + 안내 안 끔이면 hint 표시.
+   * 차단 직후 호출 — HIDE 모드 + 안내 안 끔이면 web/core/filter-mode-hint 의 DOM modal 표시.
    * pure logic 은 iOS QuietLoungeCore.shouldShowFilterModeHint /
    * Android WebViewToolbarLogic.shouldShowFilterModeHint 와 동일 시맨틱.
    */
   async function maybeShowFilterModeHint() {
     if (filterMode === 'blur') return;
     if (dontShowFilterHint) return;
-    const result = await qlFilterHintDialog();
+    const result = await showFilterModeHintDialog();
     if (result === 'dontShow') {
       dontShowFilterHint = true;
       await new Promise((resolve) => {
@@ -225,25 +152,14 @@ import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adap
     window.postMessage({ type: 'QUIET_LOUNGE_REQUEST_DATA' }, '*');
   }
 
+  // 핵심 로직은 web/core/persona-cache.ts 의 applyPersonaCacheBatch — shared/block-list.ts /
+  // Android BlockListEngine / iOS QuietLoungeCore 와 *동일 시맨틱* (storage 측 personaCache 의
+  // 옛 닉네임도 nickname-only 매칭 대상). 이 함수는 batch 결과로 changed=true 일 때만 save.
   async function autoPromoteBlocks() {
-    let changed = false;
-    for (const [pid, { nickname }] of personaCache) {
-      const idx = blockData.nicknameOnlyBlocks.findIndex((b) => b.nickname === nickname);
-      if (idx !== -1) {
-        const block = blockData.nicknameOnlyBlocks.splice(idx, 1)[0];
-        blockData.blockedUsers[pid] = {
-          personaId: pid,
-          nickname,
-          blockedAt: block.blockedAt,
-        };
-        changed = true;
-      }
-      if (blockData.blockedUsers[pid] && blockData.blockedUsers[pid].nickname !== nickname) {
-        // 닉네임 갱신만 — 옛 닉네임 추적은 더 이상 안 함.
-        blockData.blockedUsers[pid].nickname = nickname;
-        changed = true;
-      }
-    }
+    const entries: Array<[string, string]> = Array.from(personaCache.entries()).map(
+      ([pid, { nickname }]) => [pid, nickname],
+    );
+    const { changed } = applyPersonaCacheBatch(blockData, entries);
     if (changed) await saveBlockData();
   }
 
@@ -335,6 +251,16 @@ import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adap
   function watchNavigation() {
     // popstate (뒤로/앞으로)
     window.addEventListener('popstate', onNavigate);
+
+    // bfcache 복원 감지 — Chrome 의 lounge.naver.com 도 bfcache 적용 대상이라 SPA 네비게이션 감시
+    // (popstate / pushState / replaceState) 만으로는 "라운지 → 외부 → 뒤로" 시점을 못 잡음.
+    // lastPath 를 reset 하고 onNavigate 를 강제 호출해 cache / filter 재시작.
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted) {
+        lastPath = '';
+        onNavigate();
+      }
+    });
 
     // pushState / replaceState 감시
     const origPushState = history.pushState;

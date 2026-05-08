@@ -1,4 +1,4 @@
-import type { BlockListData } from '../../types';
+import type { BlockListData } from '../../shared/types';
 
 // personaId / nickname 으로 차단 여부 판정. 4 플랫폼 동일 시맨틱.
 //   • personaId 매칭이 우선 — 같은 닉네임의 다른 유저가 있을 수 있으므로.
