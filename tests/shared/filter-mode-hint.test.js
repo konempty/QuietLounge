@@ -76,10 +76,15 @@ describe('content-scripts — filter hint 구현 동기화', () => {
         expect(src).toMatch(/changes\[DONT_SHOW_FILTER_HINT_KEY\]/);
       });
 
-      it('차단 호출 (blockUser) 직후 hint 트리거 — 최소 2 군데', () => {
-        // 두 개의 "차단" 버튼 핸들러 (피드/베스트) 모두 hint 호출이 따라붙어야 함
+      it('차단 호출 (blockUser) 직후 hint 트리거', () => {
+        // PR #3 이전엔 path A / path B 각각이 inline 으로 hint 호출 (2 군데). PR #3 이후엔 adapter
+        // onBlockClick 에서 단일 호출 — path A/B 차이가 shared injectBlockButtons 안으로 흡수됨.
+        // 호출 횟수는 ≥ 1 로 완화하되, blockUser 직후 (await blockUser → filterAll → ... →
+        // maybeShowFilterModeHint) 패턴이 깨지지 않았는지 검증.
         const calls = src.match(/await\s+maybeShowFilterModeHint\s*\(\s*\)/g) || [];
-        expect(calls.length).toBeGreaterThanOrEqual(2);
+        expect(calls.length).toBeGreaterThanOrEqual(1);
+        // adapter onBlockClick 의 sequence 가 깨지면 hint 가 안 뜸 — blockUser → filterAll → hint 순서 회귀 가드.
+        expect(src).toMatch(/blockUser[\s\S]{0,200}filterAll[\s\S]{0,200}maybeShowFilterModeHint/);
       });
     });
   }

@@ -13,6 +13,8 @@ import { SEL } from '../core/selectors';
 import { isActivePage, isBlockButtonPage } from '../core/pages';
 import { isCleanbotFiltered } from '../core/cleanbot';
 import { runFilterPass } from '../core/filter-engine';
+import { injectBlockButtons, findPersonaId as sharedFindPersonaId } from '../core/inject-buttons';
+import type { InjectButtonsAdapter } from '../platform/adapter';
 // isBlocked / applyStyle 은 runFilterPass 가 내부에서 사용. Android entry 는 다른 곳에서 직접 호출 안 함.
 // __QL_BLOCK_DATA_PLACEHOLDER__ ambient 식별자는 placeholders.d.ts 가 선언 — `// @ts-nocheck`
 // 가 entry 상단에 있어 명시 import 불필요. esbuild 는 미정의 글로벌을 그대로 통과시킨다.
@@ -56,56 +58,6 @@ import { runFilterPass } from '../core/filter-engine';
     });
   }
 
-  function createBlockBtn(onClickHandler) {
-    const btn = document.createElement('button');
-    btn.className = 'ql-btn';
-    btn.textContent = '✕';
-    btn.title = 'block';
-    btn.style.cssText =
-      'margin-left:6px;cursor:pointer;opacity:0.5;font-size:16px;border:none;' +
-      'background:rgba(200,50,50,0.12);padding:4px 8px;color:#e74c3c;border-radius:4px;' +
-      'transition:opacity 0.15s;line-height:1;min-width:28px;min-height:28px;' +
-      'display:inline-flex;align-items:center;justify-content:center;';
-    btn.ontouchstart = function () {
-      btn.style.opacity = '1';
-      btn.style.background = 'rgba(200,50,50,0.25)';
-    };
-    btn.ontouchend = function () {
-      btn.style.opacity = '0.5';
-      btn.style.background = 'rgba(200,50,50,0.12)';
-    };
-    btn.onclick = onClickHandler;
-    return btn;
-  }
-
-  function findPersonaId(container) {
-    const ql = window.__QL || { personaMap: {} };
-    let pid;
-
-    const profileLink = container.querySelector('a[href^="/profiles/"]');
-    if (profileLink) {
-      pid = profileLink.getAttribute('href')?.replace('/profiles/', '');
-    }
-
-    if (!pid) {
-      const postLink =
-        container.closest('a[href^="/posts/"]') ||
-        container.querySelector('a[href^="/posts/"]') ||
-        container.closest('.relative[tabindex]')?.querySelector('a[href^="/posts/"]');
-      if (postLink) {
-        const postId = postLink.getAttribute('href')?.replace('/posts/', '');
-        if (postId) pid = ql.personaMap[postId];
-      }
-    }
-
-    if (!pid) {
-      const pathMatch = window.location.pathname.match(/^\/posts\/([^/]+)/);
-      if (pathMatch) pid = ql.personaMap[pathMatch[1]];
-    }
-
-    return pid;
-  }
-
   function sendBlockMessage(pid, nickname) {
     postNative({
       type: 'BLOCK_USER',
@@ -113,57 +65,51 @@ import { runFilterPass } from '../core/filter-engine';
     });
   }
 
+  // ── UI Injector (차단 버튼) ──
+  // 핵심 path A / path B / cleanbot 가드는 shared/web/core/inject-buttons.ts. Android 책임은
+  // (a) ql-btn 외형 (b) sendBlockMessage 로 native bridge 호출 — confirm + 실제 차단은 native (Kotlin) 측.
+  // path B 의 'skip' strategy: pid 미매핑 시 버튼 자체 미노출 — silent no-op 방지.
+  const injectButtonsAdapter: InjectButtonsAdapter = {
+    buttonClassName: 'ql-btn',
+    pathBMissingPidStrategy: 'skip',
+
+    createButton() {
+      const btn = document.createElement('button');
+      btn.className = 'ql-btn';
+      btn.textContent = '✕';
+      btn.title = 'block';
+      btn.style.cssText =
+        'margin-left:6px;cursor:pointer;opacity:0.5;font-size:16px;border:none;' +
+        'background:rgba(200,50,50,0.12);padding:4px 8px;color:#e74c3c;border-radius:4px;' +
+        'transition:opacity 0.15s;line-height:1;min-width:28px;min-height:28px;' +
+        'display:inline-flex;align-items:center;justify-content:center;';
+      btn.ontouchstart = function () {
+        btn.style.opacity = '1';
+        btn.style.background = 'rgba(200,50,50,0.25)';
+      };
+      btn.ontouchend = function () {
+        btn.style.opacity = '0.5';
+        btn.style.background = 'rgba(200,50,50,0.12)';
+      };
+      return btn;
+    },
+
+    onBlockClick(personaId, nickname) {
+      // confirm + 실제 차단은 native (Kotlin) 측 — bridge 메시지만 보내면 끝.
+      sendBlockMessage(personaId || null, nickname || 'Unknown');
+    },
+  };
+
   function injectButtons() {
-    if (!isBlockButtonPage()) return;
-
-    document.querySelectorAll(SEL.profileName).forEach(function (el) {
-      if (el.querySelector('.ql-btn')) return;
-      // 클린봇 검열 글 — 작성자 정보가 가려진 채 안내문만 있어 차단 의미 없음.
-      if (isCleanbotFiltered(el.closest(SEL.postContainer) || el.closest(SEL.postLink))) return;
-
-      const btn = createBlockBtn(function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-
-        const nickname = el
-          .querySelector('[data-slot="profile-name-label"] span.truncate')
-          ?.textContent?.trim();
-        if (!nickname) return;
-
-        const pid = findPersonaId(el);
-        sendBlockMessage(pid, nickname);
-      });
-      el.appendChild(btn);
-    });
-
-    document.querySelectorAll(SEL.postContainer).forEach(function (container) {
-      if (container.querySelector('.ql-btn')) return;
-      if (container.querySelector(SEL.profileName)) return;
-      if (isCleanbotFiltered(container)) return;
-
-      const postLink =
-        container.querySelector(SEL.postLink) || container.closest(SEL.postLink);
-      if (!postLink) return;
-
-      const btn = createBlockBtn(function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-
-        const pid = findPersonaId(container);
+    injectBlockButtons(injectButtonsAdapter, {
+      findPersonaId: function (container) {
+        const ql = window.__QL || { personaMap: {} };
+        return sharedFindPersonaId(container, function (id) { return ql.personaMap[id]; });
+      },
+      nicknameForPersonaId: function (pid) {
         const ql = window.__QL || { personaCache: {} };
-        const nickname = pid ? ql.personaCache[pid] : null;
-        if (!pid) return;
-        sendBlockMessage(pid, nickname || 'Unknown');
-      });
-
-      const firstRow = container.querySelector('a > div');
-      if (firstRow) {
-        firstRow.appendChild(btn);
-      } else {
-        container.appendChild(btn);
-      }
+        return ql.personaCache[pid];
+      },
     });
   }
 

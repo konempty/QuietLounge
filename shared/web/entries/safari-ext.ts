@@ -13,6 +13,8 @@ import { isActivePage, isBlockButtonPage } from '../core/pages';
 import { isCleanbotFiltered } from '../core/cleanbot';
 import { isBlocked as sharedIsBlocked } from '../core/block-check';
 import { runFilterPass } from '../core/filter-engine';
+import { injectBlockButtons, findPersonaId as sharedFindPersonaId } from '../core/inject-buttons';
+import type { InjectButtonsAdapter } from '../platform/adapter';
 
 (function () {
   'use strict';
@@ -272,35 +274,9 @@ import { runFilterPass } from '../core/filter-engine';
   }
 
   // ── UI Injector (차단 버튼) ──
-  function findPersonaId(container) {
-    let pid;
-
-    // 방법 1: 프로필 링크에서 personaId 직접 추출
-    const profileLink = container.querySelector('a[href^="/profiles/"]');
-    if (profileLink) {
-      pid = profileLink.getAttribute('href')?.replace('/profiles/', '');
-    }
-
-    // 방법 2: postLink에서 postId → personaMap 조회
-    if (!pid) {
-      const postLink =
-        container.closest('a[href^="/posts/"]') ||
-        container.querySelector('a[href^="/posts/"]') ||
-        container.closest('.relative[tabindex]')?.querySelector('a[href^="/posts/"]');
-      if (postLink) {
-        const postId = postLink.getAttribute('href')?.replace('/posts/', '');
-        if (postId) pid = personaMap.get(postId);
-      }
-    }
-
-    // 방법 3: URL에서 postId → personaMap
-    if (!pid) {
-      const pathMatch = window.location.pathname.match(/^\/posts\/([^/]+)/);
-      if (pathMatch) pid = personaMap.get(pathMatch[1]);
-    }
-
-    return pid;
-  }
+  // findPersonaId 와 path A / path B 분기는 shared/web/core/inject-buttons.ts. Safari ext 책임은
+  // (a) qlConfirm DOM modal (Safari 의 confirm 봉쇄 우회 + iOS tap-through 가드) (b) bfcache 의
+  // liveButtons WeakSet 가드 — 두 가지가 다른 플랫폼 entry 와 다른 부분.
 
   // ── 커스텀 확인 다이얼로그 (iOS Safari에서 confirm() 억제 대응) ──
   // iOS Safari 의 tap-through 가드: 사용자가 X 버튼을 탭하면 touchend 직후 synthetic click 이
@@ -368,126 +344,70 @@ import { runFilterPass } from '../core/filter-engine';
     });
   }
 
-  function createBlockBtn() {
-    const btn = document.createElement('button');
-    btn.className = 'quiet-lounge-btn';
-    btn.textContent = '✕';
-    btn.title = '이 유저 차단';
-    btn.style.cssText =
-      'margin-left:6px;cursor:pointer;opacity:0.6;font-size:12px;border:1px solid rgba(255,80,80,0.3);background:rgba(255,80,80,0.08);padding:1px 5px;line-height:1.2;color:#ff5050;border-radius:4px;vertical-align:middle;transition:all 0.15s;position:relative;z-index:10;';
-
-    btn.addEventListener('mouseenter', () => {
-      btn.style.opacity = '1';
-      btn.style.background = 'rgba(255,80,80,0.2)';
-      btn.style.borderColor = 'rgba(255,80,80,0.6)';
-    });
-    btn.addEventListener('mouseleave', () => {
-      btn.style.opacity = '0.6';
-      btn.style.background = 'rgba(255,80,80,0.08)';
-      btn.style.borderColor = 'rgba(255,80,80,0.3)';
-    });
-
-    btn.addEventListener(
-      'mousedown',
-      (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      },
-      true,
-    );
-    btn.addEventListener(
-      'pointerdown',
-      (e) => {
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-      },
-      true,
-    );
-
-    return btn;
-  }
-
-  // 살아있는 핸들러가 있는 버튼 추적 (bfcache 복원 시 WeakSet은 초기화됨)
+  // 살아있는 핸들러가 있는 버튼 추적 (bfcache 복원 시 WeakSet 은 초기화됨 — 죽은 버튼은 제거 후 새로 등록).
   const liveButtons = new WeakSet();
 
-  function injectBlockButtons() {
-    if (!isBlockButtonPage()) return;
+  const injectButtonsAdapter: InjectButtonsAdapter = {
+    buttonClassName: 'quiet-lounge-btn',
+    pathBMissingPidStrategy: 'show-error',
 
-    // 방법 A: data-slot="profile-name"이 있는 게시글 (피드, 글 상세)
-    document.querySelectorAll(SEL.profileName).forEach((el) => {
-      const existing = el.querySelector('.quiet-lounge-btn');
-      if (existing && liveButtons.has(existing)) return; // 핸들러 살아있음
-      if (existing) existing.remove(); // bfcache로 복원된 죽은 버튼
-      // 클린봇 검열 글: 작성자 정보가 가려진 채 안내문만 있어 차단 버튼 의미 없음.
-      if (isCleanbotFiltered(el.closest(SEL.postContainer) || el.closest(SEL.postLink))) return;
+    createButton() {
+      const btn = document.createElement('button');
+      btn.className = 'quiet-lounge-btn';
+      btn.textContent = '✕';
+      btn.title = '이 유저 차단';
+      btn.style.cssText =
+        'margin-left:6px;cursor:pointer;opacity:0.6;font-size:12px;border:1px solid rgba(255,80,80,0.3);background:rgba(255,80,80,0.08);padding:1px 5px;line-height:1.2;color:#ff5050;border-radius:4px;vertical-align:middle;transition:all 0.15s;position:relative;z-index:10;';
 
-      const btn = createBlockBtn();
-      liveButtons.add(btn);
-      btn.addEventListener('click', async (e) => {
+      btn.addEventListener('mouseenter', () => {
+        btn.style.opacity = '1';
+        btn.style.background = 'rgba(255,80,80,0.2)';
+        btn.style.borderColor = 'rgba(255,80,80,0.6)';
+      });
+      btn.addEventListener('mouseleave', () => {
+        btn.style.opacity = '0.6';
+        btn.style.background = 'rgba(255,80,80,0.08)';
+        btn.style.borderColor = 'rgba(255,80,80,0.3)';
+      });
+      btn.addEventListener('mousedown', (e) => {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-
-        const nickname = el
-          .querySelector('[data-slot="profile-name-label"] span.truncate')
-          ?.textContent?.trim();
-        if (!nickname) return;
-
-        const pid = findPersonaId(el);
-
-        if (await qlConfirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
-          await blockUser(pid, nickname);
-          filterAll();
-          injectBlockButtons();
-          await maybeShowFilterModeHint();
-        }
-      });
-
-      el.appendChild(btn);
-    });
-
-    // 방법 B: data-slot="profile-name"이 없는 게시글 (주간 베스트 등)
-    document.querySelectorAll(SEL.postContainer).forEach((container) => {
-      if (container.querySelector(SEL.profileName)) return; // 방법 A에서 처리됨
-      if (isCleanbotFiltered(container)) return;
-
-      const existing = container.querySelector('.quiet-lounge-btn');
-      if (existing && liveButtons.has(existing)) return;
-      if (existing) existing.remove();
-
-      const postLink = container.querySelector(SEL.postLink) || container.closest(SEL.postLink);
-      if (!postLink) return;
-
-      const btn = createBlockBtn();
-      liveButtons.add(btn);
-      btn.addEventListener('click', async (e) => {
-        e.preventDefault();
+      }, true);
+      btn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         e.stopImmediatePropagation();
+      }, true);
 
-        const pid = findPersonaId(container);
-        const nickname = pid ? personaCache.get(pid) : null;
+      return btn;
+    },
 
-        if (!pid) {
-          await qlConfirm('personaId를 찾을 수 없습니다. 글 상세 페이지에서 차단해주세요.');
-          return;
-        }
+    shouldSkipExistingButton(existing) {
+      // bfcache 복원 시 WeakSet 은 비어 있어 false → 죽은 버튼 제거 후 새로 등록.
+      return liveButtons.has(existing);
+    },
 
-        if (await qlConfirm(`"${nickname || pid}" 유저를 차단하시겠습니까?`)) {
-          await blockUser(pid, nickname || '');
-          filterAll();
-          injectBlockButtons();
-          await maybeShowFilterModeHint();
-        }
-      });
+    onButtonAttached(btn) {
+      liveButtons.add(btn);
+    },
 
-      const firstRow = container.querySelector('a > div');
-      if (firstRow) {
-        firstRow.appendChild(btn);
-      } else {
-        container.appendChild(btn);
-      }
+    async onBlockClick(personaId, nickname) {
+      if (!(await qlConfirm(`"${nickname}" 유저를 차단하시겠습니까?`))) return;
+      await blockUser(personaId, nickname);
+      filterAll();
+      runInjectBlockButtons();
+      await maybeShowFilterModeHint();
+    },
+
+    async onMissingPersonaId() {
+      await qlConfirm('personaId를 찾을 수 없습니다. 글 상세 페이지에서 차단해주세요.');
+    },
+  };
+
+  function runInjectBlockButtons() {
+    injectBlockButtons(injectButtonsAdapter, {
+      findPersonaId: (container) => sharedFindPersonaId(container, (id) => personaMap.get(id)),
+      nicknameForPersonaId: (pid) => personaCache.get(pid)?.nickname,
     });
   }
 
@@ -532,7 +452,7 @@ import { runFilterPass } from '../core/filter-engine';
     if (isActivePage()) {
       setTimeout(() => {
         filterAll();
-        injectBlockButtons();
+        runInjectBlockButtons();
       }, 500);
     }
     if (isProfilePage()) {
@@ -1180,7 +1100,7 @@ import { runFilterPass } from '../core/filter-engine';
   function start() {
     if (isActivePage()) {
       filterAll();
-      injectBlockButtons();
+      runInjectBlockButtons();
     }
     injectProfileStats();
     maybeShowPermissionBanner();
@@ -1191,7 +1111,7 @@ import { runFilterPass } from '../core/filter-engine';
     const debouncedUpdate = debounce(() => {
       if (isActivePage()) {
         filterAll();
-        injectBlockButtons();
+        runInjectBlockButtons();
       }
       injectProfileStats();
     }, 200);

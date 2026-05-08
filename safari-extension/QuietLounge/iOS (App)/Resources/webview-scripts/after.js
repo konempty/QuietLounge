@@ -30,15 +30,6 @@
   }
   __name(isBlockButtonPage, "isBlockButtonPage");
 
-  // shared/web/core/cleanbot.ts
-  function isCleanbotFiltered(container) {
-    if (!container) return false;
-    if (container.querySelector("[data-slot]")) return false;
-    const text = container.textContent || "";
-    return text.includes("클린봇") && text.includes("감지");
-  }
-  __name(isCleanbotFiltered, "isCleanbotFiltered");
-
   // shared/web/core/block-check.ts
   function isBlocked(data, personaId, nickname) {
     if (!data) return false;
@@ -122,6 +113,94 @@
   }
   __name(filterCarouselCards, "filterCarouselCards");
 
+  // shared/web/core/cleanbot.ts
+  function isCleanbotFiltered(container) {
+    if (!container) return false;
+    if (container.querySelector("[data-slot]")) return false;
+    const text = container.textContent || "";
+    return text.includes("클린봇") && text.includes("감지");
+  }
+  __name(isCleanbotFiltered, "isCleanbotFiltered");
+
+  // shared/web/core/find-persona-id.ts
+  function findPersonaId(container, personaIdForPost) {
+    const profileLink = container.querySelector('a[href^="/profiles/"]');
+    if (profileLink) {
+      const href = profileLink.getAttribute("href");
+      const pid = href ? href.replace("/profiles/", "") : "";
+      if (pid) return pid;
+    }
+    const postLink = container.closest('a[href^="/posts/"]') || container.querySelector('a[href^="/posts/"]') || container.closest(".relative[tabindex]")?.querySelector('a[href^="/posts/"]');
+    if (postLink) {
+      const postId = postLink.getAttribute("href")?.replace("/posts/", "");
+      return postId ? personaIdForPost(postId) : void 0;
+    }
+    const pathMatch = window.location.pathname.match(/^\/posts\/([^/]+)/);
+    if (pathMatch) {
+      const pid = personaIdForPost(pathMatch[1]);
+      if (pid) return pid;
+    }
+    return void 0;
+  }
+  __name(findPersonaId, "findPersonaId");
+
+  // shared/web/core/inject-buttons.ts
+  function injectBlockButtons(adapter, ctx) {
+    if (!isBlockButtonPage()) return;
+    const btnSelector = "." + adapter.buttonClassName;
+    document.querySelectorAll(SEL.profileName).forEach((el) => {
+      if (skipExistingButton(el, btnSelector, adapter)) return;
+      if (isCleanbotFiltered(el.closest(SEL.postContainer) || el.closest(SEL.postLink))) return;
+      const btn = adapter.createButton();
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        const nickname = el.querySelector('[data-slot="profile-name-label"] span.truncate')?.textContent?.trim();
+        if (!nickname) return;
+        const pid = ctx.findPersonaId(el);
+        await adapter.onBlockClick(pid, nickname);
+      });
+      el.appendChild(btn);
+      adapter.onButtonAttached?.(btn);
+    });
+    document.querySelectorAll(SEL.postContainer).forEach((container) => {
+      if (container.querySelector(SEL.profileName)) return;
+      if (isCleanbotFiltered(container)) return;
+      if (skipExistingButton(container, btnSelector, adapter)) return;
+      const postLink = container.querySelector(SEL.postLink) || container.closest(SEL.postLink);
+      if (!postLink) return;
+      const pid = ctx.findPersonaId(container);
+      if (!pid && adapter.pathBMissingPidStrategy === "skip") return;
+      const btn = adapter.createButton();
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        const currentPid = ctx.findPersonaId(container);
+        if (!currentPid) {
+          await adapter.onMissingPersonaId?.();
+          return;
+        }
+        const nickname = ctx.nicknameForPersonaId?.(currentPid) || currentPid;
+        await adapter.onBlockClick(currentPid, nickname);
+      });
+      const firstRow = container.querySelector("a > div");
+      if (firstRow) firstRow.appendChild(btn);
+      else container.appendChild(btn);
+      adapter.onButtonAttached?.(btn);
+    });
+  }
+  __name(injectBlockButtons, "injectBlockButtons");
+  function skipExistingButton(container, btnSelector, adapter) {
+    const existing = container.querySelector(btnSelector);
+    if (!existing) return false;
+    if (adapter.shouldSkipExistingButton?.(existing) ?? true) return true;
+    existing.remove();
+    return false;
+  }
+  __name(skipExistingButton, "skipExistingButton");
+
   // shared/web/entries/ios-after.ts
   (function() {
     "use strict";
@@ -156,72 +235,38 @@
       }
     }
     __name(sendBlockMessage, "sendBlockMessage");
-    function makeBlockBtn() {
-      var btn = document.createElement("button");
-      btn.className = "ql-btn";
-      btn.textContent = "✕";
-      btn.style.cssText = "margin-left:6px;cursor:pointer;opacity:0.5;font-size:16px;border:none;background:rgba(200,50,50,0.12);padding:4px 8px;color:#e74c3c;border-radius:4px;transition:opacity 0.15s;line-height:1;min-width:28px;min-height:28px;display:inline-flex;align-items:center;justify-content:center;";
-      btn.ontouchstart = function() {
-        btn.style.opacity = "1";
-      };
-      btn.ontouchend = function() {
-        btn.style.opacity = "0.5";
-      };
-      return btn;
-    }
-    __name(makeBlockBtn, "makeBlockBtn");
+    const injectButtonsAdapter = {
+      buttonClassName: "ql-btn",
+      pathBMissingPidStrategy: "skip",
+      createButton() {
+        var btn = document.createElement("button");
+        btn.className = "ql-btn";
+        btn.textContent = "✕";
+        btn.style.cssText = "margin-left:6px;cursor:pointer;opacity:0.5;font-size:16px;border:none;background:rgba(200,50,50,0.12);padding:4px 8px;color:#e74c3c;border-radius:4px;transition:opacity 0.15s;line-height:1;min-width:28px;min-height:28px;display:inline-flex;align-items:center;justify-content:center;";
+        btn.ontouchstart = function() {
+          btn.style.opacity = "1";
+        };
+        btn.ontouchend = function() {
+          btn.style.opacity = "0.5";
+        };
+        return btn;
+      },
+      onBlockClick(personaId, nickname) {
+        sendBlockMessage(personaId || null, nickname);
+      }
+    };
     function injectButtons() {
-      if (!isBlockButtonPage()) return;
-      document.querySelectorAll(SEL.profileName).forEach(function(el) {
-        if (el.querySelector(".ql-btn")) return;
-        if (isCleanbotFiltered(el.closest(SEL.postContainer) || el.closest(SEL.postLink))) return;
-        var btn = makeBlockBtn();
-        btn.onclick = function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          var nickname = (el.querySelector('[data-slot="profile-name-label"] span.truncate') || {}).textContent;
-          if (!nickname) return;
-          nickname = nickname.trim();
-          var pid, ql = window.__QL || { personaMap: {} };
-          var profileLink = el.querySelector('a[href^="/profiles/"]');
-          if (profileLink) pid = profileLink.getAttribute("href").replace("/profiles/", "");
-          if (!pid) {
-            var postLink = el.closest('a[href^="/posts/"]') || (el.closest(SEL.postContainer) || {}).querySelector && el.closest(SEL.postContainer).querySelector('a[href^="/posts/"]');
-            if (postLink) {
-              var postId = postLink.getAttribute("href").replace("/posts/", "");
-              if (postId) pid = ql.personaMap[postId];
-            }
-          }
-          if (!pid) {
-            var pm = window.location.pathname.match(/^\/posts\/([^/]+)/);
-            if (pm) pid = ql.personaMap[pm[1]];
-          }
-          sendBlockMessage(pid, nickname);
-        };
-        el.appendChild(btn);
-      });
-      document.querySelectorAll(SEL.postContainer).forEach(function(container) {
-        if (container.querySelector(".ql-btn")) return;
-        if (container.querySelector(SEL.profileName)) return;
-        if (isCleanbotFiltered(container)) return;
-        var postLink = container.querySelector(SEL.postLink) || container.closest(SEL.postLink);
-        if (!postLink) return;
-        var ql = window.__QL || { personaMap: {}, personaCache: {} };
-        var postId = postLink.getAttribute("href").replace("/posts/", "");
-        var pid = postId ? ql.personaMap[postId] : void 0;
-        if (!pid) return;
-        var btn = makeBlockBtn();
-        btn.onclick = function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          var nickname = ql.personaCache[pid] || pid;
-          sendBlockMessage(pid, nickname);
-        };
-        var firstRow = container.querySelector("a > div");
-        if (firstRow) firstRow.appendChild(btn);
-        else container.appendChild(btn);
+      injectBlockButtons(injectButtonsAdapter, {
+        findPersonaId: /* @__PURE__ */ __name(function(container) {
+          var ql = window.__QL || { personaMap: {} };
+          return findPersonaId(container, function(id) {
+            return ql.personaMap[id];
+          });
+        }, "findPersonaId"),
+        nicknameForPersonaId: /* @__PURE__ */ __name(function(pid) {
+          var ql = window.__QL || { personaCache: {} };
+          return ql.personaCache[pid];
+        }, "nicknameForPersonaId")
       });
     }
     __name(injectButtons, "injectButtons");

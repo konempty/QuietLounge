@@ -14,6 +14,8 @@ import { SEL } from '../core/selectors';
 import { isActivePage, isBlockButtonPage } from '../core/pages';
 import { isCleanbotFiltered } from '../core/cleanbot';
 import { runFilterPass } from '../core/filter-engine';
+import { injectBlockButtons, findPersonaId as sharedFindPersonaId } from '../core/inject-buttons';
+import type { InjectButtonsAdapter } from '../platform/adapter';
 // isBlocked / applyStyle 은 runFilterPass 가 내부에서 사용. iOS entry 는 다른 곳에서 직접 호출 안 함.
 // __QL_BLOCK_DATA_PLACEHOLDER__ ambient 식별자는 placeholders.d.ts 가 선언 — `// @ts-nocheck`
 // 가 entry 상단에 있어 명시 import 불필요. esbuild 는 미정의 글로벌을 그대로 통과시킨다.
@@ -53,61 +55,40 @@ import { runFilterPass } from '../core/filter-engine';
     }
   }
 
-  function makeBlockBtn() {
-    var btn = document.createElement('button');
-    btn.className = 'ql-btn';
-    btn.textContent = '✕';
-    btn.style.cssText = 'margin-left:6px;cursor:pointer;opacity:0.5;font-size:16px;border:none;background:rgba(200,50,50,0.12);padding:4px 8px;color:#e74c3c;border-radius:4px;transition:opacity 0.15s;line-height:1;min-width:28px;min-height:28px;display:inline-flex;align-items:center;justify-content:center;';
-    btn.ontouchstart = function() { btn.style.opacity='1'; };
-    btn.ontouchend = function() { btn.style.opacity='0.5'; };
-    return btn;
-  }
+  // ── UI Injector (차단 버튼) ──
+  // 핵심 path A / path B / cleanbot 가드는 shared/web/core/inject-buttons.ts. iOS 책임은 (a) ql-btn
+  // 외형 (b) sendBlockMessage 로 native bridge 호출 — confirm + 실제 차단은 native 측 처리.
+  // path B 의 'skip' strategy: pid 미매핑 시 버튼 자체 미노출 — silent no-op 방지.
+  const injectButtonsAdapter: InjectButtonsAdapter = {
+    buttonClassName: 'ql-btn',
+    pathBMissingPidStrategy: 'skip',
+
+    createButton() {
+      var btn = document.createElement('button');
+      btn.className = 'ql-btn';
+      btn.textContent = '✕';
+      btn.style.cssText = 'margin-left:6px;cursor:pointer;opacity:0.5;font-size:16px;border:none;background:rgba(200,50,50,0.12);padding:4px 8px;color:#e74c3c;border-radius:4px;transition:opacity 0.15s;line-height:1;min-width:28px;min-height:28px;display:inline-flex;align-items:center;justify-content:center;';
+      btn.ontouchstart = function() { btn.style.opacity='1'; };
+      btn.ontouchend = function() { btn.style.opacity='0.5'; };
+      return btn;
+    },
+
+    onBlockClick(personaId, nickname) {
+      // confirm + 실제 차단은 native (Swift) 측 — bridge 메시지만 보내면 끝.
+      sendBlockMessage(personaId || null, nickname);
+    },
+  };
 
   function injectButtons() {
-    if (!isBlockButtonPage()) return;
-    // 방법 A — profile-name 슬롯이 있는 일반 글
-    document.querySelectorAll(SEL.profileName).forEach(function(el) {
-      if (el.querySelector('.ql-btn')) return;
-      // 클린봇 검열 글 — 작성자 정보가 가려진 채 안내문만 있어 차단 의미 없음.
-      if (isCleanbotFiltered(el.closest(SEL.postContainer) || el.closest(SEL.postLink))) return;
-      var btn = makeBlockBtn();
-      btn.onclick = function(e) {
-        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        var nickname = (el.querySelector('[data-slot="profile-name-label"] span.truncate')||{}).textContent;
-        if (!nickname) return; nickname = nickname.trim();
-        var pid, ql = window.__QL || { personaMap: {} };
-        var profileLink = el.querySelector('a[href^="/profiles/"]');
-        if (profileLink) pid = profileLink.getAttribute('href').replace('/profiles/','');
-        if (!pid) {
-          var postLink = el.closest('a[href^="/posts/"]') || (el.closest(SEL.postContainer)||{}).querySelector && el.closest(SEL.postContainer).querySelector('a[href^="/posts/"]');
-          if (postLink) { var postId = postLink.getAttribute('href').replace('/posts/',''); if (postId) pid = ql.personaMap[postId]; }
-        }
-        if (!pid) { var pm = window.location.pathname.match(/^\/posts\/([^/]+)/); if (pm) pid = ql.personaMap[pm[1]]; }
-        sendBlockMessage(pid, nickname);
-      };
-      el.appendChild(btn);
-    });
-    // 방법 B — profile-name 슬롯이 없는 카드 (주간 베스트 등). personaId 가 매핑돼 있어야 차단 가능.
-    // pid 가 안 잡힌 카드엔 버튼 자체를 만들지 않음 — 눌러도 반응 없는 silent no-op 방지.
-    // personaMap 이 채워지면 다음 injectButtons() 호출 (스크롤/네비게이션 debounce) 때 자동 등장.
-    document.querySelectorAll(SEL.postContainer).forEach(function(container) {
-      if (container.querySelector('.ql-btn')) return;
-      if (container.querySelector(SEL.profileName)) return; // 방법 A 가 처리
-      if (isCleanbotFiltered(container)) return;
-      var postLink = container.querySelector(SEL.postLink) || container.closest(SEL.postLink);
-      if (!postLink) return;
-      var ql = window.__QL || { personaMap: {}, personaCache: {} };
-      var postId = postLink.getAttribute('href').replace('/posts/','');
-      var pid = postId ? ql.personaMap[postId] : undefined;
-      if (!pid) return; // 매핑 없는 카드는 버튼 미노출
-      var btn = makeBlockBtn();
-      btn.onclick = function(e) {
-        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
-        var nickname = ql.personaCache[pid] || pid;
-        sendBlockMessage(pid, nickname);
-      };
-      var firstRow = container.querySelector('a > div');
-      if (firstRow) firstRow.appendChild(btn); else container.appendChild(btn);
+    injectBlockButtons(injectButtonsAdapter, {
+      findPersonaId: function (container) {
+        var ql = window.__QL || { personaMap: {} };
+        return sharedFindPersonaId(container, function (id) { return ql.personaMap[id]; });
+      },
+      nicknameForPersonaId: function (pid) {
+        var ql = window.__QL || { personaCache: {} };
+        return ql.personaCache[pid];
+      },
     });
   }
 

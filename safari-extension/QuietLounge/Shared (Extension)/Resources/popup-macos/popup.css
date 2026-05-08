@@ -17,8 +17,13 @@
   box-sizing: border-box;
 }
 
+/* macOS 의 elastic overscroll (rubber band) 이 popup boundary 에서 buffer 영역을 노출하는
+   동안 wheel delta 가 그 bounce 에 흡수되고, 손 떼면 누적분이 한꺼번에 적용돼서 "덜덜거리다
+   휙" 점프하는 것처럼 보이는 버그가 있었다. overscroll-behavior-y: none 으로 bounce 자체를
+   끈다. (contain 은 scroll chaining 만 막고 bounce 는 그대로라 효과 없음 — none 이 필요.) */
 html {
   background: #1a1a1a;
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -29,6 +34,7 @@ body {
   background: #1a1a1a;
   color: #e0e0e0;
   font-size: 14px;
+  overscroll-behavior-y: none;
 }
 
 .container {

@@ -35,15 +35,6 @@
   }
   __name(isBlockButtonPage, "isBlockButtonPage");
 
-  // shared/web/core/cleanbot.ts
-  function isCleanbotFiltered(container) {
-    if (!container) return false;
-    if (container.querySelector("[data-slot]")) return false;
-    const text = container.textContent || "";
-    return text.includes("클린봇") && text.includes("감지");
-  }
-  __name(isCleanbotFiltered, "isCleanbotFiltered");
-
   // shared/web/core/block-check.ts
   function isBlocked(data, personaId, nickname) {
     if (!data) return false;
@@ -126,6 +117,94 @@
     return blocked;
   }
   __name(filterCarouselCards, "filterCarouselCards");
+
+  // shared/web/core/cleanbot.ts
+  function isCleanbotFiltered(container) {
+    if (!container) return false;
+    if (container.querySelector("[data-slot]")) return false;
+    const text = container.textContent || "";
+    return text.includes("클린봇") && text.includes("감지");
+  }
+  __name(isCleanbotFiltered, "isCleanbotFiltered");
+
+  // shared/web/core/find-persona-id.ts
+  function findPersonaId(container, personaIdForPost) {
+    const profileLink = container.querySelector('a[href^="/profiles/"]');
+    if (profileLink) {
+      const href = profileLink.getAttribute("href");
+      const pid = href ? href.replace("/profiles/", "") : "";
+      if (pid) return pid;
+    }
+    const postLink = container.closest('a[href^="/posts/"]') || container.querySelector('a[href^="/posts/"]') || container.closest(".relative[tabindex]")?.querySelector('a[href^="/posts/"]');
+    if (postLink) {
+      const postId = postLink.getAttribute("href")?.replace("/posts/", "");
+      return postId ? personaIdForPost(postId) : void 0;
+    }
+    const pathMatch = window.location.pathname.match(/^\/posts\/([^/]+)/);
+    if (pathMatch) {
+      const pid = personaIdForPost(pathMatch[1]);
+      if (pid) return pid;
+    }
+    return void 0;
+  }
+  __name(findPersonaId, "findPersonaId");
+
+  // shared/web/core/inject-buttons.ts
+  function injectBlockButtons(adapter, ctx) {
+    if (!isBlockButtonPage()) return;
+    const btnSelector = "." + adapter.buttonClassName;
+    document.querySelectorAll(SEL.profileName).forEach((el) => {
+      if (skipExistingButton(el, btnSelector, adapter)) return;
+      if (isCleanbotFiltered(el.closest(SEL.postContainer) || el.closest(SEL.postLink))) return;
+      const btn = adapter.createButton();
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        const nickname = el.querySelector('[data-slot="profile-name-label"] span.truncate')?.textContent?.trim();
+        if (!nickname) return;
+        const pid = ctx.findPersonaId(el);
+        await adapter.onBlockClick(pid, nickname);
+      });
+      el.appendChild(btn);
+      adapter.onButtonAttached?.(btn);
+    });
+    document.querySelectorAll(SEL.postContainer).forEach((container) => {
+      if (container.querySelector(SEL.profileName)) return;
+      if (isCleanbotFiltered(container)) return;
+      if (skipExistingButton(container, btnSelector, adapter)) return;
+      const postLink = container.querySelector(SEL.postLink) || container.closest(SEL.postLink);
+      if (!postLink) return;
+      const pid = ctx.findPersonaId(container);
+      if (!pid && adapter.pathBMissingPidStrategy === "skip") return;
+      const btn = adapter.createButton();
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        const currentPid = ctx.findPersonaId(container);
+        if (!currentPid) {
+          await adapter.onMissingPersonaId?.();
+          return;
+        }
+        const nickname = ctx.nicknameForPersonaId?.(currentPid) || currentPid;
+        await adapter.onBlockClick(currentPid, nickname);
+      });
+      const firstRow = container.querySelector("a > div");
+      if (firstRow) firstRow.appendChild(btn);
+      else container.appendChild(btn);
+      adapter.onButtonAttached?.(btn);
+    });
+  }
+  __name(injectBlockButtons, "injectBlockButtons");
+  function skipExistingButton(container, btnSelector, adapter) {
+    const existing = container.querySelector(btnSelector);
+    if (!existing) return false;
+    if (adapter.shouldSkipExistingButton?.(existing) ?? true) return true;
+    existing.remove();
+    return false;
+  }
+  __name(skipExistingButton, "skipExistingButton");
 
   // shared/web/entries/safari-ext.ts
   (function() {
@@ -324,26 +403,6 @@
       browser.runtime.sendMessage({ type: "UPDATE_BADGE", count: totalBlocked });
     }
     __name(filterAll, "filterAll");
-    function findPersonaId(container) {
-      let pid;
-      const profileLink = container.querySelector('a[href^="/profiles/"]');
-      if (profileLink) {
-        pid = profileLink.getAttribute("href")?.replace("/profiles/", "");
-      }
-      if (!pid) {
-        const postLink = container.closest('a[href^="/posts/"]') || container.querySelector('a[href^="/posts/"]') || container.closest(".relative[tabindex]")?.querySelector('a[href^="/posts/"]');
-        if (postLink) {
-          const postId = postLink.getAttribute("href")?.replace("/posts/", "");
-          if (postId) pid = personaMap.get(postId);
-        }
-      }
-      if (!pid) {
-        const pathMatch = window.location.pathname.match(/^\/posts\/([^/]+)/);
-        if (pathMatch) pid = personaMap.get(pathMatch[1]);
-      }
-      return pid;
-    }
-    __name(findPersonaId, "findPersonaId");
     const QL_TAP_THROUGH_GUARD_MS = 350;
     function qlConfirm(message) {
       return new Promise((resolve) => {
@@ -394,104 +453,61 @@
       });
     }
     __name(qlConfirm, "qlConfirm");
-    function createBlockBtn() {
-      const btn = document.createElement("button");
-      btn.className = "quiet-lounge-btn";
-      btn.textContent = "✕";
-      btn.title = "이 유저 차단";
-      btn.style.cssText = "margin-left:6px;cursor:pointer;opacity:0.6;font-size:12px;border:1px solid rgba(255,80,80,0.3);background:rgba(255,80,80,0.08);padding:1px 5px;line-height:1.2;color:#ff5050;border-radius:4px;vertical-align:middle;transition:all 0.15s;position:relative;z-index:10;";
-      btn.addEventListener("mouseenter", () => {
-        btn.style.opacity = "1";
-        btn.style.background = "rgba(255,80,80,0.2)";
-        btn.style.borderColor = "rgba(255,80,80,0.6)";
-      });
-      btn.addEventListener("mouseleave", () => {
-        btn.style.opacity = "0.6";
-        btn.style.background = "rgba(255,80,80,0.08)";
-        btn.style.borderColor = "rgba(255,80,80,0.3)";
-      });
-      btn.addEventListener(
-        "mousedown",
-        (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-        },
-        true
-      );
-      btn.addEventListener(
-        "pointerdown",
-        (e) => {
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-        },
-        true
-      );
-      return btn;
-    }
-    __name(createBlockBtn, "createBlockBtn");
     const liveButtons = /* @__PURE__ */ new WeakSet();
-    function injectBlockButtons() {
-      if (!isBlockButtonPage()) return;
-      document.querySelectorAll(SEL.profileName).forEach((el) => {
-        const existing = el.querySelector(".quiet-lounge-btn");
-        if (existing && liveButtons.has(existing)) return;
-        if (existing) existing.remove();
-        if (isCleanbotFiltered(el.closest(SEL.postContainer) || el.closest(SEL.postLink))) return;
-        const btn = createBlockBtn();
-        liveButtons.add(btn);
-        btn.addEventListener("click", async (e) => {
+    const injectButtonsAdapter = {
+      buttonClassName: "quiet-lounge-btn",
+      pathBMissingPidStrategy: "show-error",
+      createButton() {
+        const btn = document.createElement("button");
+        btn.className = "quiet-lounge-btn";
+        btn.textContent = "✕";
+        btn.title = "이 유저 차단";
+        btn.style.cssText = "margin-left:6px;cursor:pointer;opacity:0.6;font-size:12px;border:1px solid rgba(255,80,80,0.3);background:rgba(255,80,80,0.08);padding:1px 5px;line-height:1.2;color:#ff5050;border-radius:4px;vertical-align:middle;transition:all 0.15s;position:relative;z-index:10;";
+        btn.addEventListener("mouseenter", () => {
+          btn.style.opacity = "1";
+          btn.style.background = "rgba(255,80,80,0.2)";
+          btn.style.borderColor = "rgba(255,80,80,0.6)";
+        });
+        btn.addEventListener("mouseleave", () => {
+          btn.style.opacity = "0.6";
+          btn.style.background = "rgba(255,80,80,0.08)";
+          btn.style.borderColor = "rgba(255,80,80,0.3)";
+        });
+        btn.addEventListener("mousedown", (e) => {
           e.preventDefault();
           e.stopPropagation();
           e.stopImmediatePropagation();
-          const nickname = el.querySelector('[data-slot="profile-name-label"] span.truncate')?.textContent?.trim();
-          if (!nickname) return;
-          const pid = findPersonaId(el);
-          if (await qlConfirm(`"${nickname}" 유저를 차단하시겠습니까?`)) {
-            await blockUser(pid, nickname);
-            filterAll();
-            injectBlockButtons();
-            await maybeShowFilterModeHint();
-          }
-        });
-        el.appendChild(btn);
-      });
-      document.querySelectorAll(SEL.postContainer).forEach((container) => {
-        if (container.querySelector(SEL.profileName)) return;
-        if (isCleanbotFiltered(container)) return;
-        const existing = container.querySelector(".quiet-lounge-btn");
-        if (existing && liveButtons.has(existing)) return;
-        if (existing) existing.remove();
-        const postLink = container.querySelector(SEL.postLink) || container.closest(SEL.postLink);
-        if (!postLink) return;
-        const btn = createBlockBtn();
-        liveButtons.add(btn);
-        btn.addEventListener("click", async (e) => {
-          e.preventDefault();
+        }, true);
+        btn.addEventListener("pointerdown", (e) => {
           e.stopPropagation();
           e.stopImmediatePropagation();
-          const pid = findPersonaId(container);
-          const nickname = pid ? personaCache.get(pid) : null;
-          if (!pid) {
-            await qlConfirm("personaId를 찾을 수 없습니다. 글 상세 페이지에서 차단해주세요.");
-            return;
-          }
-          if (await qlConfirm(`"${nickname || pid}" 유저를 차단하시겠습니까?`)) {
-            await blockUser(pid, nickname || "");
-            filterAll();
-            injectBlockButtons();
-            await maybeShowFilterModeHint();
-          }
-        });
-        const firstRow = container.querySelector("a > div");
-        if (firstRow) {
-          firstRow.appendChild(btn);
-        } else {
-          container.appendChild(btn);
-        }
+        }, true);
+        return btn;
+      },
+      shouldSkipExistingButton(existing) {
+        return liveButtons.has(existing);
+      },
+      onButtonAttached(btn) {
+        liveButtons.add(btn);
+      },
+      async onBlockClick(personaId, nickname) {
+        if (!await qlConfirm(`"${nickname}" 유저를 차단하시겠습니까?`)) return;
+        await blockUser(personaId, nickname);
+        filterAll();
+        runInjectBlockButtons();
+        await maybeShowFilterModeHint();
+      },
+      async onMissingPersonaId() {
+        await qlConfirm("personaId를 찾을 수 없습니다. 글 상세 페이지에서 차단해주세요.");
+      }
+    };
+    function runInjectBlockButtons() {
+      injectBlockButtons(injectButtonsAdapter, {
+        findPersonaId: /* @__PURE__ */ __name((container) => findPersonaId(container, (id) => personaMap.get(id)), "findPersonaId"),
+        nicknameForPersonaId: /* @__PURE__ */ __name((pid) => personaCache.get(pid)?.nickname, "nicknameForPersonaId")
       });
     }
-    __name(injectBlockButtons, "injectBlockButtons");
+    __name(runInjectBlockButtons, "runInjectBlockButtons");
     let lastPath = window.location.pathname;
     function watchNavigation() {
       window.addEventListener("popstate", onNavigate);
@@ -522,7 +538,7 @@
       if (isActivePage()) {
         setTimeout(() => {
           filterAll();
-          injectBlockButtons();
+          runInjectBlockButtons();
         }, 500);
       }
       if (isProfilePage()) {
@@ -1064,7 +1080,7 @@
     function start() {
       if (isActivePage()) {
         filterAll();
-        injectBlockButtons();
+        runInjectBlockButtons();
       }
       injectProfileStats();
       maybeShowPermissionBanner();
@@ -1072,7 +1088,7 @@
       const debouncedUpdate = debounce(() => {
         if (isActivePage()) {
           filterAll();
-          injectBlockButtons();
+          runInjectBlockButtons();
         }
         injectProfileStats();
       }, 200);

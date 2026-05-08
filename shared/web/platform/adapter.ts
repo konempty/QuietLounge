@@ -46,6 +46,47 @@ export interface BtnClassAdapter {
   applyHoverState?(btn: HTMLElement, hovered: boolean): void;
 }
 
+/**
+ * 차단 버튼 inject — 4 플랫폼 차이를 흡수하는 본격 어댑터.
+ *
+ * shared `injectBlockButtons(adapter, ctx)` 는 path A / path B / cleanbot 가드 / DOM iteration
+ * 같은 100% 동일 부분만 처리하고, 나머지는 모두 adapter 에 위임:
+ *   - 버튼 DOM 생성 (className / 스타일 / hover-touch event 모두 포함)
+ *   - 클릭 시 차단 flow (confirm + block + filter-mode hint 등 — 플랫폼별 통째로)
+ *   - path B 에서 personaId 미매핑 처리 정책 (Chrome/Safari = error 안내 / iOS/Android = 버튼 미노출)
+ *   - bfcache 같은 platform-specific 가드 (Safari ext 의 liveButtons WeakSet)
+ */
+export interface InjectButtonsAdapter {
+  /** 버튼의 className. cleanbot 가드 / "이미 버튼 있음" 체크에 사용. */
+  buttonClassName: string;
+
+  /** 버튼 DOM 생성 — className / 스타일 / hover/touch 이벤트 wiring 모두 adapter 책임.
+   *  click handler 는 shared 측이 등록하므로 여기서 만들지 말 것. */
+  createButton(): HTMLElement;
+
+  /** 사용자가 버튼을 누른 시점 — confirm + block + filterAll + maybeShowFilterModeHint 등
+   *  post-block 후처리까지 플랫폼이 통째로 처리. iOS/Android 는 native bridge 호출만 하고 native 측이 confirm. */
+  onBlockClick(personaId: string | undefined, nickname: string): void | Promise<void>;
+
+  /**
+   * Path B 에서 personaId 매핑이 안 잡힌 경우 어떻게 할지.
+   * - `'show-error'`: 버튼은 만들고, 클릭 시 [onMissingPersonaId] 호출 (Chrome/Safari 패턴).
+   * - `'skip'`: 버튼 자체 미노출 — silent no-op 방지. personaMap 채워지면 다음 호출 때 자동 등장
+   *   (iOS/Android 패턴, 현재로선 native bridge 가 nickname-only 차단을 지원 안 함).
+   */
+  pathBMissingPidStrategy: 'show-error' | 'skip';
+
+  /** Path B 에서 pid 없을 때 사용자 안내. `pathBMissingPidStrategy === 'show-error'` 일 때만 호출됨. */
+  onMissingPersonaId?(): void | Promise<void>;
+
+  /** 이미 등록된 버튼이 있을 때 skip 할지. Safari ext 의 bfcache liveButtons 가드용 — 핸들러가 죽었으면
+   *  false 반환 → 제거 후 새로 등록. 미구현 시 default 는 항상 skip (Chrome / iOS / Android). */
+  shouldSkipExistingButton?(existingButton: Element): boolean;
+
+  /** 새 버튼이 DOM 에 부착된 후 호출 — Safari ext 가 liveButtons WeakSet 에 추가하는 hook. */
+  onButtonAttached?(button: HTMLElement): void;
+}
+
 /** 4 종 어댑터를 한 번에 주입하는 컨테이너. 후속 PR shared 함수의 setup 시그너처로 사용 예정. */
 export interface PlatformAdapter {
   storage: StorageAdapter;
