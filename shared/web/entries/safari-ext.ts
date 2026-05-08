@@ -7,14 +7,18 @@
 //
 // Tier 1 공유 함수만 shared/web/core 에서 import. 나머지는 후속 PR 에서 chunk 별 마이그레이션.
 
-import { SEL } from '../core/selectors';
 import { STORAGE_KEY, FILTER_MODE_KEY, DONT_SHOW_FILTER_HINT_KEY } from '../core/storage-keys';
-import { isActivePage, isBlockButtonPage } from '../core/pages';
-import { isCleanbotFiltered } from '../core/cleanbot';
+import { isActivePage } from '../core/pages';
 import { isBlocked as sharedIsBlocked } from '../core/block-check';
 import { runFilterPass } from '../core/filter-engine';
 import { injectBlockButtons, findPersonaId as sharedFindPersonaId } from '../core/inject-buttons';
-import type { InjectButtonsAdapter } from '../platform/adapter';
+import {
+  injectProfileStats as sharedInjectProfileStats,
+  resetProfileStatsCache as sharedResetProfileStatsCache,
+  fetchAndStoreMyStats as sharedFetchAndStoreMyStats,
+  isProfilePage as sharedIsProfilePage,
+} from '../core/profile-stats';
+import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adapter';
 
 (function () {
   'use strict';
@@ -446,8 +450,7 @@ import type { InjectButtonsAdapter } from '../platform/adapter';
     lastPath = newPath;
 
     // 페이지 전환 시 프로필 통계 캐시 리셋
-    profileStatsCache = { personaId: null, stats: null, monthlyPosts: null, monthlyComments: null };
-    stopProfileStatsGuard();
+    sharedResetProfileStatsCache();
 
     if (isActivePage()) {
       setTimeout(() => {
@@ -455,8 +458,8 @@ import type { InjectButtonsAdapter } from '../platform/adapter';
         runInjectBlockButtons();
       }, 500);
     }
-    if (isProfilePage()) {
-      setTimeout(() => injectProfileStats(), 500);
+    if (sharedIsProfilePage()) {
+      setTimeout(() => sharedInjectProfileStats(profileStatsAdapter), 500);
     }
   }
 
@@ -479,365 +482,21 @@ import type { InjectButtonsAdapter } from '../platform/adapter';
     }
   });
 
-  // ── 프로필 통계 ──
-  function isProfilePage() {
-    return window.location.pathname.startsWith('/profiles/');
-  }
-
-  function getProfilePersonaId() {
-    const match = window.location.pathname.match(/^\/profiles\/([^/?]+)/);
-    return match ? match[1] : null;
-  }
-
-  async function fetchPersonaStats(personaId) {
-    try {
-      const resp = await fetch(`https://api.lounge.naver.com/user-api/v1/personas/${personaId}`, {
-        credentials: 'include',
-      });
-      if (!resp.ok) return null;
-      const json = await resp.json();
-      return json.data;
-    } catch {
-      return null;
-    }
-  }
-
-  async function fetchMonthlyCount(personaId, type) {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    let count = 0;
-    let cursor = '';
-    const isComments = type === 'comments';
-
-    for (let page = 0; page < 50; page++) {
-      try {
-        // 1단계: activities API로 ID 목록
-        const actUrl = `https://api.lounge.naver.com/user-api/v1/personas/${personaId}/activities/${type}?limit=100${cursor ? `&cursor=${cursor}` : ''}`;
-        const actResp = await fetch(actUrl, { credentials: 'include' });
-        if (!actResp.ok) break;
-        const actJson = await actResp.json();
-        const items = actJson.data?.items || [];
-        if (items.length === 0) break;
-
-        // 2단계: content API로 날짜 조회
-        let hasThisMonth = false;
-
-        if (isComments) {
-          // 댓글: commentNoList 파라미터, rawResponse 안에 commentList
-          const ids = items.map((item) => item.commentId);
-          const params = ids.map((id) => `commentNoList=${id}`).join('&');
-          const detailResp = await fetch(
-            `https://api.lounge.naver.com/content-api/v1/comments?${params}`,
-            { credentials: 'include' },
-          );
-          if (!detailResp.ok) break;
-          const detailJson = await detailResp.json();
-          const raw = detailJson.data?.rawResponse;
-          const parsed = raw ? JSON.parse(raw) : null;
-          const commentList = parsed?.result?.commentList || [];
-
-          for (const comment of commentList) {
-            const dateStr = comment.regTimeGmt || '';
-            if (dateStr && new Date(dateStr) >= monthStart) {
-              count++;
-              hasThisMonth = true;
-            }
-          }
-        } else {
-          // 글: postIds 파라미터, data 배열
-          const ids = items.map((item) => item.postId);
-          const params = ids.map((id) => `postIds=${id}`).join('&');
-          const detailResp = await fetch(
-            `https://api.lounge.naver.com/content-api/v1/posts?${params}`,
-            { credentials: 'include' },
-          );
-          if (!detailResp.ok) break;
-          const detailJson = await detailResp.json();
-          const details = Array.isArray(detailJson.data) ? detailJson.data : [];
-
-          for (const item of details) {
-            const dateStr = item.createTime || '';
-            if (dateStr && new Date(dateStr) >= monthStart) {
-              count++;
-              hasThisMonth = true;
-            }
-          }
-        }
-
-        if (!hasThisMonth) break;
-        if (!actJson.data?.cursorInfo?.hasNext) break;
-        cursor = actJson.data?.cursorInfo?.endCursor || '';
-        if (!cursor) break;
-      } catch {
-        break;
-      }
-    }
-    return count;
-  }
-
-  // 프로필 통계 캐시 (SPA 리렌더링으로 DOM이 제거되어도 재삽입 시 API 재호출 방지)
-  let profileStatsCache = {
-    personaId: null,
-    stats: null,
-    monthlyPosts: null,
-    monthlyComments: null,
+  // ── 프로필 통계 (shared/web/core/profile-stats 로 이전. 어댑터만 entry 에 둠) ──
+  const profileStatsAdapter: ProfileStatsAdapter = {
+    qlPrimaryColor: QL_PRIMARY,
+    saveOwnerPersonaId(personaId) {
+      safariSet({ quiet_lounge_my_persona_id: personaId });
+    },
+    saveMyStats(stats) {
+      safariSet({ quiet_lounge_my_stats: JSON.stringify(stats) });
+    },
+    removeMyStats() {
+      QLStorage.remove('quiet_lounge_my_stats');
+    },
   };
 
-  let profileStatsRafId = null;
-
-  function buildProfileStatsHtml() {
-    const stats = profileStatsCache.stats;
-    const totalPosts = stats.totalPostCount || 0;
-    const totalComments = stats.totalCommentCount || 0;
-    const mp = profileStatsCache.monthlyPosts;
-    const mc = profileStatsCache.monthlyComments;
-    const spinner =
-      `<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:${QL_PRIMARY};border-radius:50%;animation:ql-spin 0.8s linear infinite;vertical-align:middle;"></span>`;
-    const monthlyPostsText = mp !== null ? mp : spinner;
-    const monthlyCommentsText = mc !== null ? mc : spinner;
-
-    return `<div style="font-weight:600;font-size:14px;margin-bottom:10px;color:${QL_PRIMARY};">활동 통계</div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">
-<div style="font-size:20px;font-weight:700;">${totalPosts}</div>
-<div style="font-size:11px;opacity:0.7;margin-top:2px;">총 작성글</div></div>
-<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">
-<div style="font-size:20px;font-weight:700;">${totalComments}</div>
-<div style="font-size:11px;opacity:0.7;margin-top:2px;">총 댓글</div></div>
-<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">
-<div style="font-size:20px;font-weight:700;">${monthlyPostsText}</div>
-<div style="font-size:11px;opacity:0.7;margin-top:2px;">이번달 작성글</div></div>
-<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">
-<div style="font-size:20px;font-weight:700;">${monthlyCommentsText}</div>
-<div style="font-size:11px;opacity:0.7;margin-top:2px;">이번달 댓글</div></div></div>`;
-  }
-
-  // 스피너 애니메이션 CSS (1회만 주입)
-  if (!document.getElementById('ql-spinner-style')) {
-    const style = document.createElement('style');
-    style.id = 'ql-spinner-style';
-    style.textContent = '@keyframes ql-spin { to { transform: rotate(360deg); } }';
-    document.head.appendChild(style);
-  }
-
-  function insertProfileStatsBox() {
-    if (document.getElementById('ql-profile-stats')) return;
-    const tabsEl = document.querySelector('[data-slot="tabs"]');
-    if (!tabsEl) return;
-    const box = document.createElement('div');
-    box.id = 'ql-profile-stats';
-    box.style.cssText =
-      'margin:12px 20px 0;padding:14px 16px;background:rgba(74,108,247,0.08);border:1px solid rgba(74,108,247,0.2);border-radius:10px;font-size:13px;color:var(--color-neutral-foreground-default,#e0e0e0);';
-    box.innerHTML = buildProfileStatsHtml();
-    tabsEl.before(box);
-  }
-
-  // 처음 3초간 rAF 폴링 (프로그레스 바 애니메이션 대응), 이후 debounced MutationObserver로 전환
-  let profileStatsObserver = null;
-
-  function startProfileStatsGuard() {
-    stopProfileStatsGuard();
-
-    // Phase 1: rAF 폴링 (3초간)
-    const startTime = Date.now();
-    function tick() {
-      if (!isProfilePage() || !profileStatsCache.stats) {
-        profileStatsRafId = null;
-        return;
-      }
-      insertProfileStatsBox();
-
-      if (Date.now() - startTime < 3000) {
-        profileStatsRafId = requestAnimationFrame(tick);
-      } else {
-        // Phase 2: MutationObserver로 전환
-        profileStatsRafId = null;
-        profileStatsObserver = new MutationObserver(
-          debounce(() => {
-            if (isProfilePage() && profileStatsCache.stats) {
-              insertProfileStatsBox();
-            }
-          }, 100),
-        );
-        profileStatsObserver.observe(document.body, { childList: true, subtree: true });
-      }
-    }
-    profileStatsRafId = requestAnimationFrame(tick);
-  }
-
-  function stopProfileStatsGuard() {
-    if (profileStatsRafId) {
-      cancelAnimationFrame(profileStatsRafId);
-      profileStatsRafId = null;
-    }
-    if (profileStatsObserver) {
-      profileStatsObserver.disconnect();
-      profileStatsObserver = null;
-    }
-  }
-
-  function injectProfileStats() {
-    if (!isProfilePage()) return;
-
-    const personaId = getProfilePersonaId();
-    if (!personaId) return;
-
-    // 캐시가 있으면 폴링 시작 (즉시 삽입 + 리렌더링 대응)
-    if (profileStatsCache.personaId === personaId && profileStatsCache.stats) {
-      startProfileStatsGuard();
-      return;
-    }
-
-    // 캐시 없으면 API 호출 (초기 1회)
-    fetchPersonaStats(personaId).then((stats) => {
-      if (!stats) return;
-
-      if (stats.isOwner) {
-        safariSet({ quiet_lounge_my_persona_id: personaId });
-      }
-
-      profileStatsCache = { personaId, stats, monthlyPosts: null, monthlyComments: null };
-
-      // 이번달 카운트 계산
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const createTime = stats.createTime ? new Date(stats.createTime) : null;
-      const createdThisMonth = createTime && createTime >= monthStart;
-
-      if (createdThisMonth) {
-        profileStatsCache.monthlyPosts = stats.totalPostCount || 0;
-        profileStatsCache.monthlyComments = stats.totalCommentCount || 0;
-      } else {
-        fetchMonthlyCount(personaId, 'posts').then((count) => {
-          profileStatsCache.monthlyPosts = count;
-          const el = document.getElementById('ql-profile-stats');
-          if (el) el.innerHTML = buildProfileStatsHtml();
-        });
-        fetchMonthlyCount(personaId, 'comments').then((count) => {
-          profileStatsCache.monthlyComments = count;
-          const el = document.getElementById('ql-profile-stats');
-          if (el) el.innerHTML = buildProfileStatsHtml();
-        });
-      }
-
-      startProfileStatsGuard();
-    });
-  }
-
-  // ── 내 통계 조회 → storage 저장 ──
-  function saveMyStats(statsObj) {
-    safariSet({
-      quiet_lounge_my_stats: JSON.stringify(statsObj),
-    });
-  }
-
-  async function fetchAndStoreMyStats() {
-    try {
-      // 1단계: me API로 personaId 확인
-      const meResp = await fetch('https://api.lounge.naver.com/user-api/v1/members/me/personas', {
-        credentials: 'include',
-      });
-      if (!meResp.ok) {
-        QLStorage.remove('quiet_lounge_my_stats');
-        return;
-      }
-      const meJson = await meResp.json();
-      const meData = Array.isArray(meJson.data) ? meJson.data[0] : meJson.data;
-      if (!meData?.personaId) return;
-
-      const personaId = meData.personaId;
-      safariSet({ quiet_lounge_my_persona_id: personaId });
-
-      // 2단계: personas API로 총 글/댓글 수 조회
-      let totalPosts = 0;
-      let totalComments = 0;
-      let nickname = meData.nickname || '';
-      let createTime = meData.createTime ? new Date(meData.createTime) : null;
-
-      try {
-        const statsResp = await fetch(
-          `https://api.lounge.naver.com/user-api/v1/personas/${personaId}`,
-          { credentials: 'include' },
-        );
-        if (statsResp.ok) {
-          const statsJson = await statsResp.json();
-          const sData = statsJson.data;
-          if (sData) {
-            totalPosts = sData.totalPostCount || 0;
-            totalComments = sData.totalCommentCount || 0;
-            nickname = sData.nickname || nickname;
-            createTime = sData.createTime ? new Date(sData.createTime) : createTime;
-          }
-        }
-      } catch {
-        // personas API 실패 시 activities API로 총 수 조회
-        try {
-          const postsResp = await fetch(
-            `https://api.lounge.naver.com/user-api/v1/personas/${personaId}/activities/posts?limit=1`,
-            { credentials: 'include' },
-          );
-          if (postsResp.ok) {
-            const pJson = await postsResp.json();
-            totalPosts = pJson.data?.totalPostCount || 0;
-          }
-          const commentsResp = await fetch(
-            `https://api.lounge.naver.com/user-api/v1/personas/${personaId}/activities/comments?limit=1`,
-            { credentials: 'include' },
-          );
-          if (commentsResp.ok) {
-            const cJson = await commentsResp.json();
-            totalComments = cJson.data?.totalCommentCount || cJson.data?.totalCount || 0;
-          }
-        } catch {
-          // 둘 다 실패
-        }
-      }
-
-      const now = new Date();
-
-      // 총 수를 먼저 저장 (팝업에 바로 반영)
-      const stats = {
-        personaId,
-        nickname,
-        totalPosts,
-        totalComments,
-        monthlyPosts: '...',
-        monthlyComments: '...',
-        updatedAt: now.toISOString(),
-      };
-      saveMyStats(stats);
-
-      // 이번달 카운트 계산
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const createdThisMonth = createTime && createTime >= monthStart;
-
-      if (createdThisMonth) {
-        stats.monthlyPosts = totalPosts;
-        stats.monthlyComments = totalComments;
-        saveMyStats(stats);
-      } else {
-        // 각각 독립적으로 로드하여 먼저 완료되는 것부터 반영
-        fetchMonthlyCount(personaId, 'posts')
-          .then((count) => {
-            stats.monthlyPosts = count;
-          })
-          .catch(() => {
-            stats.monthlyPosts = '?';
-          })
-          .finally(() => saveMyStats(stats));
-        fetchMonthlyCount(personaId, 'comments')
-          .then((count) => {
-            stats.monthlyComments = count;
-          })
-          .catch(() => {
-            stats.monthlyComments = '?';
-          })
-          .finally(() => saveMyStats(stats));
-      }
-    } catch {
-      // 조회 실패 무시
-    }
-  }
+  // 아래는 마이그레이션 전 inline 구현. 다음 sed 에서 통째 제거.
 
   // ── 키워드 알림 (macOS Safari 전용) ──
   // Safari Web Extension은 browser.notifications API 미구현, popup origin은
@@ -1000,7 +659,7 @@ import type { InjectButtonsAdapter } from '../platform/adapter';
   // 팝업 갱신 + 키워드 알림 메시지 수신
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'REFRESH_MY_STATS') {
-      fetchAndStoreMyStats();
+      sharedFetchAndStoreMyStats(profileStatsAdapter);
       return;
     }
     if (message.type === 'QL_SHOW_NOTIFICATION') {
@@ -1054,7 +713,7 @@ import type { InjectButtonsAdapter } from '../platform/adapter';
         // 통계 갱신 요청 감지
         if (result.quiet_lounge_refresh_stats) {
           await QLStorage.remove('quiet_lounge_refresh_stats');
-          fetchAndStoreMyStats();
+          sharedFetchAndStoreMyStats(profileStatsAdapter);
         }
       } catch {
         // 조회 실패 무시
@@ -1081,7 +740,7 @@ import type { InjectButtonsAdapter } from '../platform/adapter';
     await loadBlockData();
 
     // 내 통계 자동 갱신 (라운지 접속 시마다)
-    fetchAndStoreMyStats();
+    sharedFetchAndStoreMyStats(profileStatsAdapter);
 
     // API 인터셉터는 모든 페이지에서 설치 (personaId 수집은 어디서든)
     installApiInterceptor();
@@ -1102,22 +761,21 @@ import type { InjectButtonsAdapter } from '../platform/adapter';
       filterAll();
       runInjectBlockButtons();
     }
-    injectProfileStats();
+    sharedInjectProfileStats(profileStatsAdapter);
     maybeShowPermissionBanner();
 
-    // MutationObserver는 항상 설치 (SPA 전환 후 DOM 변경 대응)
-    const target = document.querySelector(SEL.scrollContainer) || document.body;
-
+    // MutationObserver는 항상 설치 (SPA 전환 후 DOM 변경 대응).
+    // SEL.scrollContainer 는 SPA 전환 시 detach 되어 observer 가 끊길 수 있어 document.body 사용.
     const debouncedUpdate = debounce(() => {
       if (isActivePage()) {
         filterAll();
         runInjectBlockButtons();
       }
-      injectProfileStats();
+      sharedInjectProfileStats(profileStatsAdapter);
     }, 200);
 
     const observer = new MutationObserver(debouncedUpdate);
-    observer.observe(target, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   init();

@@ -6,18 +6,6 @@
   var __defProp = Object.defineProperty;
   var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
-  // shared/web/core/selectors.ts
-  var SEL = {
-    scrollContainer: ".infinite-scroll-component",
-    postLink: 'a[href^="/posts/"]',
-    postContainer: ".relative[tabindex]",
-    nickname: '[data-slot="profile-name-label"] span.truncate',
-    profileName: '[data-slot="profile-name"]',
-    separator: '[data-slot="separator"]',
-    card: '[data-slot="card"]',
-    cardItem: '[data-slot="carousel-item"]'
-  };
-
   // shared/web/core/storage-keys.ts
   var STORAGE_KEY = "quiet_lounge_data";
   var FILTER_MODE_KEY = "quiet_lounge_filter_mode";
@@ -52,6 +40,18 @@
     return false;
   }
   __name(isBlocked, "isBlocked");
+
+  // shared/web/core/selectors.ts
+  var SEL = {
+    scrollContainer: ".infinite-scroll-component",
+    postLink: 'a[href^="/posts/"]',
+    postContainer: ".relative[tabindex]",
+    nickname: '[data-slot="profile-name-label"] span.truncate',
+    profileName: '[data-slot="profile-name"]',
+    separator: '[data-slot="separator"]',
+    card: '[data-slot="card"]',
+    cardItem: '[data-slot="carousel-item"]'
+  };
 
   // shared/web/core/style.ts
   function applyStyle(el, blocked, mode) {
@@ -206,20 +206,348 @@
   }
   __name(skipExistingButton, "skipExistingButton");
 
+  // shared/web/core/profile-stats.ts
+  var PROFILE_BOX_ID = "ql-profile-stats";
+  var SPINNER_STYLE_ID = "ql-spinner-style";
+  var TABS_SLOT_SELECTOR = '[data-slot="tabs"]';
+  var cache = {
+    personaId: null,
+    stats: null,
+    monthlyPosts: null,
+    monthlyComments: null
+  };
+  var rafId = null;
+  var observer = null;
+  var inFlightPersonaId = null;
+  function isProfilePage() {
+    return window.location.pathname.startsWith("/profiles/");
+  }
+  __name(isProfilePage, "isProfilePage");
+  function getProfilePersonaId() {
+    const match = window.location.pathname.match(/^\/profiles\/([^/?]+)/);
+    return match ? match[1] : null;
+  }
+  __name(getProfilePersonaId, "getProfilePersonaId");
+  async function fetchPersonaStats(personaId) {
+    try {
+      const resp = await fetch(
+        `https://api.lounge.naver.com/user-api/v1/personas/${personaId}`,
+        { credentials: "include" }
+      );
+      if (!resp.ok) return null;
+      const json = await resp.json();
+      return json.data || null;
+    } catch {
+      return null;
+    }
+  }
+  __name(fetchPersonaStats, "fetchPersonaStats");
+  async function fetchPersonaStatsWithRetry(personaId, retries = 2) {
+    for (let i = 0; i <= retries; i++) {
+      const stats = await fetchPersonaStats(personaId);
+      if (stats) return stats;
+      if (i === retries) return null;
+      await new Promise((r) => setTimeout(r, 1e3 * (i + 1)));
+      if (!isProfilePage() || getProfilePersonaId() !== personaId) return null;
+    }
+    return null;
+  }
+  __name(fetchPersonaStatsWithRetry, "fetchPersonaStatsWithRetry");
+  async function fetchMonthlyCount(personaId, type, monthStart) {
+    const isComments = type === "comments";
+    let count = 0;
+    let cursor = "";
+    for (let page = 0; page < 50; page++) {
+      try {
+        const actUrl = `https://api.lounge.naver.com/user-api/v1/personas/${personaId}/activities/${type}?limit=100${cursor ? `&cursor=${cursor}` : ""}`;
+        const actResp = await fetch(actUrl, { credentials: "include" });
+        if (!actResp.ok) break;
+        const actJson = await actResp.json();
+        const items = actJson.data?.items || [];
+        if (items.length === 0) break;
+        let detailUrl;
+        if (isComments) {
+          const ids = items.map((it) => it.commentId);
+          const params = ids.map((id) => `commentNoList=${id}`).join("&");
+          detailUrl = `https://api.lounge.naver.com/content-api/v1/comments?${params}`;
+        } else {
+          const ids = items.map((it) => it.postId);
+          const params = ids.map((id) => `postIds=${id}`).join("&");
+          detailUrl = `https://api.lounge.naver.com/content-api/v1/posts?${params}`;
+        }
+        const detailResp = await fetch(detailUrl, { credentials: "include" });
+        if (!detailResp.ok) break;
+        const detailJson = await detailResp.json();
+        let hasThisMonth = false;
+        if (isComments) {
+          const raw = detailJson.data?.rawResponse;
+          const parsed = raw ? JSON.parse(raw) : null;
+          const commentList = parsed?.result?.commentList || [];
+          for (const c of commentList) {
+            const dateStr = c.regTimeGmt || "";
+            if (dateStr && new Date(dateStr) >= monthStart) {
+              count++;
+              hasThisMonth = true;
+            }
+          }
+        } else {
+          const details = Array.isArray(detailJson.data) ? detailJson.data : [];
+          for (const item of details) {
+            const dateStr = item.createTime || "";
+            if (dateStr && new Date(dateStr) >= monthStart) {
+              count++;
+              hasThisMonth = true;
+            }
+          }
+        }
+        if (!hasThisMonth) break;
+        if (!actJson.data?.cursorInfo?.hasNext) break;
+        cursor = actJson.data?.cursorInfo?.endCursor || "";
+        if (!cursor) break;
+      } catch {
+        break;
+      }
+    }
+    return count;
+  }
+  __name(fetchMonthlyCount, "fetchMonthlyCount");
+  function buildProfileStatsHtml(qlPrimary) {
+    const stats = cache.stats;
+    if (!stats) return "";
+    const totalPosts = stats.totalPostCount || 0;
+    const totalComments = stats.totalCommentCount || 0;
+    const mp = cache.monthlyPosts;
+    const mc = cache.monthlyComments;
+    const spinner = `<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:${qlPrimary};border-radius:50%;animation:ql-spin 0.8s linear infinite;vertical-align:middle;"></span>`;
+    const mpText = mp !== null ? String(mp) : spinner;
+    const mcText = mc !== null ? String(mc) : spinner;
+    return `<div style="font-weight:600;font-size:14px;margin-bottom:10px;color:${qlPrimary};">활동 통계</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;"><div style="font-size:20px;font-weight:700;">${totalPosts}</div><div style="font-size:11px;opacity:0.7;margin-top:2px;">총 작성글</div></div><div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;"><div style="font-size:20px;font-weight:700;">${totalComments}</div><div style="font-size:11px;opacity:0.7;margin-top:2px;">총 댓글</div></div><div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;"><div style="font-size:20px;font-weight:700;">${mpText}</div><div style="font-size:11px;opacity:0.7;margin-top:2px;">이번달 작성글</div></div><div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;"><div style="font-size:20px;font-weight:700;">${mcText}</div><div style="font-size:11px;opacity:0.7;margin-top:2px;">이번달 댓글</div></div></div>`;
+  }
+  __name(buildProfileStatsHtml, "buildProfileStatsHtml");
+  function ensureSpinnerStyle() {
+    if (document.getElementById(SPINNER_STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = SPINNER_STYLE_ID;
+    style.textContent = "@keyframes ql-spin { to { transform: rotate(360deg); } }";
+    document.head.appendChild(style);
+  }
+  __name(ensureSpinnerStyle, "ensureSpinnerStyle");
+  function insertProfileStatsBox(qlPrimary) {
+    if (document.getElementById(PROFILE_BOX_ID)) return;
+    const tabsEl = document.querySelector(TABS_SLOT_SELECTOR);
+    if (!tabsEl) return;
+    const box = document.createElement("div");
+    box.id = PROFILE_BOX_ID;
+    box.style.cssText = "margin:12px 20px 0;padding:14px 16px;background:rgba(74,108,247,0.08);border:1px solid rgba(74,108,247,0.2);border-radius:10px;font-size:13px;color:var(--color-neutral-foreground-default,#e0e0e0);";
+    box.innerHTML = buildProfileStatsHtml(qlPrimary);
+    tabsEl.before(box);
+  }
+  __name(insertProfileStatsBox, "insertProfileStatsBox");
+  function debounce(fn, delay) {
+    let timer = null;
+    return ((...args) => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => fn(...args), delay);
+    });
+  }
+  __name(debounce, "debounce");
+  function startProfileStatsGuard(qlPrimary) {
+    stopProfileStatsGuard();
+    const startTime = Date.now();
+    function tick() {
+      if (!isProfilePage() || !cache.stats) {
+        rafId = null;
+        return;
+      }
+      insertProfileStatsBox(qlPrimary);
+      if (Date.now() - startTime < 3e3) {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        rafId = null;
+        observer = new MutationObserver(
+          debounce(() => {
+            if (isProfilePage() && cache.stats) insertProfileStatsBox(qlPrimary);
+          }, 100)
+        );
+        observer.observe(document.body, { childList: true, subtree: true });
+      }
+    }
+    __name(tick, "tick");
+    rafId = requestAnimationFrame(tick);
+  }
+  __name(startProfileStatsGuard, "startProfileStatsGuard");
+  function stopProfileStatsGuard() {
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+  }
+  __name(stopProfileStatsGuard, "stopProfileStatsGuard");
+  function resetProfileStatsCache() {
+    cache = { personaId: null, stats: null, monthlyPosts: null, monthlyComments: null };
+    stopProfileStatsGuard();
+    inFlightPersonaId = null;
+  }
+  __name(resetProfileStatsCache, "resetProfileStatsCache");
+  function injectProfileStats(adapter) {
+    if (!isProfilePage()) return;
+    const personaId = getProfilePersonaId();
+    if (!personaId) return;
+    ensureSpinnerStyle();
+    if (cache.personaId === personaId && cache.stats) {
+      startProfileStatsGuard(adapter.qlPrimaryColor);
+      return;
+    }
+    if (inFlightPersonaId === personaId) return;
+    inFlightPersonaId = personaId;
+    fetchPersonaStatsWithRetry(personaId).then((stats) => {
+      inFlightPersonaId = null;
+      if (!isProfilePage() || getProfilePersonaId() !== personaId) return;
+      if (!stats) return;
+      if (stats.isOwner) {
+        adapter.saveOwnerPersonaId?.(personaId);
+      }
+      cache = { personaId, stats, monthlyPosts: null, monthlyComments: null };
+      const now = /* @__PURE__ */ new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const createTime = stats.createTime ? new Date(stats.createTime) : null;
+      const createdThisMonth = createTime && createTime >= monthStart;
+      if (createdThisMonth) {
+        cache.monthlyPosts = stats.totalPostCount || 0;
+        cache.monthlyComments = stats.totalCommentCount || 0;
+      } else {
+        fetchMonthlyCount(personaId, "posts", monthStart).then((count) => {
+          if (cache.personaId !== personaId) return;
+          cache.monthlyPosts = count;
+          const el = document.getElementById(PROFILE_BOX_ID);
+          if (el) el.innerHTML = buildProfileStatsHtml(adapter.qlPrimaryColor);
+        });
+        fetchMonthlyCount(personaId, "comments", monthStart).then((count) => {
+          if (cache.personaId !== personaId) return;
+          cache.monthlyComments = count;
+          const el = document.getElementById(PROFILE_BOX_ID);
+          if (el) el.innerHTML = buildProfileStatsHtml(adapter.qlPrimaryColor);
+        });
+      }
+      startProfileStatsGuard(adapter.qlPrimaryColor);
+    });
+  }
+  __name(injectProfileStats, "injectProfileStats");
+  async function fetchAndStoreMyStats(adapter) {
+    if (!adapter.saveMyStats) return;
+    try {
+      const meResp = await fetch(
+        "https://api.lounge.naver.com/user-api/v1/members/me/personas",
+        { credentials: "include" }
+      );
+      if (!meResp.ok) {
+        adapter.removeMyStats?.();
+        return;
+      }
+      const meJson = await meResp.json();
+      const meData = Array.isArray(meJson.data) ? meJson.data[0] : meJson.data;
+      if (!meData?.personaId) return;
+      const personaId = meData.personaId;
+      adapter.saveOwnerPersonaId?.(personaId);
+      let totalPosts = 0;
+      let totalComments = 0;
+      let nickname = meData.nickname || "";
+      let createTime = meData.createTime ? new Date(meData.createTime) : null;
+      try {
+        const statsResp = await fetch(
+          `https://api.lounge.naver.com/user-api/v1/personas/${personaId}`,
+          { credentials: "include" }
+        );
+        if (statsResp.ok) {
+          const statsJson = await statsResp.json();
+          const sData = statsJson.data;
+          if (sData) {
+            totalPosts = sData.totalPostCount || 0;
+            totalComments = sData.totalCommentCount || 0;
+            nickname = sData.nickname || nickname;
+            createTime = sData.createTime ? new Date(sData.createTime) : createTime;
+          }
+        }
+      } catch {
+        try {
+          const postsResp = await fetch(
+            `https://api.lounge.naver.com/user-api/v1/personas/${personaId}/activities/posts?limit=1`,
+            { credentials: "include" }
+          );
+          if (postsResp.ok) {
+            const pJson = await postsResp.json();
+            totalPosts = pJson.data?.totalPostCount || 0;
+          }
+          const commentsResp = await fetch(
+            `https://api.lounge.naver.com/user-api/v1/personas/${personaId}/activities/comments?limit=1`,
+            { credentials: "include" }
+          );
+          if (commentsResp.ok) {
+            const cJson = await commentsResp.json();
+            totalComments = cJson.data?.totalCommentCount || cJson.data?.totalCount || 0;
+          }
+        } catch {
+        }
+      }
+      const now = /* @__PURE__ */ new Date();
+      const stats = {
+        personaId,
+        nickname,
+        totalPosts,
+        totalComments,
+        monthlyPosts: "...",
+        monthlyComments: "...",
+        updatedAt: now.toISOString()
+      };
+      adapter.saveMyStats(stats);
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const createdThisMonth = createTime && createTime >= monthStart;
+      if (createdThisMonth) {
+        stats.monthlyPosts = totalPosts;
+        stats.monthlyComments = totalComments;
+        adapter.saveMyStats(stats);
+      } else {
+        fetchMonthlyCount(personaId, "posts", monthStart).then((c) => {
+          stats.monthlyPosts = c;
+        }).catch(() => {
+          stats.monthlyPosts = "?";
+        }).finally(() => adapter.saveMyStats?.(stats));
+        fetchMonthlyCount(personaId, "comments", monthStart).then((c) => {
+          stats.monthlyComments = c;
+        }).catch(() => {
+          stats.monthlyComments = "?";
+        }).finally(() => adapter.saveMyStats?.(stats));
+      }
+    } catch {
+    }
+  }
+  __name(fetchAndStoreMyStats, "fetchAndStoreMyStats");
+  function __resetForTests() {
+    cache = { personaId: null, stats: null, monthlyPosts: null, monthlyComments: null };
+    rafId = null;
+    observer = null;
+    inFlightPersonaId = null;
+  }
+  __name(__resetForTests, "__resetForTests");
+
   // shared/web/entries/safari-ext.ts
   (function() {
     "use strict";
     const browser = globalThis.browser || globalThis.chrome;
     const QL_PRIMARY = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "#6A86F8" : "#4A6CF7";
     const QLStorage = typeof globalThis.__QL_storage !== "undefined" && globalThis.__QL_storage._ready ? globalThis.__QL_storage : browser.storage.local;
-    function debounce(fn, delay) {
+    function debounce2(fn, delay) {
       let timer;
       return function() {
         clearTimeout(timer);
         timer = setTimeout(fn, delay);
       };
     }
-    __name(debounce, "debounce");
+    __name(debounce2, "debounce");
     function createEmptyData() {
       return {
         version: 2,
@@ -533,8 +861,7 @@
       const newPath = window.location.pathname;
       if (newPath === lastPath) return;
       lastPath = newPath;
-      profileStatsCache = { personaId: null, stats: null, monthlyPosts: null, monthlyComments: null };
-      stopProfileStatsGuard();
+      resetProfileStatsCache();
       if (isActivePage()) {
         setTimeout(() => {
           filterAll();
@@ -542,7 +869,7 @@
         }, 500);
       }
       if (isProfilePage()) {
-        setTimeout(() => injectProfileStats(), 500);
+        setTimeout(() => injectProfileStats(profileStatsAdapter), 500);
       }
     }
     __name(onNavigate, "onNavigate");
@@ -563,309 +890,18 @@
         dontShowFilterHint = !!changes[DONT_SHOW_FILTER_HINT_KEY].newValue;
       }
     });
-    function isProfilePage() {
-      return window.location.pathname.startsWith("/profiles/");
-    }
-    __name(isProfilePage, "isProfilePage");
-    function getProfilePersonaId() {
-      const match = window.location.pathname.match(/^\/profiles\/([^/?]+)/);
-      return match ? match[1] : null;
-    }
-    __name(getProfilePersonaId, "getProfilePersonaId");
-    async function fetchPersonaStats(personaId) {
-      try {
-        const resp = await fetch(`https://api.lounge.naver.com/user-api/v1/personas/${personaId}`, {
-          credentials: "include"
-        });
-        if (!resp.ok) return null;
-        const json = await resp.json();
-        return json.data;
-      } catch {
-        return null;
-      }
-    }
-    __name(fetchPersonaStats, "fetchPersonaStats");
-    async function fetchMonthlyCount(personaId, type) {
-      const now = /* @__PURE__ */ new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      let count = 0;
-      let cursor = "";
-      const isComments = type === "comments";
-      for (let page = 0; page < 50; page++) {
-        try {
-          const actUrl = `https://api.lounge.naver.com/user-api/v1/personas/${personaId}/activities/${type}?limit=100${cursor ? `&cursor=${cursor}` : ""}`;
-          const actResp = await fetch(actUrl, { credentials: "include" });
-          if (!actResp.ok) break;
-          const actJson = await actResp.json();
-          const items = actJson.data?.items || [];
-          if (items.length === 0) break;
-          let hasThisMonth = false;
-          if (isComments) {
-            const ids = items.map((item) => item.commentId);
-            const params = ids.map((id) => `commentNoList=${id}`).join("&");
-            const detailResp = await fetch(
-              `https://api.lounge.naver.com/content-api/v1/comments?${params}`,
-              { credentials: "include" }
-            );
-            if (!detailResp.ok) break;
-            const detailJson = await detailResp.json();
-            const raw = detailJson.data?.rawResponse;
-            const parsed = raw ? JSON.parse(raw) : null;
-            const commentList = parsed?.result?.commentList || [];
-            for (const comment of commentList) {
-              const dateStr = comment.regTimeGmt || "";
-              if (dateStr && new Date(dateStr) >= monthStart) {
-                count++;
-                hasThisMonth = true;
-              }
-            }
-          } else {
-            const ids = items.map((item) => item.postId);
-            const params = ids.map((id) => `postIds=${id}`).join("&");
-            const detailResp = await fetch(
-              `https://api.lounge.naver.com/content-api/v1/posts?${params}`,
-              { credentials: "include" }
-            );
-            if (!detailResp.ok) break;
-            const detailJson = await detailResp.json();
-            const details = Array.isArray(detailJson.data) ? detailJson.data : [];
-            for (const item of details) {
-              const dateStr = item.createTime || "";
-              if (dateStr && new Date(dateStr) >= monthStart) {
-                count++;
-                hasThisMonth = true;
-              }
-            }
-          }
-          if (!hasThisMonth) break;
-          if (!actJson.data?.cursorInfo?.hasNext) break;
-          cursor = actJson.data?.cursorInfo?.endCursor || "";
-          if (!cursor) break;
-        } catch {
-          break;
-        }
-      }
-      return count;
-    }
-    __name(fetchMonthlyCount, "fetchMonthlyCount");
-    let profileStatsCache = {
-      personaId: null,
-      stats: null,
-      monthlyPosts: null,
-      monthlyComments: null
-    };
-    let profileStatsRafId = null;
-    function buildProfileStatsHtml() {
-      const stats = profileStatsCache.stats;
-      const totalPosts = stats.totalPostCount || 0;
-      const totalComments = stats.totalCommentCount || 0;
-      const mp = profileStatsCache.monthlyPosts;
-      const mc = profileStatsCache.monthlyComments;
-      const spinner = `<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:${QL_PRIMARY};border-radius:50%;animation:ql-spin 0.8s linear infinite;vertical-align:middle;"></span>`;
-      const monthlyPostsText = mp !== null ? mp : spinner;
-      const monthlyCommentsText = mc !== null ? mc : spinner;
-      return `<div style="font-weight:600;font-size:14px;margin-bottom:10px;color:${QL_PRIMARY};">활동 통계</div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">
-<div style="font-size:20px;font-weight:700;">${totalPosts}</div>
-<div style="font-size:11px;opacity:0.7;margin-top:2px;">총 작성글</div></div>
-<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">
-<div style="font-size:20px;font-weight:700;">${totalComments}</div>
-<div style="font-size:11px;opacity:0.7;margin-top:2px;">총 댓글</div></div>
-<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">
-<div style="font-size:20px;font-weight:700;">${monthlyPostsText}</div>
-<div style="font-size:11px;opacity:0.7;margin-top:2px;">이번달 작성글</div></div>
-<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;">
-<div style="font-size:20px;font-weight:700;">${monthlyCommentsText}</div>
-<div style="font-size:11px;opacity:0.7;margin-top:2px;">이번달 댓글</div></div></div>`;
-    }
-    __name(buildProfileStatsHtml, "buildProfileStatsHtml");
-    if (!document.getElementById("ql-spinner-style")) {
-      const style = document.createElement("style");
-      style.id = "ql-spinner-style";
-      style.textContent = "@keyframes ql-spin { to { transform: rotate(360deg); } }";
-      document.head.appendChild(style);
-    }
-    function insertProfileStatsBox() {
-      if (document.getElementById("ql-profile-stats")) return;
-      const tabsEl = document.querySelector('[data-slot="tabs"]');
-      if (!tabsEl) return;
-      const box = document.createElement("div");
-      box.id = "ql-profile-stats";
-      box.style.cssText = "margin:12px 20px 0;padding:14px 16px;background:rgba(74,108,247,0.08);border:1px solid rgba(74,108,247,0.2);border-radius:10px;font-size:13px;color:var(--color-neutral-foreground-default,#e0e0e0);";
-      box.innerHTML = buildProfileStatsHtml();
-      tabsEl.before(box);
-    }
-    __name(insertProfileStatsBox, "insertProfileStatsBox");
-    let profileStatsObserver = null;
-    function startProfileStatsGuard() {
-      stopProfileStatsGuard();
-      const startTime = Date.now();
-      function tick() {
-        if (!isProfilePage() || !profileStatsCache.stats) {
-          profileStatsRafId = null;
-          return;
-        }
-        insertProfileStatsBox();
-        if (Date.now() - startTime < 3e3) {
-          profileStatsRafId = requestAnimationFrame(tick);
-        } else {
-          profileStatsRafId = null;
-          profileStatsObserver = new MutationObserver(
-            debounce(() => {
-              if (isProfilePage() && profileStatsCache.stats) {
-                insertProfileStatsBox();
-              }
-            }, 100)
-          );
-          profileStatsObserver.observe(document.body, { childList: true, subtree: true });
-        }
-      }
-      __name(tick, "tick");
-      profileStatsRafId = requestAnimationFrame(tick);
-    }
-    __name(startProfileStatsGuard, "startProfileStatsGuard");
-    function stopProfileStatsGuard() {
-      if (profileStatsRafId) {
-        cancelAnimationFrame(profileStatsRafId);
-        profileStatsRafId = null;
-      }
-      if (profileStatsObserver) {
-        profileStatsObserver.disconnect();
-        profileStatsObserver = null;
-      }
-    }
-    __name(stopProfileStatsGuard, "stopProfileStatsGuard");
-    function injectProfileStats() {
-      if (!isProfilePage()) return;
-      const personaId = getProfilePersonaId();
-      if (!personaId) return;
-      if (profileStatsCache.personaId === personaId && profileStatsCache.stats) {
-        startProfileStatsGuard();
-        return;
-      }
-      fetchPersonaStats(personaId).then((stats) => {
-        if (!stats) return;
-        if (stats.isOwner) {
-          safariSet({ quiet_lounge_my_persona_id: personaId });
-        }
-        profileStatsCache = { personaId, stats, monthlyPosts: null, monthlyComments: null };
-        const now = /* @__PURE__ */ new Date();
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const createTime = stats.createTime ? new Date(stats.createTime) : null;
-        const createdThisMonth = createTime && createTime >= monthStart;
-        if (createdThisMonth) {
-          profileStatsCache.monthlyPosts = stats.totalPostCount || 0;
-          profileStatsCache.monthlyComments = stats.totalCommentCount || 0;
-        } else {
-          fetchMonthlyCount(personaId, "posts").then((count) => {
-            profileStatsCache.monthlyPosts = count;
-            const el = document.getElementById("ql-profile-stats");
-            if (el) el.innerHTML = buildProfileStatsHtml();
-          });
-          fetchMonthlyCount(personaId, "comments").then((count) => {
-            profileStatsCache.monthlyComments = count;
-            const el = document.getElementById("ql-profile-stats");
-            if (el) el.innerHTML = buildProfileStatsHtml();
-          });
-        }
-        startProfileStatsGuard();
-      });
-    }
-    __name(injectProfileStats, "injectProfileStats");
-    function saveMyStats(statsObj) {
-      safariSet({
-        quiet_lounge_my_stats: JSON.stringify(statsObj)
-      });
-    }
-    __name(saveMyStats, "saveMyStats");
-    async function fetchAndStoreMyStats() {
-      try {
-        const meResp = await fetch("https://api.lounge.naver.com/user-api/v1/members/me/personas", {
-          credentials: "include"
-        });
-        if (!meResp.ok) {
-          QLStorage.remove("quiet_lounge_my_stats");
-          return;
-        }
-        const meJson = await meResp.json();
-        const meData = Array.isArray(meJson.data) ? meJson.data[0] : meJson.data;
-        if (!meData?.personaId) return;
-        const personaId = meData.personaId;
+    const profileStatsAdapter = {
+      qlPrimaryColor: QL_PRIMARY,
+      saveOwnerPersonaId(personaId) {
         safariSet({ quiet_lounge_my_persona_id: personaId });
-        let totalPosts = 0;
-        let totalComments = 0;
-        let nickname = meData.nickname || "";
-        let createTime = meData.createTime ? new Date(meData.createTime) : null;
-        try {
-          const statsResp = await fetch(
-            `https://api.lounge.naver.com/user-api/v1/personas/${personaId}`,
-            { credentials: "include" }
-          );
-          if (statsResp.ok) {
-            const statsJson = await statsResp.json();
-            const sData = statsJson.data;
-            if (sData) {
-              totalPosts = sData.totalPostCount || 0;
-              totalComments = sData.totalCommentCount || 0;
-              nickname = sData.nickname || nickname;
-              createTime = sData.createTime ? new Date(sData.createTime) : createTime;
-            }
-          }
-        } catch {
-          try {
-            const postsResp = await fetch(
-              `https://api.lounge.naver.com/user-api/v1/personas/${personaId}/activities/posts?limit=1`,
-              { credentials: "include" }
-            );
-            if (postsResp.ok) {
-              const pJson = await postsResp.json();
-              totalPosts = pJson.data?.totalPostCount || 0;
-            }
-            const commentsResp = await fetch(
-              `https://api.lounge.naver.com/user-api/v1/personas/${personaId}/activities/comments?limit=1`,
-              { credentials: "include" }
-            );
-            if (commentsResp.ok) {
-              const cJson = await commentsResp.json();
-              totalComments = cJson.data?.totalCommentCount || cJson.data?.totalCount || 0;
-            }
-          } catch {
-          }
-        }
-        const now = /* @__PURE__ */ new Date();
-        const stats = {
-          personaId,
-          nickname,
-          totalPosts,
-          totalComments,
-          monthlyPosts: "...",
-          monthlyComments: "...",
-          updatedAt: now.toISOString()
-        };
-        saveMyStats(stats);
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const createdThisMonth = createTime && createTime >= monthStart;
-        if (createdThisMonth) {
-          stats.monthlyPosts = totalPosts;
-          stats.monthlyComments = totalComments;
-          saveMyStats(stats);
-        } else {
-          fetchMonthlyCount(personaId, "posts").then((count) => {
-            stats.monthlyPosts = count;
-          }).catch(() => {
-            stats.monthlyPosts = "?";
-          }).finally(() => saveMyStats(stats));
-          fetchMonthlyCount(personaId, "comments").then((count) => {
-            stats.monthlyComments = count;
-          }).catch(() => {
-            stats.monthlyComments = "?";
-          }).finally(() => saveMyStats(stats));
-        }
-      } catch {
+      },
+      saveMyStats(stats) {
+        safariSet({ quiet_lounge_my_stats: JSON.stringify(stats) });
+      },
+      removeMyStats() {
+        QLStorage.remove("quiet_lounge_my_stats");
       }
-    }
-    __name(fetchAndStoreMyStats, "fetchAndStoreMyStats");
+    };
     const QL_UA = typeof navigator !== "undefined" && navigator.userAgent || "";
     const QL_MAX_TOUCH = typeof navigator !== "undefined" && navigator.maxTouchPoints || 0;
     const QL_IS_IOS = /iPhone|iPad|iPod/.test(QL_UA) || /Mac/.test(QL_UA) && QL_MAX_TOUCH > 1;
@@ -1003,7 +1039,7 @@
     __name(maybeShowPermissionBanner, "maybeShowPermissionBanner");
     browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       if (message.type === "REFRESH_MY_STATS") {
-        fetchAndStoreMyStats();
+        fetchAndStoreMyStats(profileStatsAdapter);
         return;
       }
       if (message.type === "QL_SHOW_NOTIFICATION") {
@@ -1046,7 +1082,7 @@
           }
           if (result.quiet_lounge_refresh_stats) {
             await QLStorage.remove("quiet_lounge_refresh_stats");
-            fetchAndStoreMyStats();
+            fetchAndStoreMyStats(profileStatsAdapter);
           }
         } catch {
         }
@@ -1067,7 +1103,7 @@
     if (document.visibilityState === "visible") startBlockDataPolling();
     async function init() {
       await loadBlockData();
-      fetchAndStoreMyStats();
+      fetchAndStoreMyStats(profileStatsAdapter);
       installApiInterceptor();
       watchNavigation();
       if (document.readyState === "loading") {
@@ -1082,18 +1118,17 @@
         filterAll();
         runInjectBlockButtons();
       }
-      injectProfileStats();
+      injectProfileStats(profileStatsAdapter);
       maybeShowPermissionBanner();
-      const target = document.querySelector(SEL.scrollContainer) || document.body;
-      const debouncedUpdate = debounce(() => {
+      const debouncedUpdate = debounce2(() => {
         if (isActivePage()) {
           filterAll();
           runInjectBlockButtons();
         }
-        injectProfileStats();
+        injectProfileStats(profileStatsAdapter);
       }, 200);
-      const observer = new MutationObserver(debouncedUpdate);
-      observer.observe(target, { childList: true, subtree: true });
+      const observer2 = new MutationObserver(debouncedUpdate);
+      observer2.observe(document.body, { childList: true, subtree: true });
     }
     __name(start, "start");
     init();

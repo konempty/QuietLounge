@@ -87,6 +87,41 @@ export interface InjectButtonsAdapter {
   onButtonAttached?(button: HTMLElement): void;
 }
 
+/**
+ * 프로필 통계 inject — `/profiles/{personaId}` 페이지 진입 시 활동 통계 박스를 inject.
+ *
+ * shared `injectProfileStats(adapter)` 는 personaId 추출 / fetch / 캐시 / DOM 가드 (rAF 폴링 →
+ * MutationObserver) / HTML 빌드 / box 부착을 모두 처리한다. adapter 가 흡수하는 것은:
+ *   - QL 브랜드 색 (스피너 / 헤더 텍스트 색 — 4 entry 가 다른 hex 사용)
+ *   - 본인 프로필일 때 ownerPersonaId 영속화 (Chrome/Safari ext 의 popup 갱신용 — iOS/Android 는 미구현)
+ *   - 내 통계 (`fetchAndStoreMyStats` 결과) 영속화 — Chrome/Safari ext 만, iOS/Android 는 native 가 처리
+ */
+export interface ProfileStatsAdapter {
+  /** QL 브랜드 색 (예: '#4A6CF7'). 스피너 border-top-color / 헤더 텍스트 색에 인라인 스타일로 주입. */
+  qlPrimaryColor: string;
+
+  /** 프로필 페이지 stats.isOwner 가 true 일 때 호출 — popup 의 my_persona_id 갱신용.
+   *  iOS/Android 는 popup 이 native 라 미구현. */
+  saveOwnerPersonaId?(personaId: string): void;
+
+  /** 내 통계 (popup 의 "내 활동 통계") 갱신용 storage write — Chrome/Safari ext 만 구현. */
+  saveMyStats?(stats: MyStatsRecord): void;
+
+  /** 내 통계 영속 데이터 제거 — me API 가 unauthenticated 일 때 호출. Chrome/Safari ext 만 구현. */
+  removeMyStats?(): void;
+}
+
+/** popup 의 "내 활동 통계" 카드에 노출될 직렬화 형태. JSON 으로 저장. */
+export interface MyStatsRecord {
+  personaId: string;
+  nickname: string;
+  totalPosts: number;
+  totalComments: number;
+  monthlyPosts: number | string;
+  monthlyComments: number | string;
+  updatedAt: string;
+}
+
 /** 4 종 어댑터를 한 번에 주입하는 컨테이너. 후속 PR shared 함수의 setup 시그너처로 사용 예정. */
 export interface PlatformAdapter {
   storage: StorageAdapter;

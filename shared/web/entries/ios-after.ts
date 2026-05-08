@@ -10,12 +10,15 @@
 // placeholder 는 esbuild 가 미정의 글로벌을 그대로 통과시키므로 산출물에 보존된다
 // (tests/build/artifacts.test.js 가 회귀 가드).
 
-import { SEL } from '../core/selectors';
-import { isActivePage, isBlockButtonPage } from '../core/pages';
-import { isCleanbotFiltered } from '../core/cleanbot';
+import { isActivePage } from '../core/pages';
 import { runFilterPass } from '../core/filter-engine';
 import { injectBlockButtons, findPersonaId as sharedFindPersonaId } from '../core/inject-buttons';
-import type { InjectButtonsAdapter } from '../platform/adapter';
+import {
+  injectProfileStats as sharedInjectProfileStats,
+  resetProfileStatsCache as sharedResetProfileStatsCache,
+  isProfilePage as sharedIsProfilePage,
+} from '../core/profile-stats';
+import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adapter';
 // isBlocked / applyStyle 은 runFilterPass 가 내부에서 사용. iOS entry 는 다른 곳에서 직접 호출 안 함.
 // __QL_BLOCK_DATA_PLACEHOLDER__ ambient 식별자는 placeholders.d.ts 가 선언 — `// @ts-nocheck`
 // 가 entry 상단에 있어 명시 import 불필요. esbuild 는 미정의 글로벌을 그대로 통과시킨다.
@@ -97,180 +100,31 @@ import type { InjectButtonsAdapter } from '../platform/adapter';
 
   if (isActivePage()) { filterAll(); injectButtons(); }
 
+  // ── 프로필 통계 (shared/web/core/profile-stats 로 이전. 어댑터만 entry 에 둠) ──
+  // iOS native WebView 는 popup 이 SwiftUI 라 saveOwnerPersonaId / saveMyStats / removeMyStats 미구현.
+  // 색상만 어댑터로 전달 — fetch / DOM 가드 / 캐시 전부 shared.
+  var profileStatsAdapter: ProfileStatsAdapter = { qlPrimaryColor: QL_PRIMARY };
+
   var timer;
-  var debounced = function() { clearTimeout(timer); timer = setTimeout(function() { if (isActivePage()) { filterAll(); injectButtons(); } }, 200); };
-  var target = document.querySelector(SEL.scrollContainer) || document.body;
-  new MutationObserver(debounced).observe(target, { childList: true, subtree: true });
-
-  // ── 프로필 통계 ──
-  var profileStatsCache = { personaId: null, stats: null, monthlyPosts: null, monthlyComments: null };
-  var profileStatsRafId = null;
-  var profileStatsObserver2 = null;
-
-  function isProfilePage() { return window.location.pathname.startsWith('/profiles/'); }
-  function getProfilePersonaId() {
-    var m = window.location.pathname.match(/^\/profiles\/([^/?]+)/);
-    return m ? m[1] : null;
-  }
-
-  function buildProfileStatsHtml() {
-    var stats = profileStatsCache.stats;
-    var totalPosts = stats.totalPostCount || 0;
-    var totalComments = stats.totalCommentCount || 0;
-    var mp = profileStatsCache.monthlyPosts;
-    var mc = profileStatsCache.monthlyComments;
-    var spinner = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.2);border-top-color:' + QL_PRIMARY + ';border-radius:50%;animation:ql-spin 0.8s linear infinite;vertical-align:middle;"></span>';
-    var mpt = mp !== null ? mp : spinner;
-    var mct = mc !== null ? mc : spinner;
-    return '<div style="font-weight:600;font-size:14px;margin-bottom:10px;color:' + QL_PRIMARY + ';">활동 통계</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
-      '<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;"><div style="font-size:20px;font-weight:700;">' + totalPosts + '</div><div style="font-size:11px;opacity:0.7;margin-top:2px;">총 작성글</div></div>' +
-      '<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;"><div style="font-size:20px;font-weight:700;">' + totalComments + '</div><div style="font-size:11px;opacity:0.7;margin-top:2px;">총 댓글</div></div>' +
-      '<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;"><div style="font-size:20px;font-weight:700;">' + mpt + '</div><div style="font-size:11px;opacity:0.7;margin-top:2px;">이번달 작성글</div></div>' +
-      '<div style="text-align:center;padding:8px;background:rgba(0,0,0,0.1);border-radius:8px;"><div style="font-size:20px;font-weight:700;">' + mct + '</div><div style="font-size:11px;opacity:0.7;margin-top:2px;">이번달 댓글</div></div></div>';
-  }
-
-  function insertProfileStatsBox() {
-    if (document.getElementById('ql-profile-stats')) return;
-    var tabsEl = document.querySelector('[data-slot="tabs"]');
-    if (!tabsEl) return;
-    var box = document.createElement('div');
-    box.id = 'ql-profile-stats';
-    box.style.cssText = 'margin:12px 20px 0;padding:14px 16px;background:rgba(74,108,247,0.08);border:1px solid rgba(74,108,247,0.2);border-radius:10px;font-size:13px;color:var(--color-neutral-foreground-default,#e0e0e0);';
-    box.innerHTML = buildProfileStatsHtml();
-    tabsEl.before(box);
-  }
-
-  if (!document.getElementById('ql-spinner-style')) {
-    var spStyle = document.createElement('style');
-    spStyle.id = 'ql-spinner-style';
-    spStyle.textContent = '@keyframes ql-spin { to { transform: rotate(360deg); } }';
-    document.head.appendChild(spStyle);
-  }
-
-  function profileDebounce(fn, d) { var t; return function() { clearTimeout(t); t = setTimeout(fn, d); }; }
-
-  function stopProfileStatsGuard() {
-    if (profileStatsRafId) { cancelAnimationFrame(profileStatsRafId); profileStatsRafId = null; }
-    if (profileStatsObserver2) { profileStatsObserver2.disconnect(); profileStatsObserver2 = null; }
-  }
-
-  function startProfileStatsGuard() {
-    stopProfileStatsGuard();
-    var startTime = Date.now();
-    function tick() {
-      if (!isProfilePage() || !profileStatsCache.stats) { profileStatsRafId = null; return; }
-      insertProfileStatsBox();
-      if (Date.now() - startTime < 3000) { profileStatsRafId = requestAnimationFrame(tick); }
-      else {
-        profileStatsRafId = null;
-        profileStatsObserver2 = new MutationObserver(profileDebounce(function() {
-          if (isProfilePage() && profileStatsCache.stats) insertProfileStatsBox();
-        }, 100));
-        profileStatsObserver2.observe(document.body, { childList: true, subtree: true });
-      }
-    }
-    profileStatsRafId = requestAnimationFrame(tick);
-  }
-
-  function fetchMonthlyCount(personaId, type, monthStart) {
-    var count = 0; var cursor = ''; var isComments = type === 'comments';
-    function fetchPage(page) {
-      if (page >= 50) return Promise.resolve(count);
-      var actUrl = 'https://api.lounge.naver.com/user-api/v1/personas/' + personaId + '/activities/' + type + '?limit=100' + (cursor ? '&cursor=' + cursor : '');
-      return fetch(actUrl, { credentials: 'include' }).then(function(r) {
-        if (!r.ok) return count;
-        return r.json().then(function(j) {
-          var items = j.data && j.data.items ? j.data.items : [];
-          if (items.length === 0) return count;
-          var ids, params, detailUrl;
-          if (isComments) {
-            ids = items.map(function(it) { return it.commentId; });
-            params = ids.map(function(id) { return 'commentNoList=' + id; }).join('&');
-            detailUrl = 'https://api.lounge.naver.com/content-api/v1/comments?' + params;
-          } else {
-            ids = items.map(function(it) { return it.postId; });
-            params = ids.map(function(id) { return 'postIds=' + id; }).join('&');
-            detailUrl = 'https://api.lounge.naver.com/content-api/v1/posts?' + params;
-          }
-          return fetch(detailUrl, { credentials: 'include' }).then(function(dr) {
-            if (!dr.ok) return count;
-            return dr.json().then(function(dj) {
-              var hasThisMonth = false;
-              if (isComments) {
-                var raw = dj.data && dj.data.rawResponse ? dj.data.rawResponse : null;
-                var parsed = raw ? JSON.parse(raw) : null;
-                var cl = parsed && parsed.result ? parsed.result.commentList || [] : [];
-                for (var i = 0; i < cl.length; i++) {
-                  var rd = cl[i].regTimeGmt || '';
-                  if (rd && new Date(rd) >= monthStart) { count++; hasThisMonth = true; }
-                }
-              } else {
-                var details = Array.isArray(dj.data) ? dj.data : [];
-                for (var k = 0; k < details.length; k++) {
-                  var ds = details[k].createTime || '';
-                  if (ds && new Date(ds) >= monthStart) { count++; hasThisMonth = true; }
-                }
-              }
-              if (!hasThisMonth) return count;
-              if (!j.data.cursorInfo || !j.data.cursorInfo.hasNext) return count;
-              cursor = j.data.cursorInfo.endCursor || '';
-              if (!cursor) return count;
-              return fetchPage(page + 1);
-            });
-          });
-        });
-      }).catch(function() { return count; });
-    }
-    return fetchPage(0);
-  }
-
-  function injectProfileStats() {
-    if (!isProfilePage()) return;
-    var personaId = getProfilePersonaId();
-    if (!personaId) return;
-    if (profileStatsCache.personaId === personaId && profileStatsCache.stats) {
-      startProfileStatsGuard();
-      return;
-    }
-    fetch('https://api.lounge.naver.com/user-api/v1/personas/' + personaId, { credentials: 'include' })
-      .then(function(r) { return r.ok ? r.json() : null; })
-      .then(function(j) {
-        if (!j || !j.data) return;
-        var stats = j.data;
-        profileStatsCache = { personaId: personaId, stats: stats, monthlyPosts: null, monthlyComments: null };
-        var now = new Date();
-        var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        var createTime = stats.createTime ? new Date(stats.createTime) : null;
-        var createdThisMonth = createTime && createTime >= monthStart;
-        if (createdThisMonth) {
-          profileStatsCache.monthlyPosts = stats.totalPostCount || 0;
-          profileStatsCache.monthlyComments = stats.totalCommentCount || 0;
-        } else {
-          fetchMonthlyCount(personaId, 'posts', monthStart).then(function(c) {
-            profileStatsCache.monthlyPosts = c;
-            var el = document.getElementById('ql-profile-stats');
-            if (el) el.innerHTML = buildProfileStatsHtml();
-          });
-          fetchMonthlyCount(personaId, 'comments', monthStart).then(function(c) {
-            profileStatsCache.monthlyComments = c;
-            var el = document.getElementById('ql-profile-stats');
-            if (el) el.innerHTML = buildProfileStatsHtml();
-          });
-        }
-        startProfileStatsGuard();
-      });
-  }
+  var debounced = function() {
+    clearTimeout(timer);
+    timer = setTimeout(function() {
+      if (isActivePage()) { filterAll(); injectButtons(); }
+      // 프로필 페이지에서 SPA layout 이 늦게 그려지는 케이스용 — shared in-flight / cache 가드로 cheap.
+      if (sharedIsProfilePage()) sharedInjectProfileStats(profileStatsAdapter);
+    }, 200);
+  };
+  // SEL.scrollContainer 는 SPA 전환 시 detach 되어 observer 가 끊길 수 있어 document.body 사용.
+  new MutationObserver(debounced).observe(document.body, { childList: true, subtree: true });
 
   var lastPath = window.location.pathname;
   function onNavigate() {
     var newPath = window.location.pathname;
     if (newPath === lastPath) return;
     lastPath = newPath;
-    profileStatsCache = { personaId: null, stats: null, monthlyPosts: null, monthlyComments: null };
-    stopProfileStatsGuard();
+    sharedResetProfileStatsCache();
     if (isActivePage()) { setTimeout(function() { filterAll(); injectButtons(); }, 500); }
-    if (isProfilePage()) { setTimeout(injectProfileStats, 500); }
+    if (sharedIsProfilePage()) { setTimeout(function() { sharedInjectProfileStats(profileStatsAdapter); }, 500); }
   }
   window.addEventListener('popstate', onNavigate);
   var origPush = history.pushState;
@@ -278,6 +132,6 @@ import type { InjectButtonsAdapter } from '../platform/adapter';
   var origReplace = history.replaceState;
   history.replaceState = function() { origReplace.apply(this, arguments); onNavigate(); };
 
-  if (isProfilePage()) injectProfileStats();
+  if (sharedIsProfilePage()) sharedInjectProfileStats(profileStatsAdapter);
 })();
 true;
