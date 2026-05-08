@@ -2,7 +2,7 @@ import UIKit
 import WebKit
 import Network
 
-class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessageHandler {
+class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessageHandler, WKUIDelegate {
 
     private var webView: WKWebView!
     private var offlineView: UIView!
@@ -137,6 +137,10 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
 
         webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
+        // WKWebView 는 WKUIDelegate 메서드를 구현하지 않으면 JS alert / confirm / prompt 가
+        // silently 봉쇄된다. 라운지가 confirm 으로 사용자 확인을 받는 흐름이 있어 native
+        // UIAlertController 로 매개해줘야 한다.
+        webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
         webView.scrollView.decelerationRate = .normal
         webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
@@ -515,5 +519,79 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
 
     deinit {
         monitor.cancel()
+    }
+
+    // MARK: - WKUIDelegate (JS alert / confirm / prompt 매개)
+    //
+    // WKWebView 는 기본적으로 JavaScript 의 dialog 를 띄우지 않는다 — UIDelegate 메서드를
+    // 구현하지 않으면 silent suppress. 라운지 페이지가 사용자 확인을 받는 confirm() 호출이
+    // 그대로 무시되어 동작이 멈추는 회귀가 있어 UIAlertController 로 매개한다.
+    //
+    // 보안 노트: dialog message 를 그대로 사용자에게 노출하므로 라운지 측에서 임의의 텍스트를
+    // 띄울 수 있다 (의도된 동작). 이는 일반 브라우저의 confirm() 과 동일한 신뢰 모델.
+    //
+    // present() 실패 가드 (P2 리뷰 피드백): 이 컨트롤러는 maybeShowToolbarHint / 차단 confirm /
+    // filter-mode hint 등 자체 alert 를 다양한 경로에서 띄운다. 그 상태에서 JS dialog 가 들어오면
+    // UIKit 이 "already presenting" 으로 silently 실패해 completionHandler 가 호출되지 않고 JS
+    // 스레드가 hang 됨. presentJsDialog 가 (1) top-most presenter 를 찾아 시도하고 (2) 그래도 못 띄우면
+    // fail-closed 로 안전한 default 를 즉시 호출 — JS hang 보다 dialog 미표시가 안전.
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptAlertPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping () -> Void
+    ) {
+        let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "확인", style: .default) { _ in completionHandler() })
+        presentJsDialog(alert, fallback: completionHandler)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptConfirmPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping (Bool) -> Void
+    ) {
+        let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel) { _ in completionHandler(false) })
+        alert.addAction(UIAlertAction(title: "확인", style: .default) { _ in completionHandler(true) })
+        presentJsDialog(alert, fallback: { completionHandler(false) })
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptTextInputPanelWithPrompt prompt: String,
+        defaultText: String?,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping (String?) -> Void
+    ) {
+        let alert = UIAlertController(title: nil, message: prompt, preferredStyle: .alert)
+        alert.addTextField { tf in tf.text = defaultText }
+        alert.addAction(UIAlertAction(title: "취소", style: .cancel) { _ in completionHandler(nil) })
+        alert.addAction(UIAlertAction(title: "확인", style: .default) { [weak alert] _ in
+            completionHandler(alert?.textFields?.first?.text)
+        })
+        presentJsDialog(alert, fallback: { completionHandler(nil) })
+    }
+
+    /// JS dialog 전용 present 헬퍼.
+    ///
+    /// 1. top-most presenter (modal stack 의 leaf, dismiss 중인 컨트롤러는 건너뜀) 를 찾아 present 시도.
+    /// 2. top 이 다른 alert 를 이미 presenting 중이거나 transition 중이면 — 새 alert 를 띄울 수 없으므로
+    ///    `fallback` 을 즉시 호출해 completionHandler 를 안전한 default (false / nil / no-op) 로 닫는다.
+    ///
+    /// JS 스레드 hang 보다 "이번 dialog 는 표시 못함" (= cancel 처리) 이 항상 안전. 라운지 측은 dialog
+    /// 결과가 false 인 경우의 분기를 이미 갖고 있을 것이라는 가정 (일반 브라우저에서 dismiss 시 동작과 동일).
+    private func presentJsDialog(_ alert: UIAlertController, fallback: @escaping () -> Void) {
+        var top: UIViewController = self
+        while let next = top.presentedViewController, !next.isBeingDismissed {
+            top = next
+        }
+        if top.presentedViewController != nil || top.isBeingPresented || top.isBeingDismissed {
+            fallback()
+            return
+        }
+        top.present(alert, animated: true)
     }
 }

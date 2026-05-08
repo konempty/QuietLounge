@@ -81,6 +81,47 @@
   }
   __name(applyStyle, "applyStyle");
 
+  // shared/web/core/filter-engine.ts
+  function runFilterPass(ctx) {
+    return filterFeedPosts(ctx) + filterCarouselCards(ctx);
+  }
+  __name(runFilterPass, "runFilterPass");
+  function filterFeedPosts(ctx) {
+    let blocked = 0;
+    document.querySelectorAll(SEL.postLink).forEach((link) => {
+      const postId = link.getAttribute("href")?.replace("/posts/", "") || void 0;
+      const nicknameRaw = link.querySelector(SEL.nickname)?.textContent;
+      const nickname = nicknameRaw?.trim() || void 0;
+      if (!postId && !nickname) return;
+      const pid = postId ? ctx.personaIdForPost(postId) : void 0;
+      const isBlk = isBlocked(ctx.blockData, pid, nickname);
+      const container = link.closest(SEL.postContainer) || link.parentElement?.parentElement;
+      if (!container) return;
+      if (isBlk) blocked++;
+      applyStyle(container, isBlk, ctx.filterMode);
+      const separator = container.parentElement?.nextElementSibling;
+      if (separator && separator.getAttribute?.("data-slot") === "separator") {
+        applyStyle(separator, isBlk, ctx.filterMode);
+      }
+    });
+    return blocked;
+  }
+  __name(filterFeedPosts, "filterFeedPosts");
+  function filterCarouselCards(ctx) {
+    let blocked = 0;
+    document.querySelectorAll(SEL.card).forEach((card) => {
+      const nickname = card.querySelector(SEL.nickname)?.textContent?.trim();
+      if (!nickname) return;
+      const isBlk = isBlocked(ctx.blockData, void 0, nickname);
+      const item = card.closest(SEL.cardItem);
+      if (!item) return;
+      if (isBlk) blocked++;
+      applyStyle(item, isBlk, ctx.filterMode);
+    });
+    return blocked;
+  }
+  __name(filterCarouselCards, "filterCarouselCards");
+
   // shared/web/entries/android-after.ts
   (function() {
     "use strict";
@@ -103,36 +144,15 @@
       }
     }
     __name(postNative, "postNative");
-    function isBlocked2(personaId, nickname) {
-      return isBlocked(window.__QL_BLOCK_DATA, personaId, nickname);
-    }
-    __name(isBlocked2, "isBlocked");
-    function applyStyle2(el, blocked) {
-      applyStyle(el, blocked, window.__QL_FILTER_MODE || "hide");
-    }
-    __name(applyStyle2, "applyStyle");
     function filterAll() {
       if (!isActivePage()) return;
       const ql = window.__QL || { personaMap: {} };
-      document.querySelectorAll(SEL.postLink).forEach(function(link) {
-        const postId = link.getAttribute("href")?.replace("/posts/", "");
-        const nickname = link.querySelector(SEL.nickname)?.textContent?.trim();
-        const pid = postId ? ql.personaMap[postId] : void 0;
-        const container = link.closest(SEL.postContainer) || link.parentElement?.parentElement;
-        if (!container) return;
-        const blocked = isBlocked2(pid, nickname);
-        applyStyle2(container, blocked);
-        const sep = container.parentElement?.nextElementSibling;
-        if (sep?.getAttribute?.("data-slot") === "separator") {
-          applyStyle2(sep, blocked);
-        }
-      });
-      document.querySelectorAll(SEL.card).forEach(function(card) {
-        const nickname = card.querySelector(SEL.nickname)?.textContent?.trim();
-        if (!nickname) return;
-        const blocked = isBlocked2(void 0, nickname);
-        const item = card.closest(SEL.cardItem);
-        if (item) applyStyle2(item, blocked);
+      runFilterPass({
+        blockData: window.__QL_BLOCK_DATA,
+        filterMode: window.__QL_FILTER_MODE || "hide",
+        personaIdForPost: /* @__PURE__ */ __name(function(id) {
+          return ql.personaMap[id];
+        }, "personaIdForPost")
       });
     }
     __name(filterAll, "filterAll");

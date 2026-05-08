@@ -12,8 +12,8 @@
 import { SEL } from '../core/selectors';
 import { isActivePage, isBlockButtonPage } from '../core/pages';
 import { isCleanbotFiltered } from '../core/cleanbot';
-import { isBlocked as sharedIsBlocked } from '../core/block-check';
-import { applyStyle as sharedApplyStyle } from '../core/style';
+import { runFilterPass } from '../core/filter-engine';
+// isBlocked / applyStyle 은 runFilterPass 가 내부에서 사용. Android entry 는 다른 곳에서 직접 호출 안 함.
 // __QL_BLOCK_DATA_PLACEHOLDER__ ambient 식별자는 placeholders.d.ts 가 선언 — `// @ts-nocheck`
 // 가 entry 상단에 있어 명시 import 불필요. esbuild 는 미정의 글로벌을 그대로 통과시킨다.
 
@@ -44,43 +44,15 @@ import { applyStyle as sharedApplyStyle } from '../core/style';
     }
   }
 
-  // window.__QL_BLOCK_DATA 를 closure 인자로 shared isBlocked 에 위임.
-  // Android entry 는 native bridge 가 placeholder 로 직접 주입한 데이터를 사용 — 별도 storage 로드 없음.
-  function isBlocked(personaId, nickname) {
-    return sharedIsBlocked(window.__QL_BLOCK_DATA, personaId, nickname);
-  }
-
-  function applyStyle(el, blocked) {
-    sharedApplyStyle(el, blocked, window.__QL_FILTER_MODE || 'hide');
-  }
-
   function filterAll() {
+    // 핵심 로직은 shared/web/core/filter-engine.ts. Android 는 badge 가 없어 카운트 무시.
+    // native bridge 가 placeholder 로 직접 주입한 window.__QL_BLOCK_DATA / __QL_FILTER_MODE 사용.
     if (!isActivePage()) return;
     const ql = window.__QL || { personaMap: {} };
-
-    document.querySelectorAll(SEL.postLink).forEach(function (link) {
-      const postId = link.getAttribute('href')?.replace('/posts/', '');
-      const nickname = link.querySelector(SEL.nickname)?.textContent?.trim();
-      const pid = postId ? ql.personaMap[postId] : undefined;
-      const container = link.closest(SEL.postContainer) || link.parentElement?.parentElement;
-      if (!container) return;
-
-      const blocked = isBlocked(pid, nickname);
-      applyStyle(container, blocked);
-
-      const sep = container.parentElement?.nextElementSibling;
-      if (sep?.getAttribute?.('data-slot') === 'separator') {
-        applyStyle(sep, blocked);
-      }
-    });
-
-    // 캐러셀/카드 — applyStyle 을 항상 호출해서 unblock 시에도 흐림이 풀리도록.
-    document.querySelectorAll(SEL.card).forEach(function (card) {
-      const nickname = card.querySelector(SEL.nickname)?.textContent?.trim();
-      if (!nickname) return;
-      const blocked = isBlocked(undefined, nickname);
-      const item = card.closest(SEL.cardItem);
-      if (item) applyStyle(item, blocked);
+    runFilterPass({
+      blockData: window.__QL_BLOCK_DATA,
+      filterMode: window.__QL_FILTER_MODE || 'hide',
+      personaIdForPost: function (id) { return ql.personaMap[id]; },
     });
   }
 

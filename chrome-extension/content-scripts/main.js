@@ -86,6 +86,47 @@
   }
   __name(applyStyle, "applyStyle");
 
+  // shared/web/core/filter-engine.ts
+  function runFilterPass(ctx) {
+    return filterFeedPosts(ctx) + filterCarouselCards(ctx);
+  }
+  __name(runFilterPass, "runFilterPass");
+  function filterFeedPosts(ctx) {
+    let blocked = 0;
+    document.querySelectorAll(SEL.postLink).forEach((link) => {
+      const postId = link.getAttribute("href")?.replace("/posts/", "") || void 0;
+      const nicknameRaw = link.querySelector(SEL.nickname)?.textContent;
+      const nickname = nicknameRaw?.trim() || void 0;
+      if (!postId && !nickname) return;
+      const pid = postId ? ctx.personaIdForPost(postId) : void 0;
+      const isBlk = isBlocked(ctx.blockData, pid, nickname);
+      const container = link.closest(SEL.postContainer) || link.parentElement?.parentElement;
+      if (!container) return;
+      if (isBlk) blocked++;
+      applyStyle(container, isBlk, ctx.filterMode);
+      const separator = container.parentElement?.nextElementSibling;
+      if (separator && separator.getAttribute?.("data-slot") === "separator") {
+        applyStyle(separator, isBlk, ctx.filterMode);
+      }
+    });
+    return blocked;
+  }
+  __name(filterFeedPosts, "filterFeedPosts");
+  function filterCarouselCards(ctx) {
+    let blocked = 0;
+    document.querySelectorAll(SEL.card).forEach((card) => {
+      const nickname = card.querySelector(SEL.nickname)?.textContent?.trim();
+      if (!nickname) return;
+      const isBlk = isBlocked(ctx.blockData, void 0, nickname);
+      const item = card.closest(SEL.cardItem);
+      if (!item) return;
+      if (isBlk) blocked++;
+      applyStyle(item, isBlk, ctx.filterMode);
+    });
+    return blocked;
+  }
+  __name(filterCarouselCards, "filterCarouselCards");
+
   // shared/web/entries/chrome.ts
   (function() {
     "use strict";
@@ -265,77 +306,16 @@
       if (changed) await saveBlockData();
     }
     __name(autoPromoteBlocks, "autoPromoteBlocks");
-    function applyBlockStyle(el) {
-      applyStyle(el, true, filterMode);
-    }
-    __name(applyBlockStyle, "applyBlockStyle");
-    function clearBlockStyle(el) {
-      applyStyle(el, false, filterMode);
-    }
-    __name(clearBlockStyle, "clearBlockStyle");
-    let totalBlocked = 0;
     function filterAll() {
       if (!isActivePage()) return;
-      totalBlocked = 0;
-      filterFeedPosts();
-      filterCarouselCards();
-      updateBadge();
+      const totalBlocked = runFilterPass({
+        blockData,
+        filterMode,
+        personaIdForPost: /* @__PURE__ */ __name((id) => personaMap.get(id), "personaIdForPost")
+      });
+      chrome.runtime.sendMessage({ type: "UPDATE_BADGE", count: totalBlocked });
     }
     __name(filterAll, "filterAll");
-    function filterFeedPosts() {
-      const postLinks = document.querySelectorAll(SEL.postLink);
-      postLinks.forEach((link) => {
-        const postId = link.getAttribute("href")?.replace("/posts/", "");
-        const nicknameEl = link.querySelector(SEL.nickname);
-        const nickname = nicknameEl?.textContent?.trim();
-        if (!postId && !nickname) return;
-        const pid = postId ? personaMap.get(postId) : void 0;
-        const blocked = isBlocked2(pid, nickname);
-        const container = link.closest(SEL.postContainer) || link.parentElement?.parentElement;
-        if (!container) return;
-        if (blocked) {
-          totalBlocked++;
-          applyBlockStyle(container);
-          const wrapper = container.parentElement;
-          const separator = wrapper?.nextElementSibling;
-          if (separator?.getAttribute?.("data-slot") === "separator") {
-            applyBlockStyle(separator);
-          }
-        } else {
-          clearBlockStyle(container);
-          const wrapper = container.parentElement;
-          const separator = wrapper?.nextElementSibling;
-          if (separator?.getAttribute?.("data-slot") === "separator") {
-            clearBlockStyle(separator);
-          }
-        }
-      });
-    }
-    __name(filterFeedPosts, "filterFeedPosts");
-    function filterCarouselCards() {
-      const cards = document.querySelectorAll(SEL.card);
-      cards.forEach((card) => {
-        const nickname = card.querySelector(SEL.nickname)?.textContent?.trim();
-        if (!nickname) return;
-        const blocked = isBlocked2(void 0, nickname);
-        const item = card.closest(SEL.cardItem);
-        if (!item) return;
-        if (blocked) {
-          totalBlocked++;
-          applyBlockStyle(item);
-        } else {
-          clearBlockStyle(item);
-        }
-      });
-    }
-    __name(filterCarouselCards, "filterCarouselCards");
-    function updateBadge() {
-      chrome.runtime.sendMessage({
-        type: "UPDATE_BADGE",
-        count: totalBlocked
-      });
-    }
-    __name(updateBadge, "updateBadge");
     function findPersonaId(container) {
       let pid;
       const profileLink = container.querySelector('a[href^="/profiles/"]');

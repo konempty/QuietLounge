@@ -3,10 +3,13 @@ package kr.konempty.quietlounge.ui.lounge
 import android.annotation.SuppressLint
 import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.JsPromptResult
+import android.webkit.JsResult
 import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.EditText
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -278,7 +281,10 @@ private fun createLoungeWebView(
 
         addJavascriptInterface(bridge, NativeBridge.NAME)
 
-        webChromeClient = WebChromeClient()
+        // 기본 WebChromeClient() 만 쓰면 JS alert / confirm / prompt 가 silent 봉쇄된다 — 라운지가
+        // 사용자 확인을 받는 흐름에서 dialog 가 안 뜨고 JS 스레드가 응답을 못 받아 다음 동작이 멈춤.
+        // iOS native 의 WKUIDelegate 와 동일 매개 패턴으로 AlertDialog 로 띄우고 result 콜백을 호출.
+        webChromeClient = LoungeWebChromeClient(context)
         webViewClient =
             object : WebViewClient() {
                 override fun onPageStarted(
@@ -397,5 +403,70 @@ private fun ToolbarButton(
                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                 },
         )
+    }
+}
+
+/**
+ * WebView 의 JS alert / confirm / prompt 를 native AlertDialog 로 매개.
+ *
+ * Android WebView 도 iOS WKWebView 와 마찬가지로 — 기본 [WebChromeClient] 의 onJsAlert /
+ * onJsConfirm / onJsPrompt 가 false 를 반환하면 dialog 가 안 뜨고 JsResult.confirm/cancel 이
+ * 호출되지 않아 JS 스레드가 응답 대기로 멈춤. 라운지 페이지가 confirm() 으로 사용자 확인을
+ * 받는 흐름에서 회귀가 발생해 명시적으로 매개한다.
+ *
+ * `android.app.AlertDialog` 를 fully qualified name 으로 사용 — `androidx.compose.material3.AlertDialog`
+ * 와 이름이 충돌해 import 하면 Compose 측 dialog 호출 (LoungeScreen 안의 차단 confirm 등) 이 깨진다.
+ */
+private class LoungeWebChromeClient(
+    private val context: android.content.Context,
+) : WebChromeClient() {
+    override fun onJsAlert(
+        view: WebView?,
+        url: String?,
+        message: String?,
+        result: JsResult?,
+    ): Boolean {
+        android.app.AlertDialog
+            .Builder(context)
+            .setMessage(message)
+            .setPositiveButton("확인") { _, _ -> result?.confirm() }
+            .setOnCancelListener { result?.cancel() }
+            .show()
+        return true
+    }
+
+    override fun onJsConfirm(
+        view: WebView?,
+        url: String?,
+        message: String?,
+        result: JsResult?,
+    ): Boolean {
+        android.app.AlertDialog
+            .Builder(context)
+            .setMessage(message)
+            .setPositiveButton("확인") { _, _ -> result?.confirm() }
+            .setNegativeButton("취소") { _, _ -> result?.cancel() }
+            .setOnCancelListener { result?.cancel() }
+            .show()
+        return true
+    }
+
+    override fun onJsPrompt(
+        view: WebView?,
+        url: String?,
+        message: String?,
+        defaultValue: String?,
+        result: JsPromptResult?,
+    ): Boolean {
+        val input = EditText(context).apply { setText(defaultValue ?: "") }
+        android.app.AlertDialog
+            .Builder(context)
+            .setMessage(message)
+            .setView(input)
+            .setPositiveButton("확인") { _, _ -> result?.confirm(input.text.toString()) }
+            .setNegativeButton("취소") { _, _ -> result?.cancel() }
+            .setOnCancelListener { result?.cancel() }
+            .show()
+        return true
     }
 }

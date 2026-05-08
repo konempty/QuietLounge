@@ -12,7 +12,7 @@ import { STORAGE_KEY, FILTER_MODE_KEY, DONT_SHOW_FILTER_HINT_KEY } from '../core
 import { isActivePage, isBlockButtonPage } from '../core/pages';
 import { isCleanbotFiltered } from '../core/cleanbot';
 import { isBlocked as sharedIsBlocked } from '../core/block-check';
-import { applyStyle as sharedApplyStyle } from '../core/style';
+import { runFilterPass } from '../core/filter-engine';
 
 (function () {
   'use strict';
@@ -258,87 +258,17 @@ import { applyStyle as sharedApplyStyle } from '../core/style';
     if (changed) await saveBlockData();
   }
 
-  // ── 스타일 적용 (Chrome 과 같은 분리 시그너처를 shared applyStyle 통합 API 위에 wrap) ──
-  function applyBlockStyle(el) {
-    sharedApplyStyle(el, true, filterMode);
-  }
-
-  function clearBlockStyle(el) {
-    sharedApplyStyle(el, false, filterMode);
-  }
-
   // ── 필터 엔진 ──
-  let totalBlocked = 0;
-
+  // 핵심 로직은 shared/web/core/filter-engine.ts 의 runFilterPass — 4 플랫폼 동일.
+  // Safari ext 도 차단 카운트를 badge 로 노출하므로 entry 가 후처리.
   function filterAll() {
-    // /posts/** 또는 /channels/** 에서만 동작
     if (!isActivePage()) return;
-
-    totalBlocked = 0;
-    filterFeedPosts();
-    filterCarouselCards();
-    updateBadge();
-  }
-
-  function filterFeedPosts() {
-    const postLinks = document.querySelectorAll(SEL.postLink);
-
-    postLinks.forEach((link) => {
-      const postId = link.getAttribute('href')?.replace('/posts/', '');
-      const nicknameEl = link.querySelector(SEL.nickname);
-      const nickname = nicknameEl?.textContent?.trim();
-
-      if (!postId && !nickname) return;
-
-      const pid = postId ? personaMap.get(postId) : undefined;
-      const blocked = isBlocked(pid, nickname);
-
-      const container = link.closest(SEL.postContainer) || link.parentElement?.parentElement;
-      if (!container) return;
-
-      if (blocked) {
-        totalBlocked++;
-        applyBlockStyle(container);
-        const wrapper = container.parentElement;
-        const separator = wrapper?.nextElementSibling;
-        if (separator?.getAttribute?.('data-slot') === 'separator') {
-          applyBlockStyle(separator);
-        }
-      } else {
-        clearBlockStyle(container);
-        const wrapper = container.parentElement;
-        const separator = wrapper?.nextElementSibling;
-        if (separator?.getAttribute?.('data-slot') === 'separator') {
-          clearBlockStyle(separator);
-        }
-      }
+    const totalBlocked = runFilterPass({
+      blockData,
+      filterMode,
+      personaIdForPost: (id) => personaMap.get(id),
     });
-  }
-
-  function filterCarouselCards() {
-    const cards = document.querySelectorAll(SEL.card);
-    cards.forEach((card) => {
-      const nickname = card.querySelector(SEL.nickname)?.textContent?.trim();
-      if (!nickname) return;
-
-      const blocked = isBlocked(undefined, nickname);
-      const item = card.closest(SEL.cardItem);
-      if (!item) return;
-
-      if (blocked) {
-        totalBlocked++;
-        applyBlockStyle(item);
-      } else {
-        clearBlockStyle(item);
-      }
-    });
-  }
-
-  function updateBadge() {
-    browser.runtime.sendMessage({
-      type: 'UPDATE_BADGE',
-      count: totalBlocked,
-    });
+    browser.runtime.sendMessage({ type: 'UPDATE_BADGE', count: totalBlocked });
   }
 
   // ── UI Injector (차단 버튼) ──
