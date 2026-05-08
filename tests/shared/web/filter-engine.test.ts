@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { runFilterPass } from '../../../shared/web/core/filter-engine';
-import type { BlockListData, FilterMode } from '../../../shared/types';
+import type { BlockListData } from '../../../shared/types';
 
 function setupDom(html: string): Document {
   const dom = new JSDOM(`<!doctype html><html><body>${html}</body></html>`, {

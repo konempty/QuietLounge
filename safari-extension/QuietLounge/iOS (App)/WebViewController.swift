@@ -458,7 +458,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
         controller.removeAllUserScripts()
 
         let beforeScript = WKUserScript(
-            source: WebViewScripts.beforeScript,
+            source: WebViewScripts.beforeScript(),
             injectionTime: .atDocumentStart,
             forMainFrameOnly: true
         )

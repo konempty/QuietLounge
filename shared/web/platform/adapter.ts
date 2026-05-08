@@ -111,6 +111,21 @@ export interface ProfileStatsAdapter {
   removeMyStats?(): void;
 }
 
+/**
+ * before.js — fetch monkey-patch 로 라운지 API 응답에서 postId/personaId/nickname 매핑을 수집해
+ * 네이티브 측에 push. iOS / Android 두 플랫폼만 사용 (Chrome / Safari ext 은 별도 api-interceptor).
+ *
+ * shared `setupPersonaExtractor(adapter)` 가 fetch 패치 / DOM hydration 파싱 / DOM fallback 까지
+ * 처리하고, 어댑터는 *수집된 매핑 push* 만 책임 — iOS = `webkit.messageHandlers.qlBridge`,
+ * Android = `window.QuietLounge.postMessage` 의 단일 차이를 흡수.
+ */
+export interface PersonaExtractorAdapter {
+  pushPersonaMap(payload: {
+    personaMap: Record<string, string>;
+    personaCache: Record<string, string>;
+  }): void;
+}
+
 /** popup 의 "내 활동 통계" 카드에 노출될 직렬화 형태. JSON 으로 저장. */
 export interface MyStatsRecord {
   personaId: string;

@@ -5,7 +5,7 @@
 // 1) 3개 popup (Chrome / Safari iOS / Safari macOS) 모두 동일한 마크업/스타일/핸들러
 // 2) Chrome 팝업의 실제 동작 — 빈 상태/유저 있는 상태/취소 케이스
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';

@@ -55,9 +55,22 @@ const TARGETS = [
     ),
   },
   {
+    name: 'ios-before',
+    entryPoints: [path.join(ROOT, 'shared/web/entries/ios-before.ts')],
+    outfile: path.join(
+      ROOT,
+      'safari-extension/QuietLounge/iOS (App)/Resources/webview-scripts/before.js',
+    ),
+  },
+  {
     name: 'android-after',
     entryPoints: [path.join(ROOT, 'shared/web/entries/android-after.ts')],
     outfile: path.join(ROOT, 'android-app/app/src/main/assets/webview-scripts/after.js'),
+  },
+  {
+    name: 'android-before',
+    entryPoints: [path.join(ROOT, 'shared/web/entries/android-before.ts')],
+    outfile: path.join(ROOT, 'android-app/app/src/main/assets/webview-scripts/before.js'),
   },
 ];
 

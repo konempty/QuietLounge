@@ -120,16 +120,15 @@
   }
   __name(__resetForTests, "__resetForTests");
 
-  // shared/web/entries/android-before.ts
+  // shared/web/entries/ios-before.ts
   (function() {
     "use strict";
     const adapter = {
       pushPersonaMap(payload) {
         try {
-          if (window.QuietLounge && typeof window.QuietLounge.postMessage === "function") {
-            window.QuietLounge.postMessage(
-              JSON.stringify({ type: "PERSONA_MAP_UPDATE", payload })
-            );
+          const handler = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.qlBridge;
+          if (handler && typeof handler.postMessage === "function") {
+            handler.postMessage(JSON.stringify({ type: "PERSONA_MAP_UPDATE", payload }));
           }
         } catch {
         }
