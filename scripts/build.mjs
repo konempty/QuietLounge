@@ -60,6 +60,22 @@ const TARGETS = [
     ),
   },
   {
+    name: 'safari-injector',
+    entryPoints: [path.join(ROOT, 'shared/web/entries/safari-injector.ts')],
+    outfile: path.join(
+      ROOT,
+      'safari-extension/QuietLounge/Shared (Extension)/Resources/content-scripts/injector.js',
+    ),
+  },
+  {
+    name: 'safari-storage-bridge',
+    entryPoints: [path.join(ROOT, 'shared/web/entries/safari-storage-bridge.ts')],
+    outfile: path.join(
+      ROOT,
+      'safari-extension/QuietLounge/Shared (Extension)/Resources/content-scripts/storage-bridge.js',
+    ),
+  },
+  {
     name: 'ios-after',
     entryPoints: [path.join(ROOT, 'shared/web/entries/ios-after.ts')],
     outfile: path.join(
