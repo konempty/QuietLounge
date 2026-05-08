@@ -77,14 +77,8 @@ if $RUN_JS; then
             printf '%snode_modules 가 없음 — pnpm install 먼저 실행%s\n' "$DIM" "$RESET"
             pnpm install --frozen-lockfile 2>/dev/null || pnpm install
         fi
-        # 빌드 산출물을 source 와 동기화 — 4 플랫폼 inject 스크립트가 항상 최신 shared/web/ 반영.
+        # 산출물은 .gitignore — 매 실행 시 esbuild 가 결정론적으로 재생성한다.
         run "Build (esbuild)" pnpm build
-        # source 변경분이 commit 되지 않은 채 PR 이 올라오는 회귀 차단.
-        run "Build artifacts up-to-date" git diff --exit-code -- \
-            chrome-extension/content-scripts/main.js \
-            'safari-extension/QuietLounge/Shared (Extension)/Resources/content-scripts/main.js' \
-            'safari-extension/QuietLounge/iOS (App)/Resources/webview-scripts/after.js' \
-            android-app/app/src/main/assets/webview-scripts/after.js
         run "JS tests" pnpm test:coverage
         # vitest v8 "All files" 행: File | Stmts | Branch | Funcs | Lines | ...
         if [ -f coverage/coverage-summary.json ]; then

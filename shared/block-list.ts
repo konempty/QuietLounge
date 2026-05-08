@@ -18,8 +18,8 @@ function createEmptyData(): BlockListData {
 
 export class BlockList {
   private data: BlockListData;
-  private storage: StorageAdapter;
-  private onUpdate?: (data: BlockListData) => void;
+  private readonly storage: StorageAdapter;
+  private readonly onUpdate?: (data: BlockListData) => void;
 
   constructor(storage: StorageAdapter, onUpdate?: (data: BlockListData) => void) {
     this.data = createEmptyData();

@@ -37,7 +37,10 @@ async function setupAlarm() {
   const alerts = result[KEYWORD_ALERTS_KEY] ? JSON.parse(result[KEYWORD_ALERTS_KEY]) : [];
   const rawInterval = result[ALERT_INTERVAL_KEY];
   // README 문서상 허용 범위 1~60 분. 저장된 값이 범위를 벗어나 있어도 정상 폴링을 보장.
-  const interval = Math.min(60, Math.max(1, Number.isFinite(rawInterval) ? Math.round(rawInterval) : 5));
+  const interval = Math.min(
+    60,
+    Math.max(1, Number.isFinite(rawInterval) ? Math.round(rawInterval) : 5),
+  );
 
   const hasEnabled = alerts.some((a) => a.enabled);
 

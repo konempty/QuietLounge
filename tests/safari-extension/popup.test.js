@@ -19,6 +19,10 @@ const POPUP_JS = path.resolve(
   process.cwd(),
   'safari-extension/QuietLounge/Shared (Extension)/Resources/popup/popup.js',
 );
+const MAC_POPUP_JS = path.resolve(
+  process.cwd(),
+  'safari-extension/QuietLounge/Shared (Extension)/Resources/popup-macos/popup.js',
+);
 
 function mkBrowser({ seed = {} } = {}) {
   const store = { _data: { ...seed }, _listeners: [] };
@@ -63,9 +67,15 @@ function mkBrowser({ seed = {} } = {}) {
   };
 }
 
-async function setup({ seed = {}, userAgent, fetchImpl } = {}) {
-  const html = await fs.readFile(POPUP_HTML, 'utf8');
-  const js = await fs.readFile(POPUP_JS, 'utf8');
+async function setup({
+  seed = {},
+  userAgent,
+  fetchImpl,
+  popupHtml = POPUP_HTML,
+  popupJs = POPUP_JS,
+} = {}) {
+  const html = await fs.readFile(popupHtml, 'utf8');
+  const js = await fs.readFile(popupJs, 'utf8');
   const dom = new JSDOM(html, {
     url: 'safari-web-extension://abc/popup.html',
     runScripts: 'outside-only',
@@ -84,7 +94,7 @@ async function setup({ seed = {}, userAgent, fetchImpl } = {}) {
     addEventListener: () => {},
     removeEventListener: () => {},
   });
-  win.eval(`${js}\n//# sourceURL=${pathToFileURL(POPUP_JS).href}\n`);
+  win.eval(`${js}\n//# sourceURL=${pathToFileURL(popupJs).href}\n`);
   for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
   return { dom, win };
 }
@@ -464,7 +474,6 @@ describe('safari popup.html + popup.js', () => {
 
     expect(ctx.win.browser.runtime.sendMessage).toHaveBeenCalledWith(
       { type: 'QL_KEYWORD_CHECK_NOW' },
-      expect.any(Function),
     );
     expect(ctx.win.browser.runtime.sendMessage).toHaveBeenCalledWith(
       { type: 'QL_PROMPT_NOTIF_PERM' },
@@ -725,4 +734,56 @@ describe('safari popup.html + popup.js', () => {
       doc.getElementById('block-list-container').innerHTML,
     ).toContain('갱신유저');
   });
+});
+
+// ── popup-macos/popup.js 검증 ──────────────────────────────────
+// macOS 전용 popup 은 popup.js 와 거의 동일하지만 (1) `btn-support` 후원 버튼 부재
+// (2) macOS 알림 권한 배너 발화 등 일부 경로가 다름. 둘 중 하나만 회귀해도 잡히도록 핵심 시나리오
+// (load + 차단 목록 / 토글) 한 번 더 실행해 coverage 신호 확보.
+describe('safari popup-macos/popup.html + popup.js — 핵심 동작 회귀 가드', () => {
+  let dom;
+  afterEach(() => {
+    if (dom) dom.window.close();
+    dom = null;
+  });
+
+  const macSetup = (extra = {}) =>
+    setup({
+      ...extra,
+      popupHtml: MAC_POPUP_HTML,
+      popupJs: MAC_POPUP_JS,
+      // macOS 분기 발화 — keyword alert 의 'CHECK_NOW' 즉시 호출 등 macOS 전용 경로 진입.
+      userAgent:
+        extra.userAgent ?? 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+    });
+
+  it('load 후 popup 본문 렌더링 + 차단 목록 빈 상태', async () => {
+    const ctx = await macSetup();
+    dom = ctx.dom;
+    const doc = ctx.win.document;
+    expect(doc.getElementById('blocked-count').textContent).toBe('0');
+    expect(doc.getElementById('block-list-container').innerHTML).toContain(
+      '차단된 유저가 없습니다',
+    );
+  });
+
+  it('차단 데이터 seed → 목록에 닉네임 표시', async () => {
+    const ctx = await macSetup({
+      seed: {
+        quiet_lounge_data: JSON.stringify({
+          version: 2,
+          blockedUsers: {
+            macuser1: { personaId: 'macuser1', nickname: '맥유저', blockedAt: '2026-04-01T00:00:00Z' },
+          },
+          nicknameOnlyBlocks: [],
+          personaCache: {},
+        }),
+      },
+    });
+    dom = ctx.dom;
+    const doc = ctx.win.document;
+    expect(doc.getElementById('blocked-count').textContent).toBe('1');
+    expect(doc.getElementById('block-list-container').innerHTML).toContain('맥유저');
+  });
+
 });

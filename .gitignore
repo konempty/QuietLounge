@@ -38,3 +38,17 @@ coverage/
 /swift-tests/Package.resolved
 /safari-extension/QuietLounge/build/
 /review/
+
+# esbuild 산출물 (shared/web/ 에서 결정론적으로 빌드 — `pnpm build` 로 생성).
+# 모든 빌드 진입점 (Xcode Build Phase / Gradle preBuild / GitHub Actions) 이 esbuild 를 선행
+# 호출하므로 git 에 commit 하지 않음. PR diff 노이즈 / 실수 직접 편집 회귀 차단.
+/chrome-extension/content-scripts/main.js
+/chrome-extension/content-scripts/api-interceptor.js
+/safari-extension/QuietLounge/Shared (Extension)/Resources/content-scripts/main.js
+/safari-extension/QuietLounge/Shared (Extension)/Resources/content-scripts/api-interceptor.js
+/safari-extension/QuietLounge/Shared (Extension)/Resources/content-scripts/injector.js
+/safari-extension/QuietLounge/Shared (Extension)/Resources/content-scripts/storage-bridge.js
+/safari-extension/QuietLounge/iOS (App)/Resources/webview-scripts/before.js
+/safari-extension/QuietLounge/iOS (App)/Resources/webview-scripts/after.js
+/android-app/app/src/main/assets/webview-scripts/before.js
+/android-app/app/src/main/assets/webview-scripts/after.js

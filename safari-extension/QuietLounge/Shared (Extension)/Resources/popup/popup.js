@@ -742,8 +742,7 @@ document.getElementById('btn-save-alert').addEventListener('click', async () => 
   //   문제 회피)
   if (isMac) {
     try {
-      browser.runtime.sendMessage({ type: 'QL_KEYWORD_CHECK_NOW' }, (resp) => {
-      });
+      browser.runtime.sendMessage({ type: 'QL_KEYWORD_CHECK_NOW' });
     } catch (e) {
       console.warn('[QL][popup] CHECK_NOW failed', e);
     }

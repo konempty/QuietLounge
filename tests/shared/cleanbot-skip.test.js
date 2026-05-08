@@ -1,8 +1,8 @@
 // 라운지 자체 검열(클린봇) 글에는 차단 버튼을 붙이지 않는 동작의 cross-platform 검증.
 //
-// **PR #1 이후 — source of truth 는 shared/web/core/cleanbot.ts**. 4 곳 산출물
+// **PR #1 이후 — source of truth 는 web/core/cleanbot.ts**. 4 곳 산출물
 // (Chrome / Safari ext / iOS native / Android) 은 esbuild 가 동일 source 에서 빌드.
-//   • 순수 시맨틱은 tests/shared/web/cleanbot.test.ts 에서 import 로 검증.
+//   • 순수 시맨틱은 tests/web/cleanbot.test.ts 에서 import 로 검증.
 //   • 이 파일은 (a) DOM 마크업 시뮬레이션 (b) sample13 실제 fixture
 //     (c) 4 산출물 source-level 회귀 가드 — 빌드 후 토큰/패턴 보존을 본다.
 
@@ -23,7 +23,7 @@ function read(rel) {
 }
 
 // production 로직의 동일 mirror — 마크업 시뮬레이션용. 실제 production 코드는
-// shared/web/core/cleanbot.ts 에 단일 정의. drift 시 source-level guard 가 잡아낸다.
+// web/core/cleanbot.ts 에 단일 정의. drift 시 source-level guard 가 잡아낸다.
 function isCleanbotFiltered(container) {
   if (!container) return false;
   if (container.querySelector('[data-slot]')) return false;
@@ -183,7 +183,7 @@ describe('path A — profile-name 에서 post container 까지 closest() 로 cli
 });
 
 describe('산출물 회귀 가드 — 4 플랫폼 모두 같은 검출 로직 보유', () => {
-  // shared/web/core/cleanbot.ts 가 단일 source 지만 4 산출물에 inline 으로 펼쳐져 들어가야
+  // web/core/cleanbot.ts 가 단일 source 지만 4 산출물에 inline 으로 펼쳐져 들어가야
   // 각 플랫폼 IIFE 가 자체 작동. esbuild 가 keepNames + bundle 로 함수명/문자열 보존.
   for (const [name, rel] of Object.entries(PLATFORM_ARTIFACTS)) {
     describe(`${name} (${rel})`, () => {

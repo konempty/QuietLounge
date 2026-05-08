@@ -111,11 +111,10 @@ enum QuietLoungeCore {
     /// - maxWidth: 한 줄의 최대 폭
     /// - hSpacing: 같은 줄 아이템 간 가로 간격
     /// - vSpacing: 줄 사이 세로 간격
+    /// FlowFrame 은 *위치만* 보유 — width/height 는 입력 itemSizes 그대로 라 결과에 다시 담을 필요 없음.
     struct FlowFrame: Equatable {
         let x: Double
         let y: Double
-        let width: Double
-        let height: Double
     }
 
     struct FlowLayoutResult {
@@ -142,7 +141,7 @@ enum QuietLoungeCore {
                 y += lineHeight + vSpacing
                 lineHeight = 0
             }
-            frames.append(FlowFrame(x: x, y: y, width: size.width, height: size.height))
+            frames.append(FlowFrame(x: x, y: y))
             x += size.width + hSpacing
             lineHeight = max(lineHeight, size.height)
         }

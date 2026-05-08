@@ -239,14 +239,10 @@ class KeywordAlertManager {
         checkLock.unlock()
     }
 
-    /// 테스트 / 디버깅용 — 현재 실행 중인지 확인.
-    var isCheckInFlight: Bool {
-        checkLock.lock()
-        defer { checkLock.unlock() }
-        return checkInFlight
-    }
-
     /// 채널 1 개 처리 — recent glob → detail → 알림 발송 → 새 lastChecked 반환.
+    /// 매칭 알고리즘 (lastChecked 후 글 + 키워드 매칭 + max createTime) 은 순수 함수
+    /// `QuietLoungeCore.processChannel` 에 위임 — Android `KeywordAlertEngine.processChannel` 과
+    /// 동일 시맨틱이고 swift-tests 가 검증한다. 이 함수는 fetch / 알림 발송 부수효과만 책임.
     /// Returns: (channelId, newLastCheckedIso) — newLastCheckedIso 가 nil 이면 해당 채널은 전진 생략.
     private func processChannel(
         channelId: String,
@@ -257,36 +253,38 @@ class KeywordAlertManager {
             let recentIds = try await fetchRecentPostIds(channelId: channelId)
             guard !recentIds.isEmpty else { return (channelId, nil) }
 
-            let details = try await fetchPostTitles(postIds: recentIds)
-            guard !details.isEmpty else { return (channelId, nil) }
+            let raw = try await fetchPostTitles(postIds: recentIds)
+            guard !raw.isEmpty else { return (channelId, nil) }
 
-            let lastTs = lastCheckedForChannel.flatMap { Self.isoToDate($0) } ?? .distantPast
+            // raw [String: Any] → typed PostDetail 로 변환해 순수 helper 에 넘김.
+            let postDetails: [QuietLoungeCore.PostDetail] = raw.compactMap { post in
+                guard let postId = post["postId"] as? String,
+                      let title = post["title"] as? String,
+                      let createTime = post["createTime"] as? String else { return nil }
+                return QuietLoungeCore.PostDetail(postId: postId, title: title, createTime: createTime)
+            }
 
-            for post in details {
-                guard let title = post["title"] as? String,
-                      let postId = post["postId"] as? String,
-                      let createStr = post["createTime"] as? String,
-                      let createDate = Self.isoToDate(createStr),
-                      createDate > lastTs else { continue }
-                for alert in alertsForChannel {
-                    let keywords = alert["keywords"] as? [String] ?? []
-                    let channelName = alert["channelName"] as? String ?? ""
-                    for kw in keywords where title.localizedCaseInsensitiveContains(kw) {
-                        await sendNotification(
-                            channelName: channelName,
-                            keyword: kw,
-                            title: title,
-                            postId: postId
-                        )
-                    }
+            // alert 별로 helper 호출 — 각 alert 의 channelName 을 매칭 결과와 묶어 알림 발송.
+            for alert in alertsForChannel {
+                let keywords = alert["keywords"] as? [String] ?? []
+                let channelName = alert["channelName"] as? String ?? ""
+                let result = QuietLoungeCore.processChannel(
+                    details: postDetails,
+                    keywords: keywords,
+                    lastChecked: lastCheckedForChannel
+                )
+                for match in result.matches {
+                    await sendNotification(
+                        channelName: channelName,
+                        keyword: match.matched,
+                        title: match.title,
+                        postId: match.postId
+                    )
                 }
             }
 
             // 매칭 여부 무관하게 lastChecked 를 가장 최신 글 시점으로 전진.
-            // 문자열 사전순이 아닌 파싱된 Date 기준 max — ISO 포맷 혼재 시에도 정확.
-            let candidates = details.compactMap { $0["createTime"] as? String }
-            let maxCreate = QuietLoungeCore.pickMaxIsoDate(candidates)
-            return (channelId, maxCreate)
+            return (channelId, QuietLoungeCore.pickMaxIsoDate(postDetails.map { $0.createTime }))
         } catch {
             // 네트워크 에러 — 이번 채널은 전진하지 않음
             return (channelId, nil)
@@ -294,11 +292,6 @@ class KeywordAlertManager {
     }
 
     // MARK: - API
-
-    // ISO 파싱/max 유틸은 QuietLoungeCore 에 통합 — 이전에 있던 isoToDate, pickMaxIsoDate 제거.
-    private static func isoToDate(_ iso: String) -> Date? {
-        QuietLoungeCore.parseDate(iso)
-    }
 
     private func fetchRecentPostIds(channelId: String) async throws -> [String] {
         let url = URL(string: "https://api.lounge.naver.com/discovery-api/v1/feed/channels/\(channelId)/recent?limit=50")!

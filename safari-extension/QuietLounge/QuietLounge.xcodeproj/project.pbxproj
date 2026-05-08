@@ -304,6 +304,7 @@
 				C2C98C2C2F7A61E800588733 /* Frameworks */,
 				C2C98C2D2F7A61E800588733 /* Resources */,
 				C2C98C702F7A61E900588733 /* Embed Foundation Extensions */,
+				91C267B18E71FA996000E275 /* Verify webview-scripts artifacts */,
 			);
 			buildRules = (
 			);
@@ -345,6 +346,7 @@
 				C2C98C492F7A61E900588733 /* Sources */,
 				C2C98C4A2F7A61E900588733 /* Frameworks */,
 				C2C98C4B2F7A61E900588733 /* Resources */,
+				FEF73490BA466CEC7D01150A /* Verify content-scripts artifacts */,
 			);
 			buildRules = (
 			);
@@ -365,6 +367,7 @@
 				C2C98C542F7A61E900588733 /* Frameworks */,
 				C2C98C552F7A61E900588733 /* Resources */,
 				E11D4F032FA0000100AAB001 /* Rename popup-macos to popup */,
+				BAB0BD46BB9421948AF933AE /* Verify content-scripts artifacts */,
 			);
 			buildRules = (
 			);
@@ -380,6 +383,63 @@
 /* End PBXNativeTarget section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		91C267B18E71FA996000E275 /* Verify webview-scripts artifacts */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Verify webview-scripts artifacts";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# webview-scripts/{before,after}.js 산출물은 .gitignore 라 lounge/ root 에서 `pnpm build`\n# 가 선행돼야 한다. Bundle resource 가 *folder reference* 라 빈 폴더로도 빌드 통과해\n# 런타임 preconditionFailure 만 남는 회귀 차단 — Bundle 복사 후 파일 존재 검증으로 fail-fast.\n\nDEST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/webview-scripts\"\nMISSING=\"\"\nfor f in before.js after.js; do\n  if [ ! -f \"${DEST}/${f}\" ]; then\n    MISSING=\"${MISSING} ${f}\"\n  fi\ndone\nif [ -n \"${MISSING}\" ]; then\n  echo \"error: webview-scripts esbuild artifacts missing in Bundle:${MISSING}\"\n  echo \"error: Run 'pnpm install && pnpm build' from the lounge/ root before Xcode build.\"\n  exit 1\nfi\n";
+		};
+		BAB0BD46BB9421948AF933AE /* Verify content-scripts artifacts */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Verify content-scripts artifacts";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# content-scripts/*.js 산출물은 .gitignore — `pnpm build` 선행 필요. macOS Extension target.\nDEST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/content-scripts\"\nMISSING=\"\"\nfor f in main.js api-interceptor.js injector.js storage-bridge.js; do\n  if [ ! -f \"${DEST}/${f}\" ]; then\n    MISSING=\"${MISSING} ${f}\"\n  fi\ndone\nif [ -n \"${MISSING}\" ]; then\n  echo \"error: content-scripts esbuild artifacts missing in Bundle:${MISSING}\"\n  echo \"error: Run 'pnpm install && pnpm build' from the lounge/ root before Xcode build.\"\n  exit 1\nfi\n";
+		};
+		FEF73490BA466CEC7D01150A /* Verify content-scripts artifacts */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Verify content-scripts artifacts";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# content-scripts/*.js 산출물은 .gitignore — `pnpm build` 선행 필요. iOS Extension target.\nDEST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/content-scripts\"\nMISSING=\"\"\nfor f in main.js api-interceptor.js injector.js storage-bridge.js; do\n  if [ ! -f \"${DEST}/${f}\" ]; then\n    MISSING=\"${MISSING} ${f}\"\n  fi\ndone\nif [ -n \"${MISSING}\" ]; then\n  echo \"error: content-scripts esbuild artifacts missing in Bundle:${MISSING}\"\n  echo \"error: Run 'pnpm install && pnpm build' from the lounge/ root before Xcode build.\"\n  exit 1\nfi\n";
+		};
 		E11D4F032FA0000100AAB001 /* Rename popup-macos to popup */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;

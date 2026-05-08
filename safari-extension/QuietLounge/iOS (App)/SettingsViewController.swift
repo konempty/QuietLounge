@@ -7,7 +7,6 @@ class SettingsViewController: UITableViewController {
     private var monthlyPosts: Int?
     private var monthlyComments: Int?
     private var isLoadingStats = false
-    private var personaId: String?
 
     // 그리드 내부 라벨 참조 (갱신 시 라벨만 업데이트)
     private var totalPostsLabel: UILabel?
@@ -79,7 +78,6 @@ class SettingsViewController: UITableViewController {
                 }
 
                 await MainActor.run {
-                    self.personaId = pid
                     self.stats = sData
                     self.isLoadingStats = false
                     self.updateStatsLabels()

@@ -76,11 +76,17 @@ Safari 확장 프로그램은 Xcode를 통해 직접 빌드하여 설치한다.
 ### 1. 요구 사항
 
 - macOS + Xcode (최신 버전 권장)
+- **Node.js 20+ 와 pnpm** — 라운지 inject JS 산출물 (`webview-scripts/{before,after}.js` 등) 을 빌드하기 위해 필요. 자세한 이유는 아래 § "왜 pnpm 빌드가 필요한가" 참조.
 - iOS 기기 배포 시 Apple Developer 계정 필요
 
 ### 2. 빌드
 
 ```bash
+# 1) JS 산출물 빌드 — Bundle 리소스로 들어갈 webview-scripts/{before,after}.js 등을 생성
+pnpm install
+pnpm build
+
+# 2) Xcode 에서 프로젝트 열기
 cd safari-extension/QuietLounge
 open QuietLounge.xcodeproj
 ```
@@ -89,6 +95,19 @@ Xcode에서 프로젝트를 열고, 타겟을 선택한 뒤 빌드한다.
 
 - **macOS**: `QuietLounge (macOS)` 타겟 선택 → Run
 - **iOS**: `QuietLounge (iOS)` 타겟 선택 → 기기 연결 후 Run
+
+> **`pnpm build` 를 안 돌리고 Xcode 빌드 시 어떤 일이 일어나나**
+> 1차 가드 — **Xcode 빌드 단계에서 fail**: 각 target 의 `Verify webview-scripts artifacts` /
+> `Verify content-scripts artifacts` Run Script Phase 가 Bundle 복사 후 산출물 파일 존재를 확인하고
+> 누락 시 빌드를 중단 + 콘솔에 `Run 'pnpm install && pnpm build' from the lounge/ root` 안내 출력.
+> 2차 가드 — Xcode 의 검증 phase 를 (예: 임의로 disable 하고) 우회한 경우에만 *런타임 fail-fast*:
+> iOS 앱 시작 시 `Bundle.main.url(forResource: "after", withExtension: "js", subdirectory: "webview-scripts")`
+> 로 산출물을 찾을 때 `preconditionFailure` 로 즉시 크래시 (Release 빌드 포함).
+> 두 가드 모두 *silent 동작 누락* 을 차단.
+
+### 왜 pnpm 빌드가 필요한가
+
+라운지 페이지에 inject 되는 JS (`webview-scripts/*.js`, `content-scripts/*.js`) 는 모두 `web/` 의 TypeScript source 에서 esbuild 로 빌드되는 산출물이다. 4 플랫폼 (Chrome / Safari / iOS / Android) 이 같은 코드를 공유하기 위함. 산출물은 `.gitignore` — PR diff 노이즈 / 직접 편집 회귀 방지 + 결정론적 빌드라 누구든 같은 byte 를 얻는다.
 
 ### 3. 확장 프로그램 활성화
 
@@ -189,13 +208,22 @@ QuietLounge는 `fetch`를 monkey-patch하여 API 응답을 가로채고, `postId
 ### 프로젝트 구조
 
 ```
-shared/                          공통 모듈 (TypeScript)
+shared/                          진짜 cross-platform 공통 (TypeScript)
 ├── types.ts                     타입 정의
 └── block-list.ts                차단 목록 관리 (StorageAdapter 패턴)
 
+web/                             라운지 페이지 inject JS 의 단일 소스 (esbuild 로 10 산출물 빌드)
+├── core/                        공통 순수 함수 (selectors / pages / cleanbot / block-check / style /
+│                                filter-engine / inject-buttons / find-persona-id / profile-stats /
+│                                persona-extractor / storage-keys)
+├── entries/                     플랫폼별 진입점 (chrome / safari-ext / ios-after / android-after /
+│                                ios-before / android-before / web-api-interceptor /
+│                                safari-injector / safari-storage-bridge)
+└── platform/adapter.ts          InjectButtonsAdapter / ProfileStatsAdapter / PersonaExtractorAdapter
+
 chrome-extension/                Chrome Extension (Manifest V3)
 ├── manifest.json
-├── content-scripts/
+├── content-scripts/             모두 esbuild 산출물 (.gitignore — `pnpm build` 로 생성)
 │   ├── main.js                  콘텐츠 스크립트 (필터링 + 차단 버튼 + 브릿지)
 │   └── api-interceptor.js       MAIN world fetch 인터셉터
 ├── popup/                       차단 관리 팝업 UI
@@ -207,7 +235,7 @@ safari-extension/                Safari Web Extension (macOS + iOS)
     ├── Shared (Extension)/
     │   ├── Resources/
     │   │   ├── manifest.json    Safari용 매니페스트
-    │   │   ├── content-scripts/
+    │   │   ├── content-scripts/ 모두 esbuild 산출물
     │   │   │   ├── main.js      콘텐츠 스크립트 (Safari 대응 + macOS 알림 권한 배너)
     │   │   │   ├── api-interceptor.js
     │   │   │   ├── injector.js  MAIN world 주입 (Safari는 world:"MAIN" 미지원)
@@ -221,7 +249,8 @@ safari-extension/                Safari Web Extension (macOS + iOS)
     │   ├── SettingsViewController.swift
     │   ├── BlockDataManager.swift           App Group UserDefaults 래퍼
     │   ├── KeywordAlertManager.swift        iOS 키워드 알림 (Timer + UNUserNotificationCenter)
-    │   └── WebViewScripts.swift
+    │   ├── WebViewScripts.swift             Bundle 의 before.js / after.js 산출물 로드 + placeholder 치환
+    │   └── Resources/webview-scripts/       esbuild 산출물 (before.js / after.js — Bundle 리소스)
     └── macOS (App)/             macOS 컨테이너 앱 (단순 컨테이너, 모든 로직은 익스텐션이 담당)
 
 android-app/                     네이티브 Android 앱 (Kotlin + Jetpack Compose)
@@ -235,34 +264,21 @@ android-app/                     네이티브 Android 앱 (Kotlin + Jetpack Comp
         ├── kotlin/kr/konempty/quietlounge/
         │   ├── QuietLoungeApplication.kt    알림 채널 등록
         │   ├── MainActivity.kt              Splash → MainScreen 전환, 알림 클릭 처리
-        │   ├── data/
-        │   │   ├── BlockListData.kt         shared/types.ts 의 Kotlin 포팅
-        │   │   ├── BlockListEngine.kt       shared/block-list.ts 포팅
-        │   │   ├── BlockListRepository.kt   DataStore Preferences + Flow
-        │   │   ├── KeywordAlert.kt
-        │   │   ├── KeywordAlertRepository.kt
-        │   │   ├── MyStatsRepository.kt     내 활동 통계
-        │   │   └── PreferencesKeys.kt
-        │   ├── network/LoungeApi.kt         api.lounge.naver.com 호출
-        │   ├── notification/
-        │   │   ├── NotificationHelper.kt    NotificationManagerCompat 발송
-        │   │   └── KeywordAlertScheduler.kt 코루틴 기반 포그라운드 폴링
+        │   ├── data/                        BlockListData / BlockListEngine / *Repository / KeywordAlert
+        │   ├── network/LoungeApi.kt
+        │   ├── notification/                NotificationHelper / KeywordAlertScheduler
         │   ├── webview/
         │   │   ├── NativeBridge.kt          JavascriptInterface (window.QuietLounge)
-        │   │   └── WebViewScripts.kt        before/after.js 로드 + 동적 치환
-        │   └── ui/
-        │       ├── SplashScreen.kt          iOS SplashViewController 와 동일 디자인
-        │       ├── MainScreen.kt            Scaffold + NavigationBar (3탭)
-        │       ├── theme/{Color,Theme,Type}.kt
-        │       ├── lounge/                  WebView Composable + ViewModel
-        │       ├── blocklist/               LazyColumn + ViewModel
-        │       └── settings/                통계/필터/키워드알림/데이터관리 + 다이얼로그
-        └── assets/webview-scripts/
-            ├── before.js                    fetch monkey-patch (API 응답에서 personaId 매핑 수집)
-            └── after.js                     필터링 + 차단 버튼 + 프로필 통계 (placeholder 치환)
+        │   │   └── WebViewScripts.kt        assets 의 before/after.js 로드 + 동적 치환
+        │   └── ui/                          Splash / MainScreen / lounge / blocklist / settings
+        └── assets/webview-scripts/          esbuild 산출물 (before.js / after.js)
+
+scripts/build.mjs                web/ → 10 산출물 esbuild 빌드 (산출물은 .gitignore — 모든 빌드
+                                  진입점이 esbuild 를 선행 호출하고 Xcode/Gradle 측은 산출물 존재 검증)
 
 .github/workflows/build.yml      GitHub Actions 빌드 (수동 실행)
-                                  - Safari iOS/macOS 컴파일 체크 (서명 없이)
+                                  - JS 단위 테스트 (esbuild 선행 후 vitest)
+                                  - Safari iOS/macOS 컴파일 체크 (서명 없이) — Xcode 빌드 시 산출물 검증 phase 포함
                                   - Chrome ZIP / Android APK 빌드 + Release 생성
 ```
 
@@ -336,19 +352,27 @@ cd swift-tests && swift test                       # iOS/macOS (XCTest)
 ```
 
 테스트는 다음 계층을 커버한다:
-- **shared/block-list.ts** (Vitest) — 차단/해제/승격/import·export 등 29 케이스
+- **shared/block-list.ts** (Vitest) — 차단/해제/승격/import·export
+- **web** (Vitest + JSDOM) — selectors / cleanbot / pages / block-check / style / filter-engine /
+  inject-buttons / profile-stats / persona-extractor + 산출물 존재 / placeholder / 핵심 토큰 회귀 가드
 - **chrome-extension / safari-extension service-worker** (Vitest) — 키워드 매칭 + lastChecked 전진 로직 회귀 방지
-- **android-app** (JUnit) — `BlockListEngine`, `BlockListData` 직렬화, `KeywordAlert`, `IsoDate` 파싱 등 49 케이스
-- **iOS/macOS** (XCTest via Swift Package) — `QuietLoungeCore` (날짜 파싱, 키워드 매칭, 채널 처리) 21 케이스. 실제 iOS 앱 소스를 심볼릭 링크로 포함해 drift 방지.
+- **android-app** (JUnit) — `BlockListEngine`, `BlockListData` 직렬화, `KeywordAlert`, `IsoDate` 파싱 등
+- **iOS/macOS** (XCTest via Swift Package) — `QuietLoungeCore` (날짜 파싱, 키워드 매칭, 채널 처리,
+  WebViewScripts placeholder 치환). 실제 iOS 앱 소스를 심볼릭 링크로 포함해 drift 방지.
 
 ### 로컬 빌드
 
 ```bash
+# 4 플랫폼 inject JS 산출물 (편집은 web/ 에서, 산출물은 .gitignore)
+pnpm install
+pnpm build                        # 10 산출물 동시 빌드 (esbuild, ~수십 ms)
+
 # Android (네이티브, Kotlin + Compose)
 cd android-app
-./gradlew :app:assembleRelease    # APK
+./gradlew :app:assembleRelease    # preBuild 가 esbuild 자동 hook — pnpm 만 PATH 에 있으면 됨
 
 # iOS — Safari Web Extension + 네이티브 컨테이너
+# 주의: Xcode 빌드 *전에* 위의 `pnpm build` 를 한 번 돌려야 한다 (Bundle 의 webview-scripts/* 가 산출물).
 open safari-extension/QuietLounge/QuietLounge.xcodeproj
 ```
 

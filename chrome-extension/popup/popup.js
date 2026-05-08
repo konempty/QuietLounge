@@ -143,9 +143,7 @@ document.getElementById('btn-clear-all').addEventListener('click', async () => {
     return;
   }
   if (
-    !confirm(
-      '차단 목록과 키워드 알림 설정을 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
-    )
+    !confirm('차단 목록과 키워드 알림 설정을 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')
   ) {
     return;
   }
@@ -171,7 +169,9 @@ document.getElementById('btn-export').addEventListener('click', async () => {
   // personaCache 는 런타임 캐시 — README 및 다른 플랫폼과 일치시키기 위해 export 에서 제외
   const { personaCache: _cache, ...exportData } = blockData;
   // keywordAlerts 는 길이와 무관하게 항상 포함 — 빈 배열도 "전부 해제" 라는 유효한 상태.
-  exportData.keywordAlerts = alertResult[KEYWORD_ALERTS_KEY] ? JSON.parse(alertResult[KEYWORD_ALERTS_KEY]) : [];
+  exportData.keywordAlerts = alertResult[KEYWORD_ALERTS_KEY]
+    ? JSON.parse(alertResult[KEYWORD_ALERTS_KEY])
+    : [];
   const interval = alertResult[ALERT_INTERVAL_KEY];
   if (interval) {
     exportData.alertInterval = interval;

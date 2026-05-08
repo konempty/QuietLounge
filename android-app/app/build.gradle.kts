@@ -1,3 +1,4 @@
+import org.gradle.api.tasks.PathSensitivity
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
@@ -153,6 +154,56 @@ dependencies {
     debugImplementation(libs.compose.ui.test.manifest)
 }
 
+// ── web/ esbuild 산출물 자동 빌드 ──────────────────────
+// assets/webview-scripts/{before,after}.js 는 .gitignore 라 매 빌드 전에 esbuild 로 생성해야 한다.
+// inputs/outputs UP-TO-DATE 검사로 source 변경 없으면 skip.
+val webviewAssetsDir = layout.projectDirectory.dir("src/main/assets/webview-scripts")
+val pnpmAvailable: Boolean by lazy {
+    try {
+        ProcessBuilder("pnpm", "--version")
+            .redirectErrorStream(true)
+            .start()
+            .waitFor() == 0
+    } catch (_: Exception) {
+        false
+    }
+}
+
+val esbuildBuild =
+    tasks.register<Exec>("esbuildBuild") {
+        // android-app/ 의 부모 = lounge/ 루트 — `pnpm build` 가 root package.json 의 scripts 사용.
+        workingDir = rootProject.projectDir.parentFile
+        commandLine("pnpm", "build")
+        inputs
+            .dir(rootProject.file("../web"))
+            .withPathSensitivity(PathSensitivity.RELATIVE)
+        inputs.file(rootProject.file("../scripts/build.mjs"))
+        outputs.dir(webviewAssetsDir)
+        // pnpm 미설치 환경 (CI 의 Android-only job 등) 에서는 산출물이 *이미 있다* 가정으로 skip.
+        // 단 그 가정은 esbuildVerify task 가 실제 파일 존재로 검증한다 — silent 빈 빌드 차단.
+        onlyIf { pnpmAvailable }
+    }
+
+// pnpm 부재 + 산출물 부재 동시 발생 시 fail-fast.
+// 이전엔 onlyIf 안에서 logger.warn 만 띄우고 빌드 진행 → 런타임 `assets.open()` 실패하는 회귀 가능성.
+val esbuildVerify =
+    tasks.register("esbuildVerify") {
+        dependsOn(esbuildBuild)
+        doLast {
+            val before = webviewAssetsDir.file("before.js").asFile
+            val after = webviewAssetsDir.file("after.js").asFile
+            if (!before.exists() || !after.exists()) {
+                throw GradleException(
+                    "QuietLounge: assets/webview-scripts/{before,after}.js 산출물이 없습니다. " +
+                        "pnpm 을 설치하고 `pnpm install && pnpm build` 를 lounge/ 루트에서 한 번 실행해 주세요. " +
+                        "(esbuildBuild 가 pnpm 부재로 skip 됨 — pnpm available=$pnpmAvailable)",
+                )
+            }
+        }
+    }
+
+tasks.named("preBuild") { dependsOn(esbuildVerify) }
+
 // ── JaCoCo 커버리지 리포트 ──────────────────────────────────────
 // 실행: ./gradlew :app:jacocoTestReport
 // 결과: app/build/reports/jacoco/jacocoTestReport/html/index.html
@@ -165,7 +216,7 @@ tasks.register<JacocoReport>("jacocoTestReport") {
     val fileFilter =
         listOf(
             "**/R.class",
-            "**/R\$*.class",
+            "**/R$*.class",
             "**/BuildConfig.*",
             "**/Manifest*.*",
             "**/*Test*.*",

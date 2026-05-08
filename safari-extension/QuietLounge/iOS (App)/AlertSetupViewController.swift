@@ -28,7 +28,6 @@ class AlertSetupViewController: UIViewController {
     private var categories: [(id: Int, name: String)] = []
     private var channels: [(id: String, name: String)] = []
     private var filteredItems: [(id: String, name: String)] = []
-    private var selectedCategoryId: Int?
     private var selectedChannelId: String?
     private var selectedChannelName: String?
     private var keywords: [String] = []
@@ -367,7 +366,6 @@ extension AlertSetupViewController: UITableViewDataSource, UITableViewDelegate {
         let item = filteredItems[indexPath.row]
         switch step {
         case .category:
-            selectedCategoryId = Int(item.id)
             loadChannels(categoryId: Int(item.id)!)
             showStep(.channel)
         case .channel:

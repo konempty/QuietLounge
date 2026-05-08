@@ -19,5 +19,9 @@ ktlint_standard_function-expression-body = disabled
 ktlint_standard_value-parameter-comment = disabled
 ktlint_standard_value-argument-comment = disabled
 
+# 사용되지 않는 import문 제거 강제사항 적용
+# 오탐이 많아서 기본값이 disabled로 되어있지만, 있는게 더 낫다고 생각해서 enabled로 바꿔봄
+ktlint_standard_no-unused-imports = enabled
+
 [*.{xml,json}]
 indent_size = 2

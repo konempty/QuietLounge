@@ -16,7 +16,7 @@ export default [
             'safari-extension/',
             'tests/',
             '**/*.d.ts',
-            // 빌드 산출물 — shared/web/ 의 source 만 lint 대상.
+            // 빌드 산출물 — web/ 의 source 만 lint 대상.
             'chrome-extension/content-scripts/main.js',
         ],
     },
@@ -64,6 +64,18 @@ export default [
             '@typescript-eslint/no-explicit-any': 'off',
             '@typescript-eslint/no-unused-vars': 'off',
             'no-undef': 'off',
+        },
+    },
+    {
+        // web/entries/* — IIFE 빌드 + 4 플랫폼 globalThis 차이 때문에 entry 단위 `// @ts-nocheck`,
+        // iOS WKWebView 의 옛 JS 엔진 호환을 위한 var/arguments, 네이티브 bridge evaluateJavascript 가
+        // JSON 결과 반환하도록 IIFE 끝의 `true;` 같은 의도된 패턴 — entry 에서 관련 룰을 풀어 둔다.
+        files: ['web/entries/**/*.ts'],
+        rules: {
+            '@typescript-eslint/ban-ts-comment': 'off',
+            '@typescript-eslint/no-unused-expressions': 'off',
+            'prefer-rest-params': 'off',
+            'no-var': 'off',
         },
     },
 ];

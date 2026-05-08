@@ -73,13 +73,6 @@ class LoungeViewModel(
         }
     }
 
-    fun updatePersonaCache(
-        personaId: String,
-        nickname: String,
-    ) {
-        viewModelScope.launch { repo.updatePersonaCache(personaId, nickname) }
-    }
-
     /**
      * PERSONA_MAP_UPDATE 메시지 수신 시 다수 항목을 한 번에 처리. 단건 forEach 로 호출하면
      * DataStore 쓰기가 큐를 점유해 다른 탭의 토글이 수십 초 대기하는 회귀 발생 — 배치로 1 회만 persist.

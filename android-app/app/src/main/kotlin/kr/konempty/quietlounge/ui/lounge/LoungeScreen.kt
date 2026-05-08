@@ -42,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -69,7 +68,6 @@ fun LoungeScreen(
     onPendingPostIdConsumed: () -> Unit,
     viewModel: LoungeViewModel = viewModel(),
 ) {
-    val context = LocalContext.current
     val blockData by viewModel.blockData.collectAsStateWithLifecycle()
     val filterMode by viewModel.filterMode.collectAsStateWithLifecycle()
     val showWebViewToolbar by viewModel.showWebViewToolbar.collectAsStateWithLifecycle()

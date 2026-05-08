@@ -126,7 +126,7 @@ final class WebViewScriptsTests: XCTestCase {
 
     func test_placeholder_constants_match_source_artifact() {
         // Swift 측 placeholder 상수가 entry source / esbuild 산출물의 토큰과 정확히 일치해야 함.
-        // shared/web/entries/ios-after.ts 와 placeholders.d.ts 의 토큰명이 바뀌면 이 테스트가 깨지고
+        // web/entries/ios-after.ts 와 placeholders.d.ts 의 토큰명이 바뀌면 이 테스트가 깨지고
         // 즉시 재동기화 필요함을 알림.
         XCTAssertEqual(WebViewScripts.blockDataPlaceholder, "__QL_BLOCK_DATA_PLACEHOLDER__")
         XCTAssertEqual(WebViewScripts.filterModePlaceholder, "__QL_FILTER_MODE_PLACEHOLDER__")

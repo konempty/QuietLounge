@@ -4,7 +4,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -162,6 +161,6 @@ class AddAlertDialogPartsTest {
                 Text("compose-ready")
             }
         }
-        compose.onAllNodesWithText("compose-ready")
+        compose.onNodeWithText("compose-ready").assertIsDisplayed()
     }
 }

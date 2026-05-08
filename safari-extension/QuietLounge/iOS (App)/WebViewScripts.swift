@@ -3,7 +3,7 @@ import Foundation
 enum WebViewScripts {
 
     /// 빌드된 산출물 (Resources/webview-scripts/after.js) 의 placeholder 토큰.
-    /// shared/web/entries/ios-after.ts 와 일치해야 한다 — Android Kotlin 과도 동일한 규약.
+    /// web/entries/ios-after.ts 와 일치해야 한다 — Android Kotlin 과도 동일한 규약.
     ///
     /// 두 토큰 모두 **bare identifier 형태로 매칭** — 산출물의 따옴표 종류 (single vs double)
     /// 와 무관하게 동작해야 한다. esbuild 가 string literal 을 double-quote 로 출력하므로
@@ -14,7 +14,7 @@ enum WebViewScripts {
 
     /// fetch monkey-patch — 페이지 로드 전 주입.
     /// Bundle 의 webview-scripts/before.js (esbuild 산출물) 를 1 회 read 후 캐시.
-    /// 산출물의 source 는 shared/web/entries/ios-before.ts.
+    /// 산출물의 source 는 web/entries/ios-before.ts.
     static func beforeScript() -> String {
         loadBeforeTemplate()
     }

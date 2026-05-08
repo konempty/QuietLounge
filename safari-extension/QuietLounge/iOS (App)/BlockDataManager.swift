@@ -194,23 +194,11 @@ class BlockDataManager {
         save(data)
     }
 
-    /// personaCache 갱신 + shared/block-list.ts 의 승격·닉네임 변경 추적 규칙 적용.
-    /// 순수 로직은 `QuietLoungeCore.applyPersonaCacheUpdate` 에 위임 — swift-tests 가 그 함수를 검증하고
-    /// 실제 프로덕션 코드가 동일 함수를 호출하므로 테스트와 앱 동작 사이 drift 발생 여지 없음.
-    func updatePersonaCache(personaId: String, nickname: String) {
-        let updated = QuietLoungeCore.applyPersonaCacheUpdate(
-            to: load(),
-            personaId: personaId,
-            nickname: nickname
-        )
-        save(updated)
-    }
-
     /// 다수 persona 항목 일괄 갱신 — 라운지 페이지 새로고침/네비게이션 후 JS 가 한꺼번에 보내는
-    /// PERSONA_MAP_UPDATE 처리용. 단건 [updatePersonaCache] 를 for 루프로 호출하면 매 항목마다
-    /// 전체 BlockListData 를 JSON 직렬화/역직렬화하고 UserDefaults 에 쓰면서 Darwin notification 까지
-    /// 발생 → Main thread 가 수십 초간 점유되어 다른 탭의 토글 UI 가 먹통이 되는 회귀 발생.
-    /// 한 번의 load() + 누적 update + 1 회 save() 로 처리해 비용을 N배 절감.
+    /// PERSONA_MAP_UPDATE 처리용. 단건 호출을 for 루프로 돌리면 매 항목마다 전체 BlockListData 를
+    /// JSON 직렬화/역직렬화하고 UserDefaults 에 쓰면서 Darwin notification 까지 발생 → Main thread 가
+    /// 수십 초간 점유되어 다른 탭의 토글 UI 가 먹통이 되는 회귀가 났다. 한 번의 load() + 누적 update +
+    /// 1 회 save() 로 처리해 비용을 N배 절감 — 순수 로직 `QuietLoungeCore.applyPersonaCacheUpdate` 에 위임.
     func updatePersonaCacheBatch(_ entries: [String: String]) {
         guard !entries.isEmpty else { return }
         var current = load()
@@ -226,15 +214,6 @@ class BlockDataManager {
 
     func clearAll() {
         save(createEmpty())
-    }
-
-    func exportJSON() -> String {
-        var data = load()
-        data.removeValue(forKey: "personaCache")
-        if let jsonData = try? JSONSerialization.data(withJSONObject: data, options: .prettyPrinted) {
-            return String(data: jsonData, encoding: .utf8) ?? "{}"
-        }
-        return "{}"
     }
 
     func importJSON(_ json: String) throws {
