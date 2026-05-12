@@ -46,9 +46,7 @@ import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adap
   // `WEB_MESSAGE_LISTENER` 미지원 환경에서는 LoungeScreen 측 fail-closed 로 등록 자체 안 됨 (Codex 55 F1).
   // 이 경우 차단/키워드 알림 native handler 가 없으므로 *차단 버튼 자체 미주입* — silent fail UX 회귀 방지 (Codex 58 F1).
   function isBridgeAvailable() {
-    return !!(
-      window.QuietLounge && typeof window.QuietLounge.postMessage === 'function'
-    );
+    return !!(window.QuietLounge && typeof window.QuietLounge.postMessage === 'function');
   }
 
   function postNative(payload) {

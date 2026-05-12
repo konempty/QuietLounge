@@ -103,6 +103,27 @@ describe('applyPersonaCacheUpdate', () => {
     expect(data.nicknameOnlyBlocks).toHaveLength(1);
     expect(data.blockedUsers.pid1.blockedAt).toBe('2026-01-01T00:00:00Z');
   });
+
+  it('회귀 가드: v1 storage / partial-write 손상 (missing personaCache) 도 throw 안 함', () => {
+    // 기존 사용자의 storage 가 v1 format (personaCache 필드 없음) 또는 partial-write 손상이면
+    // `data.personaCache[personaId]` 가 throw 'Cannot read properties of undefined' 회귀 — defensive
+    // normalize 가 진입에서 빈 object 로 채워야.
+    const data = {
+      blockedUsers: {},
+      nicknameOnlyBlocks: [],
+    } as unknown as BlockListLike;
+    expect(() => applyPersonaCacheUpdate(data, 'pid1', '닉')).not.toThrow();
+    expect(data.personaCache).toBeDefined();
+    expect(data.personaCache.pid1.nickname).toBe('닉');
+  });
+
+  it('회귀 가드: 모든 field missing (totally corrupted) 도 throw 안 함', () => {
+    const data = {} as unknown as BlockListLike;
+    expect(() => applyPersonaCacheUpdate(data, 'pid1', '닉')).not.toThrow();
+    expect(data.personaCache.pid1.nickname).toBe('닉');
+    expect(data.blockedUsers).toEqual({});
+    expect(data.nicknameOnlyBlocks).toEqual([]);
+  });
 });
 
 describe('applyPersonaCacheBatch', () => {

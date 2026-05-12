@@ -28,6 +28,13 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
 
   const browser = globalThis.browser || globalThis.chrome;
 
+  // ext context 유효성 — ext 가 reload / 자동 update 되면 옛 content script 의 browser.runtime
+  // 핸들이 invalid 가 됨 (`Extension context invalidated`). 모든 browser.* 호출 전 가드 필요.
+  // chrome.ts 와 동일 패턴 — Safari Web Extension 은 browser API 사용.
+  function extContextValid() {
+    return typeof browser !== 'undefined' && !!browser?.runtime?.id;
+  }
+
   // QuietLounge 브랜드 컬러 — 다크 모드에선 어두운 배경 위 시인성을 위해 한 톤 밝게 사용.
   // 네이버 라운지 페이지 렌더 시점에 한번 계산 — 시스템 테마 전환은 재로드 후 반영.
   const QL_PRIMARY =
@@ -192,6 +199,7 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
       filterMode,
       personaIdForPost: (id) => personaMap.get(id),
     });
+    if (!extContextValid()) return;
     browser.runtime.sendMessage({ type: 'UPDATE_BADGE', count: totalBlocked });
   }
 
@@ -392,34 +400,38 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
   }
 
   // ── 스토리지 변경 감지 (popup에서 해제 시 반영) ──
-  browser.storage.onChanged.addListener((changes) => {
-    if (changes[STORAGE_KEY]) {
-      try {
-        blockData = JSON.parse(changes[STORAGE_KEY].newValue);
-      } catch {
-        blockData = createEmptyData();
+  if (extContextValid())
+    browser.storage.onChanged.addListener((changes) => {
+      if (changes[STORAGE_KEY]) {
+        try {
+          blockData = JSON.parse(changes[STORAGE_KEY].newValue);
+        } catch {
+          blockData = createEmptyData();
+        }
+        filterAll();
       }
-      filterAll();
-    }
-    if (changes[FILTER_MODE_KEY]) {
-      filterMode = changes[FILTER_MODE_KEY].newValue || 'hide';
-      filterAll();
-    }
-    if (changes[DONT_SHOW_FILTER_HINT_KEY]) {
-      dontShowFilterHint = !!changes[DONT_SHOW_FILTER_HINT_KEY].newValue;
-    }
-  });
+      if (changes[FILTER_MODE_KEY]) {
+        filterMode = changes[FILTER_MODE_KEY].newValue || 'hide';
+        filterAll();
+      }
+      if (changes[DONT_SHOW_FILTER_HINT_KEY]) {
+        dontShowFilterHint = !!changes[DONT_SHOW_FILTER_HINT_KEY].newValue;
+      }
+    });
 
   // ── 프로필 통계 (web/core/profile-stats 로 이전. 어댑터만 entry 에 둠) ──
   const profileStatsAdapter: ProfileStatsAdapter = {
     qlPrimaryColor: QL_PRIMARY,
     saveOwnerPersonaId(personaId) {
+      if (!extContextValid()) return;
       safariSet({ quiet_lounge_my_persona_id: personaId });
     },
     saveMyStats(stats) {
+      if (!extContextValid()) return;
       safariSet({ quiet_lounge_my_stats: JSON.stringify(stats) });
     },
     removeMyStats() {
+      if (!extContextValid()) return;
       QLStorage.remove('quiet_lounge_my_stats');
     },
   };
@@ -582,29 +594,30 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
   }
 
   // 팝업 갱신 + 키워드 알림 메시지 수신
-  browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.type === 'REFRESH_MY_STATS') {
-      sharedFetchAndStoreMyStats(profileStatsAdapter);
-      return;
-    }
-    if (message.type === 'QL_SHOW_NOTIFICATION') {
-      const ok = showNotificationFromContent(message.payload || {});
-      sendResponse({ ok });
-      return true;
-    }
-    if (message.type === 'QL_PROMPT_NOTIF_PERM') {
-      // 키워드 등록 직후 background가 강제 트리거 — dismissed flag 무시하고 표시
-      // dismissed flag도 함께 클리어해서 user가 다시 볼 수 있게.
-      QLStorage.remove(NOTIF_BANNER_DISMISSED_KEY).then(() => {
-        maybeShowPermissionBanner(true);
-      });
-      sendResponse({
-        ok: true,
-        permission: typeof Notification !== 'undefined' ? Notification.permission : 'unsupported',
-      });
-      return true;
-    }
-  });
+  if (extContextValid())
+    browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      if (message.type === 'REFRESH_MY_STATS') {
+        sharedFetchAndStoreMyStats(profileStatsAdapter);
+        return;
+      }
+      if (message.type === 'QL_SHOW_NOTIFICATION') {
+        const ok = showNotificationFromContent(message.payload || {});
+        sendResponse({ ok });
+        return true;
+      }
+      if (message.type === 'QL_PROMPT_NOTIF_PERM') {
+        // 키워드 등록 직후 background가 강제 트리거 — dismissed flag 무시하고 표시
+        // dismissed flag도 함께 클리어해서 user가 다시 볼 수 있게.
+        QLStorage.remove(NOTIF_BANNER_DISMISSED_KEY).then(() => {
+          maybeShowPermissionBanner(true);
+        });
+        sendResponse({
+          ok: true,
+          permission: typeof Notification !== 'undefined' ? Notification.permission : 'unsupported',
+        });
+        return true;
+      }
+    });
 
   // iOS Safari 대응: storage.onChanged가 동작하지 않으므로 폴링으로 변경 감지
   let lastBlockDataHash = JSON.stringify(blockData);
@@ -613,6 +626,14 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
   function startBlockDataPolling() {
     if (pollTimer) return;
     pollTimer = setInterval(async () => {
+      // ext context invalid (reload / 자동 update) 시 polling 침묵 종료 — 매번 throw + try/catch 비용 회피.
+      if (!extContextValid()) {
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+        return;
+      }
       try {
         const result = await QLStorage.get([
           STORAGE_KEY,

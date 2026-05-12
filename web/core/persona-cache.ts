@@ -49,6 +49,12 @@ export function applyPersonaCacheUpdate(
   personaId: string,
   nickname: string,
 ): { changed: boolean } {
+  // 기존 사용자의 v1 storage 또는 partial-write 손상으로 missing field 들어올 수 있음 — defensive
+  // normalize 로 `Cannot read properties of undefined` TypeError 회귀 차단. createEmptyData() 와 동일 shape.
+  if (!data.personaCache) data.personaCache = {};
+  if (!data.blockedUsers) data.blockedUsers = {};
+  if (!data.nicknameOnlyBlocks) data.nicknameOnlyBlocks = [];
+
   const cached = data.personaCache[personaId];
   const oldNickname = cached && cached.nickname !== nickname ? cached.nickname : null;
 

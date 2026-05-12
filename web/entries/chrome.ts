@@ -34,6 +34,12 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
       ? '#6A86F8'
       : '#4A6CF7';
 
+  // chrome ext context 유효성 — ext 가 reload / 자동 update 되면 옛 content script 의 chrome.runtime
+  // 핸들이 invalid 가 됨 (`Extension context invalidated`). 모든 chrome.* 호출 전 가드 필요.
+  function extContextValid() {
+    return typeof chrome !== 'undefined' && !!chrome.runtime?.id;
+  }
+
   // ── 차단 목록 관리 ──
   function createEmptyData() {
     return {
@@ -50,6 +56,10 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
 
   async function loadBlockData() {
     return new Promise((resolve) => {
+      if (!extContextValid()) {
+        resolve();
+        return;
+      }
       chrome.storage.local.get(
         [STORAGE_KEY, FILTER_MODE_KEY, DONT_SHOW_FILTER_HINT_KEY],
         (result) => {
@@ -72,6 +82,10 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
 
   async function saveBlockData() {
     return new Promise((resolve) => {
+      if (!extContextValid()) {
+        resolve();
+        return;
+      }
       chrome.storage.local.set({ [STORAGE_KEY]: JSON.stringify(blockData) }, resolve);
     });
   }
@@ -114,6 +128,10 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
     if (result === 'dontShow') {
       dontShowFilterHint = true;
       await new Promise((resolve) => {
+        if (!extContextValid()) {
+          resolve();
+          return;
+        }
         chrome.storage.local.set({ [DONT_SHOW_FILTER_HINT_KEY]: true }, resolve);
       });
     }
@@ -174,6 +192,7 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
       filterMode,
       personaIdForPost: (id) => personaMap.get(id),
     });
+    if (!extContextValid()) return;
     chrome.runtime.sendMessage({ type: 'UPDATE_BADGE', count: totalBlocked });
   }
 
@@ -295,44 +314,49 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
   }
 
   // ── 스토리지 변경 감지 (popup에서 해제 시 반영) ──
-  chrome.storage.onChanged.addListener((changes) => {
-    if (changes[STORAGE_KEY]) {
-      try {
-        blockData = JSON.parse(changes[STORAGE_KEY].newValue);
-      } catch {
-        blockData = createEmptyData();
+  if (extContextValid())
+    chrome.storage.onChanged.addListener((changes) => {
+      if (changes[STORAGE_KEY]) {
+        try {
+          blockData = JSON.parse(changes[STORAGE_KEY].newValue);
+        } catch {
+          blockData = createEmptyData();
+        }
+        filterAll();
       }
-      filterAll();
-    }
-    if (changes[FILTER_MODE_KEY]) {
-      filterMode = changes[FILTER_MODE_KEY].newValue || 'hide';
-      filterAll();
-    }
-    if (changes[DONT_SHOW_FILTER_HINT_KEY]) {
-      dontShowFilterHint = !!changes[DONT_SHOW_FILTER_HINT_KEY].newValue;
-    }
-  });
+      if (changes[FILTER_MODE_KEY]) {
+        filterMode = changes[FILTER_MODE_KEY].newValue || 'hide';
+        filterAll();
+      }
+      if (changes[DONT_SHOW_FILTER_HINT_KEY]) {
+        dontShowFilterHint = !!changes[DONT_SHOW_FILTER_HINT_KEY].newValue;
+      }
+    });
 
   // ── 프로필 통계 (web/core/profile-stats 로 이전. 어댑터만 entry 에 둠) ──
   const profileStatsAdapter: ProfileStatsAdapter = {
     qlPrimaryColor: QL_PRIMARY,
     saveOwnerPersonaId(personaId) {
+      if (!extContextValid()) return;
       chrome.storage.local.set({ quiet_lounge_my_persona_id: personaId });
     },
     saveMyStats(stats) {
+      if (!extContextValid()) return;
       chrome.storage.local.set({ quiet_lounge_my_stats: JSON.stringify(stats) });
     },
     removeMyStats() {
+      if (!extContextValid()) return;
       chrome.storage.local.remove('quiet_lounge_my_stats');
     },
   };
 
   // 팝업 갱신 버튼 요청 수신
-  chrome.runtime.onMessage.addListener((message) => {
-    if (message.type === 'REFRESH_MY_STATS') {
-      sharedFetchAndStoreMyStats(profileStatsAdapter);
-    }
-  });
+  if (extContextValid())
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message.type === 'REFRESH_MY_STATS') {
+        sharedFetchAndStoreMyStats(profileStatsAdapter);
+      }
+    });
 
   // ── 초기화 ──
   async function init() {
