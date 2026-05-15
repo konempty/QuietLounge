@@ -13,7 +13,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
@@ -21,7 +20,6 @@ import org.robolectric.annotation.GraphicsMode
  * ViewModel / 네트워크 의존성이 없는 pure UI 조각만 검증.
  */
 @RunWith(AndroidJUnit4::class)
-@Config(sdk = [34])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class AddAlertDialogPartsTest {
     @get:Rule
