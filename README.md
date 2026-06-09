@@ -76,7 +76,7 @@ Safari 확장 프로그램은 Xcode를 통해 직접 빌드하여 설치한다.
 ### 1. 요구 사항
 
 - macOS + Xcode (최신 버전 권장)
-- **Node.js 20+ 와 pnpm** — 라운지 inject JS 산출물 (`webview-scripts/{before,after}.js` 등) 을 빌드하기 위해 필요. 자세한 이유는 아래 § "왜 pnpm 빌드가 필요한가" 참조.
+- **Node.js 22+ 와 pnpm 10.28.1+** — 라운지 inject JS 산출물 (`webview-scripts/{before,after}.js` 등) 을 빌드하기 위해 필요. `package.json` 의 `packageManager` 는 `pnpm@10.34.1` 로 고정되어 있다. 자세한 이유는 아래 § "왜 pnpm 빌드가 필요한가" 참조.
 - iOS 기기 배포 시 Apple Developer 계정 필요
 
 ### 2. 빌드
@@ -319,7 +319,7 @@ scripts/build.mjs                web/ → 10 산출물 esbuild 빌드 (산출물
 ### 린팅
 
 ```bash
-# 루트 (shared + chrome-extension + tampermonkey) — pnpm 사용
+# 루트 (shared + web + chrome-extension/safari-extension 산출물) — pnpm 사용
 pnpm lint           # ESLint 검사
 pnpm lint:fix       # 자동 수정
 pnpm format         # Prettier 포맷팅
@@ -369,7 +369,7 @@ pnpm build                        # 10 산출물 동시 빌드 (esbuild, ~수십
 
 # Android (네이티브, Kotlin + Compose)
 cd android-app
-./gradlew :app:assembleRelease    # preBuild 가 esbuild 자동 hook — pnpm 만 PATH 에 있으면 됨
+./gradlew :app:assembleRelease    # preBuild 가 esbuild 자동 hook — pnpm 10.28.1+ 이 PATH 에 있으면 됨
 
 # iOS — Safari Web Extension + 네이티브 컨테이너
 # 주의: Xcode 빌드 *전에* 위의 `pnpm build` 를 한 번 돌려야 한다 (Bundle 의 webview-scripts/* 가 산출물).
