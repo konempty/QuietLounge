@@ -50,7 +50,7 @@ export class BlockList {
   async blockByPersonaId(
     personaId: string,
     nickname: string,
-    options: { blockComments?: boolean } = {},
+    options: { blockComments?: boolean; blockedAt?: string } = {},
   ): Promise<void> {
     const existing = this.data.blockedUsers[personaId];
     const nicknameBlock = this.data.nicknameOnlyBlocks.find((b) => b.nickname === nickname);
@@ -59,7 +59,11 @@ export class BlockList {
     this.data.blockedUsers[personaId] = {
       personaId,
       nickname,
-      blockedAt: existing?.blockedAt ?? nicknameBlock?.blockedAt ?? new Date().toISOString(),
+      blockedAt:
+        existing?.blockedAt ??
+        options.blockedAt ??
+        nicknameBlock?.blockedAt ??
+        new Date().toISOString(),
       ...(blockComments ? { blockComments: true } : {}),
     };
 
@@ -146,6 +150,7 @@ export class BlockList {
       );
       await this.blockByPersonaId(personaId, nickname, {
         blockComments: nicknameBlock.blockComments,
+        blockedAt: nicknameBlock.blockedAt,
       });
       return;
     }
@@ -168,8 +173,8 @@ export class BlockList {
   }
 
   exportJSON(): string {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { personaCache: _cache, ...rest } = this.data;
+    const rest: Partial<BlockListData> = { ...this.data };
+    delete rest.personaCache;
     return JSON.stringify(rest, null, 2);
   }
 

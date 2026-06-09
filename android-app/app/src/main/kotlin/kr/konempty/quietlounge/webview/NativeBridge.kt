@@ -1,7 +1,6 @@
 package kr.konempty.quietlounge.webview
 
 import android.net.Uri
-import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
@@ -26,28 +25,16 @@ import kotlinx.serialization.json.jsonPrimitive
  *      lounge.naver.com 외 frame 은 listener 진입조차 안 함. iOS `frameInfo.request.url?.host`
  *      체크와 정책 대칭. `onPostMessage` 의 `sourceOrigin` / `isMainFrame` 로 추가 검증.
  *
- * 2차: `@JavascriptInterface postMessage` (legacy) — `WEB_MESSAGE_LISTENER` 미지원 환경에서만 사용.
- *      `addJavascriptInterface` 가 모든 frame 에 같은 객체를 노출하므로 *iframe bypass 가능* — 따라서
- *      이 path 는 차선. `currentHost` (top-level URL host) 만 본다.
- *
- * `WebViewClient` 콜백 (main thread) 에서 `setCurrentHost()` 로 mirror — `@Volatile` 로 thread-safe.
- * `@JavascriptInterface.postMessage` 는 background thread 에서 호출되므로 `webView.url` 직접 접근 불안전.
+ * `WEB_MESSAGE_LISTENER` 미지원 환경은 LoungeScreen 에서 fail-closed 처리한다.
+ * legacy `addJavascriptInterface` 는 모든 frame 에 같은 객체를 노출해 iframe bypass 위험이 있으므로
+ * 등록하지 않고, 이 bridge 도 WebMessageListener 경로만 유지한다.
  */
 class NativeBridge(
     private val onMessage: (BridgeMessage) -> Unit,
 ) : WebViewCompat.WebMessageListener {
     private val json = Json { ignoreUnknownKeys = true }
 
-    @Volatile
-    private var currentHost: String? = null
-
-    // `WebViewClient` 콜백이 갱신. JS 에서는 호출 불가 (`@JavascriptInterface` 어노테이션 없음).
-    // legacy `addJavascriptInterface` path 의 host guard 용도.
-    fun setCurrentHost(host: String?) {
-        currentHost = host
-    }
-
-    /** 1차 — `WebViewCompat.addWebMessageListener` 콜백. allowed origin rule 로 frame 단위 차단. */
+    /** `WebViewCompat.addWebMessageListener` 콜백. allowed origin rule 로 frame 단위 차단. */
     override fun onPostMessage(
         view: WebView,
         message: WebMessageCompat,
@@ -59,13 +46,6 @@ class NativeBridge(
         // 명시적으로 sourceOrigin host 한 번 더 검증 — defense-in-depth + 회귀 가드.
         if (!isLoungeHost(sourceOrigin.host)) return
         val payload = message.data ?: return
-        dispatch(payload)
-    }
-
-    /** 2차 — legacy `addJavascriptInterface` fallback. */
-    @JavascriptInterface
-    fun postMessage(payload: String) {
-        if (!isLoungeHost(currentHost)) return
         dispatch(payload)
     }
 

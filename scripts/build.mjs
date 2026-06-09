@@ -180,7 +180,9 @@ function checkDrift() {
       '• --check: 산출물이 .gitignore 라 git diff 검사는 의미 없음 (legacy). 산출물 누락은 Xcode / Gradle 측 파일 존재 검증으로 fail-fast.',
     );
   } catch {
-    console.error('✗ 산출물이 *git tracked* 상태로 변경됨 — .gitignore 잘못 설정됐거나 실수로 add 됐을 수 있습니다.');
+    console.error(
+      '✗ 산출물이 *git tracked* 상태로 변경됨 — .gitignore 잘못 설정됐거나 실수로 add 됐을 수 있습니다.',
+    );
     process.exit(1);
   }
 }

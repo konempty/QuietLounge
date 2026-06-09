@@ -1,7 +1,6 @@
 package kr.konempty.quietlounge.ui.lounge
 
 import android.annotation.SuppressLint
-import android.net.Uri
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.JsPromptResult
@@ -20,6 +19,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -172,19 +173,19 @@ fun LoungeScreen(
                 AlertDialog(
                     onDismissRequest = { pendingBlock = null },
                     title = { Text("유저 차단") },
-                    text = { Text("\"${pb.nickname}\" 유저를 차단하시겠습니까?") },
+                    text = { Text("\"${pb.nickname}\" 유저를 어떻게 차단할까요?") },
                     confirmButton = {
-                        TextButton(onClick = {
-                            viewModel.blockUser(pb.personaId, pb.nickname)
-                            pendingBlock = null
-                        }) {
-                            Text("차단", color = MaterialTheme.colorScheme.error)
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { pendingBlock = null }) {
-                            Text("취소")
-                        }
+                        BlockUserDialogActions(
+                            onBlockPostsOnly = {
+                                viewModel.blockUser(pb.personaId, pb.nickname, blockComments = false)
+                                pendingBlock = null
+                            },
+                            onBlockPostsAndComments = {
+                                viewModel.blockUser(pb.personaId, pb.nickname, blockComments = true)
+                                pendingBlock = null
+                            },
+                            onCancel = { pendingBlock = null },
+                        )
                     },
                 )
             }
@@ -243,6 +244,58 @@ fun LoungeScreen(
                 destroy()
             }
             webView = null
+        }
+    }
+}
+
+@Composable
+internal fun BlockUserDialogActions(
+    onBlockPostsOnly: () -> Unit,
+    onBlockPostsAndComments: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .testTag("block-user-dialog-actions"),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            TextButton(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .testTag("block-user-posts-only"),
+                onClick = onBlockPostsOnly,
+            ) {
+                Text("글만 차단")
+            }
+            TextButton(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .testTag("block-user-posts-comments"),
+                onClick = onBlockPostsAndComments,
+            ) {
+                Text("글과 댓글 차단", color = MaterialTheme.colorScheme.error)
+            }
+        }
+        TextButton(
+            modifier =
+                Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .heightIn(min = 48.dp)
+                    .testTag("block-user-cancel"),
+            onClick = onCancel,
+        ) {
+            Text("취소")
         }
     }
 }
@@ -318,9 +371,6 @@ private fun createLoungeWebView(
                     favicon: android.graphics.Bitmap?,
                 ) {
                     super.onPageStarted(view, url, favicon)
-                    // 외부 페이지에서 native bridge 호출 차단 — NativeBridge.postMessage 의 host guard 가
-                    // 이 currentHost 를 본다. (Codex 49 P1)
-                    bridge.setCurrentHost(Uri.parse(url ?: "").host)
                     // before script — document_start 대체 (페이지가 막 시작될 때 주입)
                     view?.evaluateJavascript(beforeScriptProvider(), null)
                     onPageStarted(url)
@@ -331,7 +381,6 @@ private fun createLoungeWebView(
                     url: String?,
                 ) {
                     super.onPageFinished(view, url)
-                    bridge.setCurrentHost(Uri.parse(url ?: "").host)
                     // after script — document_idle 대체
                     view?.evaluateJavascript(afterScriptProvider(), null)
                     onPageFinished(url)
@@ -346,7 +395,6 @@ private fun createLoungeWebView(
                     isReload: Boolean,
                 ) {
                     super.doUpdateVisitedHistory(view, url, isReload)
-                    bridge.setCurrentHost(Uri.parse(url ?: "").host)
                     onUrlChanged(url)
                 }
             }

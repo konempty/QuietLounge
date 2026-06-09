@@ -424,6 +424,20 @@ final class PersonaCachePromotionTests: XCTestCase {
         XCTAssertTrue((out["nicknameOnlyBlocks"] as? [[String: Any]])?.isEmpty ?? false)
     }
 
+    func test_nicknameOnly_승격_시_최초_blockedAt_보존() {
+        var data = emptyData()
+        data["nicknameOnlyBlocks"] = [[
+            "nickname": "auto-time",
+            "blockedAt": "2026-01-01T00:00:00Z"
+        ]]
+        let out = QuietLoungeCore.applyPersonaCacheUpdate(
+            to: data, personaId: "p1", nickname: "auto-time", now: fixedDate
+        )
+        let users = out["blockedUsers"] as? [String: [String: Any]]
+        XCTAssertEqual(users?["p1"]?["blockedAt"] as? String, "2026-01-01T00:00:00Z")
+        XCTAssertTrue((out["nicknameOnlyBlocks"] as? [[String: Any]])?.isEmpty ?? false)
+    }
+
     func test_직접_personaId_차단이_nicknameOnly_댓글차단_scope를_흡수() {
         var data = emptyData()
         data["nicknameOnlyBlocks"] = [[

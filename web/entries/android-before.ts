@@ -6,7 +6,7 @@
 // WebViewClient.onPageStarted 시점에 evaluateJavascript() 로 주입.
 //
 // fetch monkey-patch / hydration parser / DOM fallback 은 web/core/persona-extractor 에서
-// 처리. 이 entry 의 책임은 native bridge (Android JavascriptInterface) 호출만.
+// 처리. 이 entry 의 책임은 native bridge (Android WebMessageListener) 호출만.
 
 import { setupPersonaExtractor } from '../core/persona-extractor';
 import type { PersonaExtractorAdapter } from '../platform/adapter';

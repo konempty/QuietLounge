@@ -276,7 +276,6 @@ describe('runFilterPass — 글 상세 댓글/대댓글', () => {
       }),
       filterMode: 'hide',
       personaIdForPost: () => undefined,
-      filterComments: true,
     });
 
     expect(blocked).toBe(0);
@@ -307,7 +306,6 @@ describe('runFilterPass — 글 상세 댓글/대댓글', () => {
       }),
       filterMode: 'hide',
       personaIdForPost: () => undefined,
-      filterComments: true,
     });
 
     const comment = doc.querySelector<HTMLElement>('#comment-a')!;
@@ -344,7 +342,6 @@ describe('runFilterPass — 글 상세 댓글/대댓글', () => {
       }),
       filterMode: 'hide',
       personaIdForPost: () => undefined,
-      filterComments: true,
     });
 
     const comment = doc.querySelector<HTMLElement>('#comment-a')!;
@@ -368,7 +365,6 @@ describe('runFilterPass — 글 상세 댓글/대댓글', () => {
       }),
       filterMode: 'blur',
       personaIdForPost: () => undefined,
-      filterComments: true,
     });
 
     const comment = doc.querySelector<HTMLElement>('#comment-a')!;
@@ -387,7 +383,6 @@ describe('runFilterPass — 글 상세 댓글/대댓글', () => {
       }),
       filterMode: 'hide' as const,
       personaIdForPost: () => undefined,
-      filterComments: true,
     };
 
     expect(runFilterPass(ctx)).toBe(0);
@@ -426,7 +421,6 @@ describe('runFilterPass — 글 상세 댓글/대댓글', () => {
       }),
       filterMode: 'hide',
       personaIdForPost: () => undefined,
-      filterComments: true,
     });
     expect(comment.style.display).toBe('none');
     expect(doc.querySelector('[data-ql-comment-placeholder]')).not.toBeNull();
@@ -435,7 +429,6 @@ describe('runFilterPass — 글 상세 댓글/대댓글', () => {
       blockData: makeBlockData(),
       filterMode: 'hide',
       personaIdForPost: () => undefined,
-      filterComments: true,
     });
     expect(comment.style.display).toBe('');
     expect(doc.querySelector('[data-ql-comment-placeholder]')).toBeNull();

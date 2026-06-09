@@ -8,7 +8,6 @@
 
 import { STORAGE_KEY, FILTER_MODE_KEY, DONT_SHOW_FILTER_HINT_KEY } from '../core/storage-keys';
 import { isActivePage } from '../core/pages';
-import { isBlocked as sharedIsBlocked } from '../core/block-check';
 import { runFilterPass } from '../core/filter-engine';
 import { injectBlockButtons, findPersonaId as sharedFindPersonaId } from '../core/inject-buttons';
 import {
@@ -90,27 +89,48 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
     });
   }
 
-  // closure 캡쳐된 blockData 를 shared isBlocked 에 위임 — 4 플랫폼 동일 시맨틱.
-  function isBlocked(personaId, nickname) {
-    return sharedIsBlocked(blockData, personaId, nickname);
-  }
-
-  async function blockUser(personaId, nickname) {
+  async function blockUser(personaId, nickname, blockComments) {
     if (personaId) {
       const existing = blockData.blockedUsers[personaId];
+      const nicknameBlock = (blockData.nicknameOnlyBlocks || []).find(
+        (b) => b.nickname === nickname,
+      );
+      const shouldBlockComments =
+        !!blockComments || !!existing?.blockComments || !!nicknameBlock?.blockComments;
       blockData.blockedUsers[personaId] = {
         personaId,
         nickname,
-        blockedAt: existing?.blockedAt ?? new Date().toISOString(),
+        blockedAt: existing?.blockedAt ?? nicknameBlock?.blockedAt ?? new Date().toISOString(),
+        ...(shouldBlockComments ? { blockComments: true } : {}),
       };
       blockData.nicknameOnlyBlocks = blockData.nicknameOnlyBlocks.filter(
         (b) => b.nickname !== nickname,
       );
     } else {
-      if (isBlocked(undefined, nickname)) return;
+      const existingPersona = Object.values(blockData.blockedUsers || {}).find(
+        (u) => u.nickname === nickname,
+      );
+      if (existingPersona) {
+        if (blockComments && !existingPersona.blockComments) {
+          existingPersona.blockComments = true;
+          await saveBlockData();
+        }
+        return;
+      }
+      const existingNick = (blockData.nicknameOnlyBlocks || []).find(
+        (b) => b.nickname === nickname,
+      );
+      if (existingNick) {
+        if (blockComments && !existingNick.blockComments) {
+          existingNick.blockComments = true;
+          await saveBlockData();
+        }
+        return;
+      }
       blockData.nicknameOnlyBlocks.push({
         nickname,
         blockedAt: new Date().toISOString(),
+        ...(blockComments ? { blockComments: true } : {}),
       });
     }
     await saveBlockData();
@@ -198,8 +218,66 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
 
   // ── UI Injector (차단 버튼) ──
   // 핵심 로직 (path A / path B / cleanbot 가드 / DOM 위치 결정) 은 shared injectBlockButtons 가
-  // 처리. Chrome 측 책임은 (a) 버튼 DOM 만들기 (b) 차단 클릭 시 confirm + blockUser + filterAll +
+  // 처리. Chrome 측 책임은 (a) 버튼 DOM 만들기 (b) 차단 클릭 시 scope 선택 + blockUser + filterAll +
   // maybeShowFilterModeHint 흐름.
+  function qlDialog(message, buttons) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText =
+        'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+      const dialog = document.createElement('div');
+      dialog.style.cssText =
+        'width:min(320px,100%);background:#1f1f1f;color:#fff;border-radius:12px;padding:20px;box-shadow:0 16px 40px rgba(0,0,0,0.35);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;';
+
+      const msg = document.createElement('p');
+      msg.textContent = message;
+      msg.style.cssText = 'font-size:15px;margin:0 0 18px;line-height:1.4;';
+
+      const btnRow = document.createElement('div');
+      btnRow.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
+
+      function close(result) {
+        overlay.remove();
+        resolve(result);
+      }
+
+      buttons.forEach((item) => {
+        const btn = document.createElement('button');
+        btn.textContent = item.label;
+        const styles = {
+          cancel: 'border:1px solid #444;background:transparent;color:#aaa;',
+          destructive: 'border:none;background:#e74c3c;color:#fff;font-weight:600;',
+          primary: `border:none;background:${QL_PRIMARY};color:#fff;font-weight:600;`,
+        };
+        btn.style.cssText =
+          'width:100%;padding:10px;border-radius:8px;font-size:14px;cursor:pointer;' +
+          (styles[item.style] || styles.primary);
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          close(item.value);
+        });
+        btnRow.appendChild(btn);
+      });
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close(null);
+      });
+
+      dialog.appendChild(msg);
+      dialog.appendChild(btnRow);
+      overlay.appendChild(dialog);
+      document.body.appendChild(overlay);
+    });
+  }
+
+  function qlBlockChoice(nickname) {
+    return qlDialog(`"${nickname}" 유저를 어떻게 차단할까요?`, [
+      { label: '글만 차단', value: 'postsOnly', style: 'primary' },
+      { label: '글과 댓글 차단', value: 'postsAndComments', style: 'destructive' },
+      { label: '취소', value: null, style: 'cancel' },
+    ]);
+  }
+
   const injectButtonsAdapter: InjectButtonsAdapter = {
     buttonClassName: 'quiet-lounge-btn',
     pathBMissingPidStrategy: 'show-error',
@@ -244,8 +322,9 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
     },
 
     async onBlockClick(personaId, nickname) {
-      if (!confirm(`"${nickname}" 유저를 차단하시겠습니까?`)) return;
-      await blockUser(personaId, nickname);
+      const choice = await qlBlockChoice(nickname);
+      if (!choice) return;
+      await blockUser(personaId, nickname, choice === 'postsAndComments');
       filterAll();
       runInjectBlockButtons();
       await maybeShowFilterModeHint();

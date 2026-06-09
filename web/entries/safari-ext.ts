@@ -218,7 +218,6 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
       blockData,
       filterMode,
       personaIdForPost: (id) => personaMap.get(id),
-      filterComments: true,
     });
     if (!extContextValid()) return;
     browser.runtime.sendMessage({ type: 'UPDATE_BADGE', count: totalBlocked });

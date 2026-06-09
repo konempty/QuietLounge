@@ -125,6 +125,23 @@ class SettingsViewModelTest {
             assertNotNull(parsed["blockedUsers"]!!.jsonObject["p1"])
             assertEquals(2, parsed["version"]!!.jsonPrimitive.content.toInt())
         }
+
+        @Test
+        fun `blockComments 필드도 통합 백업에 보존`() {
+            val withData =
+                """
+                {"version":2,"blockedUsers":{"p1":{"personaId":"p1","nickname":"a",
+                "blockedAt":"2026-01-01","blockComments":true}},
+                "nicknameOnlyBlocks":[{"nickname":"n","blockedAt":"2026-01-02","blockComments":true}],
+                "personaCache":{}}
+                """.trimIndent().replace("\n", "")
+            val merged = mergeBackupJson(withData, emptyList(), interval = 5)
+            val parsed = Json.parseToJsonElement(merged).jsonObject
+            val personaBlock = parsed["blockedUsers"]!!.jsonObject["p1"]!!.jsonObject
+            val nicknameBlock = parsed["nicknameOnlyBlocks"]!!.jsonArray[0].jsonObject
+            assertEquals(true, personaBlock["blockComments"]!!.jsonPrimitive.content.toBoolean())
+            assertEquals(true, nicknameBlock["blockComments"]!!.jsonPrimitive.content.toBoolean())
+        }
     }
 
     class SplitBackupJsonTests {

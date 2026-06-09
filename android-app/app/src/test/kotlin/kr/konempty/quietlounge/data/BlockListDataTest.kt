@@ -38,6 +38,35 @@ class BlockListDataTest {
     }
 
     @Test
+    fun `BlockListData — 댓글 차단 scope 왕복`() {
+        val data =
+            BlockListData(
+                blockedUsers =
+                    mapOf(
+                        "p1" to
+                            BlockedUser(
+                                personaId = "p1",
+                                nickname = "n1",
+                                blockedAt = "2026-01-01T00:00:00Z",
+                                blockComments = true,
+                            ),
+                    ),
+                nicknameOnlyBlocks =
+                    listOf(
+                        NicknameOnlyBlock(
+                            nickname = "nonly",
+                            blockedAt = "2026-01-02T00:00:00Z",
+                            blockComments = true,
+                        ),
+                    ),
+            )
+        val raw = json.encodeToString(BlockListData.serializer(), data)
+        val parsed = json.decodeFromString(BlockListData.serializer(), raw)
+        assertEquals(true, parsed.blockedUsers["p1"]?.blockComments)
+        assertEquals(true, parsed.nicknameOnlyBlocks[0].blockComments)
+    }
+
+    @Test
     fun `BlockedUser — 알 수 없는 필드(previousNicknames, reason) 무시 — 마이그레이션 호환성`() {
         // 기존 사용자 storage 에 남은 옛 필드들이 파싱을 깨뜨리지 않아야 함.
         val raw =

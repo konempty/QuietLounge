@@ -26,13 +26,11 @@ export interface FilterEngineContext {
   filterMode: FilterMode;
   /** postId → personaId 매핑 조회. Map.get / 객체 인덱스 추상화. 미매핑이면 undefined. */
   personaIdForPost: (postId: string) => string | undefined;
-  /** true면 글 상세 페이지 댓글도 blockComments=true 차단 항목에 따라 필터링. */
-  filterComments?: boolean;
 }
 
 /** 피드 + 캐러셀을 한 번 필터링. 차단된 글 수 반환 (badge 갱신 등 후처리에 사용 가능). */
 export function runFilterPass(ctx: FilterEngineContext): number {
-  return filterFeedPosts(ctx) + filterCarouselCards(ctx) + filterComments(ctx);
+  return filterFeedPosts(ctx) + filterCarouselCards(ctx) + filterDetailComments(ctx);
 }
 
 /** `[data-slot="separator"]` 형제도 본문과 동일하게 hide/blur 적용 — 차단 글 사이의 구분선이 그대로
@@ -90,8 +88,7 @@ function filterCarouselCards(ctx: FilterEngineContext): number {
  * 이 row 만 숨겨야 대댓글 wrapper 가 같이 사라지지 않는다.
  * 글 본문 작성자 영역은 같은 profile-name 슬롯을 쓰지만 댓글 row/avatar 구조가 아니어서 제외된다.
  */
-function filterComments(ctx: FilterEngineContext): number {
-  if (!ctx.filterComments) return 0;
+function filterDetailComments(ctx: FilterEngineContext): number {
   if (!window.location.pathname.startsWith('/posts')) return 0;
 
   let blocked = 0;

@@ -214,6 +214,15 @@ describe('BlockList', () => {
       expect(bl.getData().nicknameOnlyBlocks).toHaveLength(0);
     });
 
+    it('nicknameOnlyBlocks 승격 시 최초 blockedAt 을 보존', async () => {
+      await bl.blockByNickname('auto-time');
+      const blockedAt = bl.getData().nicknameOnlyBlocks[0].blockedAt;
+      await new Promise((r) => setTimeout(r, 10));
+      await bl.updatePersonaCache('p1', 'auto-time');
+      expect(bl.getData().blockedUsers['p1']?.blockedAt).toBe(blockedAt);
+      expect(bl.getData().nicknameOnlyBlocks).toHaveLength(0);
+    });
+
     it('이전에 캐시된 닉네임이 차단된 상태에서 닉네임 변경 → 자동 승격', async () => {
       // 먼저 캐시 기록
       await bl.updatePersonaCache('p1', 'oldname');

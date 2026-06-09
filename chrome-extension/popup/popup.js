@@ -71,12 +71,13 @@ function render() {
     .sort((a, b) => new Date(b.blockedAt) - new Date(a.blockedAt))
     .forEach((user) => {
       const date = new Date(user.blockedAt).toLocaleDateString('ko-KR');
+      const scope = user.blockComments ? '글+댓글' : '글만';
       html += `
         <div class="block-item">
           <div class="block-item-info">
             <div class="block-item-nickname">${escapeHtml(user.nickname)}</div>
             <div class="block-item-meta">
-              <span class="block-item-id">${user.personaId}</span> · ${date}
+              <span class="block-item-id">${user.personaId}</span> · ${scope} · ${date}
             </div>
           </div>
           <button class="btn-unblock" data-type="persona" data-id="${user.personaId}">해제</button>
@@ -89,11 +90,12 @@ function render() {
     .sort((a, b) => new Date(b.blockedAt) - new Date(a.blockedAt))
     .forEach((block) => {
       const date = new Date(block.blockedAt).toLocaleDateString('ko-KR');
+      const scope = block.blockComments ? '글+댓글' : '글만';
       html += `
         <div class="block-item">
           <div class="block-item-info">
             <div class="block-item-nickname">${escapeHtml(block.nickname)}</div>
-            <div class="block-item-meta">닉네임만 · ${date}</div>
+            <div class="block-item-meta">닉네임만 · ${scope} · ${date}</div>
           </div>
           <button class="btn-unblock" data-type="nickname" data-nickname="${escapeHtml(block.nickname)}">해제</button>
         </div>

@@ -112,12 +112,13 @@ class BlockListRepository(
     suspend fun blockUser(
         personaId: String?,
         nickname: String,
+        blockComments: Boolean = false,
     ) {
         val updated =
             if (!personaId.isNullOrBlank()) {
-                engine.blockByPersonaId(personaId, nickname)
+                engine.blockByPersonaId(personaId, nickname, blockComments)
             } else {
-                engine.blockByNickname(nickname)
+                engine.blockByNickname(nickname, blockComments)
             }
         persist(updated)
     }

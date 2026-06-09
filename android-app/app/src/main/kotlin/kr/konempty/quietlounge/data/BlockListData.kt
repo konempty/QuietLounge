@@ -9,12 +9,14 @@ data class BlockedUser(
     val personaId: String,
     val nickname: String,
     val blockedAt: String,
+    val blockComments: Boolean = false,
 )
 
 @Serializable
 data class NicknameOnlyBlock(
     val nickname: String,
     val blockedAt: String,
+    val blockComments: Boolean = false,
 )
 
 @Serializable

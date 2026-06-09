@@ -60,6 +60,33 @@ class WebViewScriptsTest {
     }
 
     @Test
+    fun `renderTemplate — 댓글 차단 scope 포함`() {
+        val data =
+            BlockListData(
+                blockedUsers =
+                    mapOf(
+                        "p1" to
+                            BlockedUser(
+                                personaId = "p1",
+                                nickname = "닉네임",
+                                blockedAt = "2026-01-01T00:00:00Z",
+                                blockComments = true,
+                            ),
+                    ),
+                nicknameOnlyBlocks =
+                    listOf(
+                        NicknameOnlyBlock(
+                            nickname = "only",
+                            blockedAt = "2026-01-02T00:00:00Z",
+                            blockComments = true,
+                        ),
+                    ),
+            )
+        val out = WebViewScripts.renderTemplate(WebViewScripts.BLOCK_DATA_PLACEHOLDER, data, FilterMode.Hide)
+        assertTrue(out.contains("\"blockComments\":true"))
+    }
+
+    @Test
     fun `renderTemplate — 플레이스홀더 없으면 원본 유지`() {
         val template = "no placeholders here"
         val out = WebViewScripts.renderTemplate(template, emptyData, FilterMode.Hide)

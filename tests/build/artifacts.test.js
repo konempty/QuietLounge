@@ -40,6 +40,10 @@ const IOS_NATIVE_SOURCES = {
   webViewController: 'safari-extension/QuietLounge/iOS (App)/WebViewController.swift',
 };
 
+const ANDROID_NATIVE_SOURCES = {
+  loungeScreen: 'android-app/app/src/main/kotlin/kr/konempty/quietlounge/ui/lounge/LoungeScreen.kt',
+};
+
 function read(rel) {
   return fs.readFileSync(path.resolve(ROOT, rel), 'utf8');
 }
@@ -79,11 +83,17 @@ describe('Tier 1 핵심 토큰 보존 — 4 플랫폼 산출물', () => {
   });
 });
 
-describe('댓글 차단 범위 — Safari/iOS 산출물 회귀 가드', () => {
+describe('댓글 차단 범위 — 4 플랫폼 산출물 회귀 가드', () => {
+  it('Chrome main.js 에 blockComments 댓글 필터와 hide-mode 안내 문구가 포함됨', () => {
+    const text = read(ARTIFACTS.chrome);
+    expect(text).toContain('blockComments');
+    expect(text).toContain('QuietLounge에 의해 차단된 댓글입니다');
+    expect(text).toContain('data-ql-comment-placeholder');
+  });
+
   it('Safari ext main.js 에 blockComments 댓글 필터와 hide-mode 안내 문구가 포함됨', () => {
     const text = read(ARTIFACTS.safariExt);
     expect(text).toContain('blockComments');
-    expect(text).toContain('filterComments');
     expect(text).toContain('QuietLounge에 의해 차단된 댓글입니다');
     expect(text).toContain('data-ql-comment-placeholder');
   });
@@ -91,9 +101,25 @@ describe('댓글 차단 범위 — Safari/iOS 산출물 회귀 가드', () => {
   it('iOS after.js 에 blockComments 댓글 필터와 hide-mode 안내 문구가 포함됨', () => {
     const text = read(ARTIFACTS.iosAfter);
     expect(text).toContain('blockComments');
-    expect(text).toContain('filterComments');
     expect(text).toContain('QuietLounge에 의해 차단된 댓글입니다');
     expect(text).toContain('data-ql-comment-placeholder');
+  });
+
+  it('Android after.js 에 blockComments 댓글 필터와 hide-mode 안내 문구가 포함됨', () => {
+    const text = read(ARTIFACTS.androidAfter);
+    expect(text).toContain('blockComments');
+    expect(text).toContain('QuietLounge에 의해 차단된 댓글입니다');
+    expect(text).toContain('data-ql-comment-placeholder');
+  });
+
+  it('Chrome 차단 선택지는 글만 차단 → 글과 댓글 차단 → 취소 순서', () => {
+    const text = read(ARTIFACTS.chrome);
+    const postsOnly = text.indexOf('label: "글만 차단"');
+    const postsAndComments = text.indexOf('label: "글과 댓글 차단"');
+    const cancel = text.indexOf('label: "취소"');
+    expect(postsOnly).toBeGreaterThan(-1);
+    expect(postsAndComments).toBeGreaterThan(postsOnly);
+    expect(cancel).toBeGreaterThan(postsAndComments);
   });
 
   it('Safari ext 차단 선택지는 글만 차단 → 글과 댓글 차단 → 취소 순서', () => {
@@ -111,6 +137,16 @@ describe('댓글 차단 범위 — Safari/iOS 산출물 회귀 가드', () => {
     const postsOnly = text.indexOf('title: "글만 차단"');
     const postsAndComments = text.indexOf('title: "글과 댓글 차단"');
     const cancel = text.indexOf('title: "취소"');
+    expect(postsOnly).toBeGreaterThan(-1);
+    expect(postsAndComments).toBeGreaterThan(postsOnly);
+    expect(cancel).toBeGreaterThan(postsAndComments);
+  });
+
+  it('Android native 차단 선택지도 글만 차단 → 글과 댓글 차단 → 취소 순서', () => {
+    const text = read(ANDROID_NATIVE_SOURCES.loungeScreen);
+    const postsOnly = text.indexOf('Text("글만 차단"');
+    const postsAndComments = text.indexOf('Text("글과 댓글 차단"');
+    const cancel = text.indexOf('Text("취소"');
     expect(postsOnly).toBeGreaterThan(-1);
     expect(postsAndComments).toBeGreaterThan(postsOnly);
     expect(cancel).toBeGreaterThan(postsAndComments);

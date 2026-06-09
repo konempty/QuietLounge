@@ -48,6 +48,28 @@ class BlockListEngineTest {
         assertEquals(0, data.nicknameOnlyBlocks.size)
     }
 
+    @Test
+    fun `personaId 차단 시 동일 닉네임 nicknameOnlyBlocks 의 댓글 차단 scope 와 blockedAt 보존`() {
+        val engine = BlockListEngine()
+        engine.blockByNickname("승격닉", blockComments = true)
+        val blockedAt = engine.snapshot().nicknameOnlyBlocks[0].blockedAt
+        engine.blockByPersonaId("p1", "승격닉")
+        val data = engine.snapshot()
+        assertTrue(data.nicknameOnlyBlocks.isEmpty())
+        assertEquals(blockedAt, data.blockedUsers["p1"]?.blockedAt)
+        assertTrue(data.blockedUsers["p1"]?.blockComments == true)
+    }
+
+    @Test
+    fun `이미 댓글 차단된 personaId 는 글만 차단 경로를 다시 타도 scope 유지`() {
+        val engine = BlockListEngine()
+        engine.blockByPersonaId("p1", "first", blockComments = true)
+        engine.blockByPersonaId("p1", "second")
+        val user = engine.snapshot().blockedUsers["p1"]!!
+        assertEquals("second", user.nickname)
+        assertTrue(user.blockComments)
+    }
+
     // ── blockByNickname ───────────────────────────────────────────
 
     @Test
@@ -73,6 +95,25 @@ class BlockListEngineTest {
         engine.blockByNickname("once")
         engine.blockByNickname("once")
         assertEquals(1, engine.snapshot().nicknameOnlyBlocks.size)
+    }
+
+    @Test
+    fun `닉네임 차단도 댓글 차단 scope 저장과 업그레이드 지원`() {
+        val engine = BlockListEngine()
+        engine.blockByNickname("once")
+        engine.blockByNickname("once", blockComments = true)
+        val block = engine.snapshot().nicknameOnlyBlocks[0]
+        assertEquals("once", block.nickname)
+        assertTrue(block.blockComments)
+    }
+
+    @Test
+    fun `이미 personaId 로 차단된 닉네임도 댓글 차단으로 업그레이드`() {
+        val engine = BlockListEngine()
+        engine.blockByPersonaId("p1", "dup")
+        engine.blockByNickname("dup", blockComments = true)
+        assertTrue(engine.snapshot().nicknameOnlyBlocks.isEmpty())
+        assertTrue(engine.snapshot().blockedUsers["p1"]?.blockComments == true)
     }
 
     // ── unblock ───────────────────────────────────────────────────
@@ -117,6 +158,58 @@ class BlockListEngineTest {
         val data = engine.snapshot()
         assertNotNull(data.blockedUsers["p1"])
         assertTrue(data.nicknameOnlyBlocks.isEmpty())
+    }
+
+    @Test
+    fun `댓글 차단 scope 가 있는 nicknameOnlyBlocks 는 cache 승격 시 보존`() {
+        val engine = BlockListEngine()
+        engine.blockByNickname("auto", blockComments = true)
+        engine.updatePersonaCache("p1", "auto")
+        val data = engine.snapshot()
+        assertTrue(data.blockedUsers["p1"]?.blockComments == true)
+        assertTrue(data.nicknameOnlyBlocks.isEmpty())
+    }
+
+    @Test
+    fun `nicknameOnlyBlocks 는 cache 승격 시 최초 blockedAt 을 보존`() {
+        val engine = BlockListEngine()
+        engine.blockByNickname("auto-time")
+        val blockedAt = engine.snapshot().nicknameOnlyBlocks[0].blockedAt
+        Thread.sleep(5)
+        engine.updatePersonaCache("p1", "auto-time")
+        val data = engine.snapshot()
+        assertEquals(blockedAt, data.blockedUsers["p1"]?.blockedAt)
+        assertTrue(data.nicknameOnlyBlocks.isEmpty())
+    }
+
+    @Test
+    fun `기존 댓글 차단 persona 가 stale nicknameOnlyBlock 과 재승격되어도 scope 유지`() {
+        val engine =
+            BlockListEngine(
+                BlockListData(
+                    blockedUsers =
+                        mapOf(
+                            "p1" to
+                                BlockedUser(
+                                    personaId = "p1",
+                                    nickname = "oldname",
+                                    blockedAt = "2026-01-01T00:00:00Z",
+                                    blockComments = true,
+                                ),
+                        ),
+                    nicknameOnlyBlocks = listOf(NicknameOnlyBlock("oldname", "2026-02-01T00:00:00Z")),
+                    personaCache =
+                        mapOf(
+                            "p1" to PersonaCacheEntry("oldname", "2026-01-01T00:00:00Z"),
+                        ),
+                ),
+            )
+        engine.updatePersonaCache("p1", "newname")
+        val user = engine.snapshot().blockedUsers["p1"]!!
+        assertEquals("newname", user.nickname)
+        assertEquals("2026-01-01T00:00:00Z", user.blockedAt)
+        assertTrue(user.blockComments)
+        assertTrue(engine.snapshot().nicknameOnlyBlocks.isEmpty())
     }
 
     @Test

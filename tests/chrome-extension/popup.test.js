@@ -8,14 +8,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const POPUP_HTML = path.resolve(
-  process.cwd(),
-  'chrome-extension/popup/popup.html',
-);
-const POPUP_JS = path.resolve(
-  process.cwd(),
-  'chrome-extension/popup/popup.js',
-);
+const POPUP_HTML = path.resolve(process.cwd(), 'chrome-extension/popup/popup.html');
+const POPUP_JS = path.resolve(process.cwd(), 'chrome-extension/popup/popup.js');
 
 function mkChrome() {
   const storage = { _store: {}, _listeners: [] };
@@ -129,11 +123,10 @@ describe('chrome popup.html + popup.js', () => {
             personaId: 'p1',
             nickname: '유저A',
             blockedAt: '2026-04-01T00:00:00Z',
+            blockComments: true,
           },
         },
-        nicknameOnlyBlocks: [
-          { nickname: 'B_닉네임', blockedAt: '2026-04-02T00:00:00Z' },
-        ],
+        nicknameOnlyBlocks: [{ nickname: 'B_닉네임', blockedAt: '2026-04-02T00:00:00Z' }],
         personaCache: {},
       }),
     };
@@ -146,6 +139,8 @@ describe('chrome popup.html + popup.js', () => {
     expect(doc.getElementById('nickname-count').textContent).toBe('1');
     expect(doc.querySelector('#block-list-container').innerHTML).toContain('유저A');
     expect(doc.querySelector('#block-list-container').innerHTML).toContain('B_닉네임');
+    expect(doc.querySelector('#block-list-container').innerHTML).toContain('글+댓글');
+    expect(doc.querySelector('#block-list-container').innerHTML).toContain('글만');
   });
 
   it('해제 버튼 클릭 → confirm 후 blockedUser 제거 (4 플랫폼 통일 UX)', async () => {
@@ -443,8 +438,7 @@ describe('chrome popup.html + popup.js', () => {
     const doc = ctx.win.document;
 
     // popup.js 는 onChanged 를 3번 등록 — 키워드 알림 리스너는 마지막(line 664)
-    const listener =
-      ctx.chrome._storage._listeners[ctx.chrome._storage._listeners.length - 1];
+    const listener = ctx.chrome._storage._listeners[ctx.chrome._storage._listeners.length - 1];
     listener({
       quiet_lounge_keyword_alerts: {
         newValue: JSON.stringify([
@@ -460,9 +454,7 @@ describe('chrome popup.html + popup.js', () => {
       },
     });
     for (let i = 0; i < 3; i++) await new Promise((r) => setTimeout(r, 0));
-    expect(
-      doc.getElementById('keyword-alerts-list').innerHTML,
-    ).toContain('새채널');
+    expect(doc.getElementById('keyword-alerts-list').innerHTML).toContain('새채널');
   });
 
   it('회귀 가드: 닉네임에 따옴표가 들어와도 data-* attribute 가 깨지지 않음 (escapeHtml 5-char)', async () => {
@@ -488,7 +480,9 @@ describe('chrome popup.html + popup.js', () => {
     const btns = doc.querySelectorAll('button[data-type="nickname"]');
     expect(btns).toHaveLength(2);
     // dataset 이 원본과 정확히 일치 — attribute 경계 깨짐 없음.
-    const nicknames = Array.from(btns).map((b) => b.dataset.nickname).sort();
+    const nicknames = Array.from(btns)
+      .map((b) => b.dataset.nickname)
+      .sort();
     expect(nicknames).toEqual([tricky, 'normal'].sort());
 
     // tricky 닉네임 unblock — 정확히 그 entry 만 제거.
@@ -578,8 +572,7 @@ describe('chrome popup.html + popup.js', () => {
     dom = ctx.dom;
     const doc = ctx.win.document;
     // popup.js 가 storage.onChanged 를 3번 등록 — 키워드 알림 리스너는 마지막 (line 720 부근).
-    const listener =
-      ctx.chrome._storage._listeners[ctx.chrome._storage._listeners.length - 1];
+    const listener = ctx.chrome._storage._listeners[ctx.chrome._storage._listeners.length - 1];
 
     expect(() =>
       listener({ quiet_lounge_keyword_alerts: { newValue: '{broken-json' } }),

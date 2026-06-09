@@ -41,12 +41,14 @@ import kr.konempty.quietlounge.ui.theme.QlDanger
 private sealed interface BlockRow {
     val nickname: String
     val blockedAt: String
+    val blockComments: Boolean
 
     data class Persona(
         val user: BlockedUser,
     ) : BlockRow {
         override val nickname get() = user.nickname
         override val blockedAt get() = user.blockedAt
+        override val blockComments get() = user.blockComments
     }
 
     data class Nickname(
@@ -54,6 +56,7 @@ private sealed interface BlockRow {
     ) : BlockRow {
         override val nickname get() = block.nickname
         override val blockedAt get() = block.blockedAt
+        override val blockComments get() = block.blockComments
     }
 }
 
@@ -178,6 +181,8 @@ private fun BlockRowItem(
                 )
                 Spacer(Modifier.width(8.dp))
                 BlockBadge(isPersona = row is BlockRow.Persona)
+                Spacer(Modifier.width(6.dp))
+                BlockScopeBadge(blockComments = row.blockComments)
             }
             if (row is BlockRow.Persona) {
                 Spacer(Modifier.height(2.dp))
@@ -202,6 +207,26 @@ private fun BlockRowItem(
         ) {
             Text(text = "해제", color = QlDanger, fontSize = 13.sp)
         }
+    }
+}
+
+@Composable
+private fun BlockScopeBadge(blockComments: Boolean) {
+    val bg = if (blockComments) QlDanger else MaterialTheme.colorScheme.secondary
+    val label = if (blockComments) "글+댓글" else "글만"
+    Box(
+        modifier =
+            Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .background(bg)
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = label,
+            color = Color.White,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 

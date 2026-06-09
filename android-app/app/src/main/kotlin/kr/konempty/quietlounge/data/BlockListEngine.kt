@@ -24,14 +24,20 @@ class BlockListEngine(
     fun blockByPersonaId(
         personaId: String,
         nickname: String,
+        blockComments: Boolean = false,
+        blockedAt: String? = null,
     ): BlockListData {
         val existing = data.blockedUsers[personaId]
+        val nicknameBlock = data.nicknameOnlyBlocks.firstOrNull { it.nickname == nickname }
+        val shouldBlockComments =
+            blockComments || existing?.blockComments == true || nicknameBlock?.blockComments == true
 
         val updated =
             BlockedUser(
                 personaId = personaId,
                 nickname = nickname,
-                blockedAt = existing?.blockedAt ?: nowIso(),
+                blockedAt = existing?.blockedAt ?: blockedAt ?: nicknameBlock?.blockedAt ?: nowIso(),
+                blockComments = shouldBlockComments,
             )
 
         data =
@@ -43,10 +49,36 @@ class BlockListEngine(
     }
 
     /** 닉네임만 차단. 이미 차단되어 있으면 no-op. */
-    fun blockByNickname(nickname: String): BlockListData {
-        val alreadyByPersona = data.blockedUsers.values.any { it.nickname == nickname }
-        if (alreadyByPersona) return data
-        if (data.nicknameOnlyBlocks.any { it.nickname == nickname }) return data
+    fun blockByNickname(
+        nickname: String,
+        blockComments: Boolean = false,
+    ): BlockListData {
+        val alreadyByPersona = data.blockedUsers.entries.firstOrNull { it.value.nickname == nickname }
+        if (alreadyByPersona != null) {
+            if (blockComments && !alreadyByPersona.value.blockComments) {
+                data =
+                    data.copy(
+                        blockedUsers =
+                            data.blockedUsers +
+                                (alreadyByPersona.key to alreadyByPersona.value.copy(blockComments = true)),
+                    )
+            }
+            return data
+        }
+
+        val existingNick = data.nicknameOnlyBlocks.firstOrNull { it.nickname == nickname }
+        if (existingNick != null) {
+            if (blockComments && !existingNick.blockComments) {
+                data =
+                    data.copy(
+                        nicknameOnlyBlocks =
+                            data.nicknameOnlyBlocks.map {
+                                if (it.nickname == nickname) it.copy(blockComments = true) else it
+                            },
+                    )
+            }
+            return data
+        }
 
         data =
             data.copy(
@@ -55,6 +87,7 @@ class BlockListEngine(
                         NicknameOnlyBlock(
                             nickname = nickname,
                             blockedAt = nowIso(),
+                            blockComments = blockComments,
                         ),
             )
         return data
@@ -102,7 +135,12 @@ class BlockListEngine(
                 data.copy(
                     nicknameOnlyBlocks = data.nicknameOnlyBlocks.filterNot { it === nicknameBlock },
                 )
-            blockByPersonaId(personaId, nickname)
+            blockByPersonaId(
+                personaId = personaId,
+                nickname = nickname,
+                blockComments = nicknameBlock.blockComments,
+                blockedAt = nicknameBlock.blockedAt,
+            )
             return data
         }
 

@@ -303,7 +303,7 @@ enum QuietLoungeCore {
                 personaId: personaId,
                 nickname: nickname,
                 blockComments: nicknameBlock["blockComments"] as? Bool == true,
-                nowIso: nowIso
+                blockedAt: nicknameBlock["blockedAt"] as? String ?? nowIso
             )
             return result
         }
@@ -326,7 +326,7 @@ enum QuietLoungeCore {
         personaId: String,
         nickname: String,
         blockComments: Bool,
-        nowIso: String
+        blockedAt: String
     ) -> [String: Any] {
         var result = data
         var users = result["blockedUsers"] as? [String: [String: Any]] ?? [:]
@@ -334,7 +334,7 @@ enum QuietLoungeCore {
         var user: [String: Any] = [
             "personaId": personaId,
             "nickname": nickname,
-            "blockedAt": existing?["blockedAt"] ?? nowIso
+            "blockedAt": existing?["blockedAt"] ?? blockedAt
         ]
         if blockComments || (existing?["blockComments"] as? Bool == true) {
             user["blockComments"] = true

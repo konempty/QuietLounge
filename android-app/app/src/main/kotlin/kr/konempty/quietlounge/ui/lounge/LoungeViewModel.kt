@@ -61,9 +61,10 @@ class LoungeViewModel(
     fun blockUser(
         personaId: String?,
         nickname: String,
+        blockComments: Boolean = false,
     ) {
         viewModelScope.launch {
-            repo.blockUser(personaId, nickname)
+            repo.blockUser(personaId, nickname, blockComments)
             // 차단이 영속화된 직후에 안내 노출 평가 — 매 차단마다.
             val isBlur = repo.filterMode.first() == FilterMode.Blur
             val dontShow = repo.dontShowFilterHint.first()
