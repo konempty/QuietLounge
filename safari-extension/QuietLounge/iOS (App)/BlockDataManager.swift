@@ -149,32 +149,13 @@ class BlockDataManager {
         postDarwin(AppGroup.darwinNotification)
     }
 
-    func blockUser(personaId: String?, nickname: String) {
-        var data = load()
-        var users = data["blockedUsers"] as? [String: [String: Any]] ?? [:]
-        var nicks = data["nicknameOnlyBlocks"] as? [[String: Any]] ?? []
-
-        if let pid = personaId {
-            let existing = users[pid]
-            users[pid] = [
-                "personaId": pid,
-                "nickname": nickname,
-                "blockedAt": existing?["blockedAt"] ?? ISO8601DateFormatter().string(from: Date())
-            ]
-            nicks.removeAll { ($0["nickname"] as? String) == nickname }
-        } else {
-            let alreadyByPersona = users.values.contains { ($0["nickname"] as? String) == nickname }
-            let alreadyByNick = nicks.contains { ($0["nickname"] as? String) == nickname }
-            if !alreadyByPersona && !alreadyByNick {
-                nicks.append([
-                    "nickname": nickname,
-                    "blockedAt": ISO8601DateFormatter().string(from: Date())
-                ])
-            }
-        }
-
-        data["blockedUsers"] = users
-        data["nicknameOnlyBlocks"] = nicks
+    func blockUser(personaId: String?, nickname: String, blockComments: Bool = false) {
+        let data = QuietLoungeCore.applyBlockUser(
+            to: load(),
+            personaId: personaId,
+            nickname: nickname,
+            blockComments: blockComments
+        )
         save(data)
     }
 

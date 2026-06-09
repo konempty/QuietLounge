@@ -47,12 +47,20 @@ export class BlockList {
     return this.data;
   }
 
-  async blockByPersonaId(personaId: string, nickname: string): Promise<void> {
+  async blockByPersonaId(
+    personaId: string,
+    nickname: string,
+    options: { blockComments?: boolean } = {},
+  ): Promise<void> {
     const existing = this.data.blockedUsers[personaId];
+    const nicknameBlock = this.data.nicknameOnlyBlocks.find((b) => b.nickname === nickname);
+    const blockComments =
+      !!options.blockComments || !!existing?.blockComments || !!nicknameBlock?.blockComments;
     this.data.blockedUsers[personaId] = {
       personaId,
       nickname,
-      blockedAt: existing?.blockedAt ?? new Date().toISOString(),
+      blockedAt: existing?.blockedAt ?? nicknameBlock?.blockedAt ?? new Date().toISOString(),
+      ...(blockComments ? { blockComments: true } : {}),
     };
 
     // nicknameOnlyBlocks에서 해당 닉네임 제거 (승격)
@@ -63,17 +71,34 @@ export class BlockList {
     await this.save();
   }
 
-  async blockByNickname(nickname: string): Promise<void> {
-    const alreadyBlocked = Object.values(this.data.blockedUsers).some(
+  async blockByNickname(
+    nickname: string,
+    options: { blockComments?: boolean } = {},
+  ): Promise<void> {
+    const alreadyBlocked = Object.values(this.data.blockedUsers).find(
       (u) => u.nickname === nickname,
     );
-    if (alreadyBlocked) return;
+    if (alreadyBlocked) {
+      if (options.blockComments && !alreadyBlocked.blockComments) {
+        alreadyBlocked.blockComments = true;
+        await this.save();
+      }
+      return;
+    }
 
-    if (this.data.nicknameOnlyBlocks.some((b) => b.nickname === nickname)) return;
+    const existingNick = this.data.nicknameOnlyBlocks.find((b) => b.nickname === nickname);
+    if (existingNick) {
+      if (options.blockComments && !existingNick.blockComments) {
+        existingNick.blockComments = true;
+        await this.save();
+      }
+      return;
+    }
 
     this.data.nicknameOnlyBlocks.push({
       nickname,
       blockedAt: new Date().toISOString(),
+      ...(options.blockComments ? { blockComments: true } : {}),
     });
     await this.save();
   }
@@ -119,7 +144,9 @@ export class BlockList {
       this.data.nicknameOnlyBlocks = this.data.nicknameOnlyBlocks.filter(
         (b) => b !== nicknameBlock,
       );
-      await this.blockByPersonaId(personaId, nickname);
+      await this.blockByPersonaId(personaId, nickname, {
+        blockComments: nicknameBlock.blockComments,
+      });
       return;
     }
 

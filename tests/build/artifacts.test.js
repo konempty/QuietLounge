@@ -31,10 +31,13 @@ const API_INTERCEPTOR_ARTIFACTS = {
 
 // PR #7 — Safari ext 전용 raw 파일을 esbuild 산출물로 통합.
 const SAFARI_BRIDGE_ARTIFACTS = {
-  injector:
-    'safari-extension/QuietLounge/Shared (Extension)/Resources/content-scripts/injector.js',
+  injector: 'safari-extension/QuietLounge/Shared (Extension)/Resources/content-scripts/injector.js',
   storageBridge:
     'safari-extension/QuietLounge/Shared (Extension)/Resources/content-scripts/storage-bridge.js',
+};
+
+const IOS_NATIVE_SOURCES = {
+  webViewController: 'safari-extension/QuietLounge/iOS (App)/WebViewController.swift',
 };
 
 function read(rel) {
@@ -76,6 +79,44 @@ describe('Tier 1 핵심 토큰 보존 — 4 플랫폼 산출물', () => {
   });
 });
 
+describe('댓글 차단 범위 — Safari/iOS 산출물 회귀 가드', () => {
+  it('Safari ext main.js 에 blockComments 댓글 필터와 hide-mode 안내 문구가 포함됨', () => {
+    const text = read(ARTIFACTS.safariExt);
+    expect(text).toContain('blockComments');
+    expect(text).toContain('filterComments');
+    expect(text).toContain('QuietLounge에 의해 차단된 댓글입니다');
+    expect(text).toContain('data-ql-comment-placeholder');
+  });
+
+  it('iOS after.js 에 blockComments 댓글 필터와 hide-mode 안내 문구가 포함됨', () => {
+    const text = read(ARTIFACTS.iosAfter);
+    expect(text).toContain('blockComments');
+    expect(text).toContain('filterComments');
+    expect(text).toContain('QuietLounge에 의해 차단된 댓글입니다');
+    expect(text).toContain('data-ql-comment-placeholder');
+  });
+
+  it('Safari ext 차단 선택지는 글만 차단 → 글과 댓글 차단 → 취소 순서', () => {
+    const text = read(ARTIFACTS.safariExt);
+    const postsOnly = text.indexOf('label: "글만 차단"');
+    const postsAndComments = text.indexOf('label: "글과 댓글 차단"');
+    const cancel = text.indexOf('label: "취소"');
+    expect(postsOnly).toBeGreaterThan(-1);
+    expect(postsAndComments).toBeGreaterThan(postsOnly);
+    expect(cancel).toBeGreaterThan(postsAndComments);
+  });
+
+  it('iOS native 차단 선택지도 글만 차단 → 글과 댓글 차단 → 취소 순서', () => {
+    const text = read(IOS_NATIVE_SOURCES.webViewController);
+    const postsOnly = text.indexOf('title: "글만 차단"');
+    const postsAndComments = text.indexOf('title: "글과 댓글 차단"');
+    const cancel = text.indexOf('title: "취소"');
+    expect(postsOnly).toBeGreaterThan(-1);
+    expect(postsAndComments).toBeGreaterThan(postsOnly);
+    expect(cancel).toBeGreaterThan(postsAndComments);
+  });
+});
+
 describe('iOS / Android 산출물 — placeholder 보존', () => {
   // native bridge 가 빌드 후 텍스트 치환으로 주입할 두 placeholder 가 살아있어야 한다.
   // esbuild 가 minify / define 으로 우연히 치환하면 런타임에 차단 데이터가 안 들어가 차단 동작 silent 사망.
@@ -112,7 +153,11 @@ describe('iOS / Android 산출물 — placeholder 보존', () => {
     for (const name of ['iosAfter', 'androidAfter']) {
       it(`${name} — bare token 치환 후 __QL_FILTER_MODE 가 정확히 'blur' 또는 'hide' 로 평가됨`, () => {
         const text = read(ARTIFACTS[name]);
-        const subbed = bareTokenReplace(text, '{"version":2,"blockedUsers":{},"nicknameOnlyBlocks":[]}', 'blur');
+        const subbed = bareTokenReplace(
+          text,
+          '{"version":2,"blockedUsers":{},"nicknameOnlyBlocks":[]}',
+          'blur',
+        );
         // 치환 후 placeholder 흔적이 0 이어야 함.
         expect(subbed).not.toContain('__QL_BLOCK_DATA_PLACEHOLDER__');
         expect(subbed).not.toContain('__QL_FILTER_MODE_PLACEHOLDER__');

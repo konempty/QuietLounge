@@ -48,6 +48,48 @@ describe('applyPersonaCacheUpdate', () => {
     expect(data.personaCache.pid1.nickname).toBe('newname');
   });
 
+  it('기존 댓글 차단 persona 가 stale nicknameOnlyBlock 과 재승격되어도 blockComments 유지', () => {
+    const data = emptyData();
+    data.blockedUsers.pid1 = {
+      personaId: 'pid1',
+      nickname: 'oldname',
+      blockedAt: '2026-01-01T00:00:00Z',
+      blockComments: true,
+    };
+    data.personaCache.pid1 = { nickname: 'oldname', lastSeen: '2026-01-01T00:00:00Z' };
+    data.nicknameOnlyBlocks.push({
+      nickname: 'oldname',
+      blockedAt: '2026-02-01T00:00:00Z',
+    });
+
+    const r = applyPersonaCacheUpdate(data, 'pid1', 'newname');
+
+    expect(r.changed).toBe(true);
+    expect(data.blockedUsers.pid1).toEqual({
+      personaId: 'pid1',
+      nickname: 'newname',
+      blockedAt: '2026-01-01T00:00:00Z',
+      blockComments: true,
+    });
+    expect(data.nicknameOnlyBlocks).toHaveLength(0);
+  });
+
+  it('nicknameOnlyBlock 의 댓글 차단 scope 는 persona 승격 시 보존', () => {
+    const data = emptyData();
+    data.nicknameOnlyBlocks.push({
+      nickname: '댓글차단닉',
+      blockedAt: '2026-01-01T00:00:00Z',
+      blockComments: true,
+    });
+
+    const r = applyPersonaCacheUpdate(data, 'pid1', '댓글차단닉');
+
+    expect(r.changed).toBe(true);
+    expect(data.blockedUsers.pid1.blockComments).toBe(true);
+    expect(data.blockedUsers.pid1.blockedAt).toBe('2026-01-01T00:00:00Z');
+    expect(data.nicknameOnlyBlocks).toHaveLength(0);
+  });
+
   it('이미 차단된 personaId 가 닉네임 변경 → blockedUsers.nickname 갱신', () => {
     const data = emptyData();
     data.blockedUsers.pid1 = {

@@ -97,6 +97,31 @@ describe('BlockList', () => {
       expect(bl.getData().nicknameOnlyBlocks).toHaveLength(0);
       expect(bl.getData().blockedUsers['p1'].nickname).toBe('승격닉');
     });
+
+    it('동일 닉네임 nicknameOnlyBlocks 의 댓글 차단 scope 를 personaId 직접 차단 시 보존', async () => {
+      await bl.blockByNickname('승격닉', { blockComments: true });
+      const blockedAt = bl.getData().nicknameOnlyBlocks[0].blockedAt;
+      await bl.blockByPersonaId('p1', '승격닉');
+      expect(bl.getData().nicknameOnlyBlocks).toHaveLength(0);
+      expect(bl.getData().blockedUsers['p1']).toMatchObject({
+        personaId: 'p1',
+        nickname: '승격닉',
+        blockedAt,
+        blockComments: true,
+      });
+    });
+
+    it('blockComments 옵션이 true 면 댓글 차단 스코프를 저장', async () => {
+      await bl.blockByPersonaId('p1', '댓글차단', { blockComments: true });
+      expect(bl.getData().blockedUsers['p1'].blockComments).toBe(true);
+    });
+
+    it('이미 댓글 차단된 유저를 글만 차단 경로로 다시 만나도 blockComments 를 유지', async () => {
+      await bl.blockByPersonaId('p1', '댓글차단', { blockComments: true });
+      await bl.blockByPersonaId('p1', '새닉');
+      expect(bl.getData().blockedUsers['p1'].nickname).toBe('새닉');
+      expect(bl.getData().blockedUsers['p1'].blockComments).toBe(true);
+    });
   });
 
   describe('blockByNickname', () => {
@@ -116,6 +141,25 @@ describe('BlockList', () => {
       await bl.blockByNickname('once');
       await bl.blockByNickname('once');
       expect(bl.getData().nicknameOnlyBlocks).toHaveLength(1);
+    });
+
+    it('blockComments 옵션이 true 면 닉네임 전용 차단에도 댓글 차단 스코프를 저장', async () => {
+      await bl.blockByNickname('nick-comment', { blockComments: true });
+      expect(bl.getData().nicknameOnlyBlocks[0].blockComments).toBe(true);
+    });
+
+    it('이미 personaId 로 차단된 닉네임을 댓글 차단으로 업그레이드', async () => {
+      await bl.blockByPersonaId('p1', 'dup');
+      await bl.blockByNickname('dup', { blockComments: true });
+      expect(bl.getData().nicknameOnlyBlocks).toHaveLength(0);
+      expect(bl.getData().blockedUsers['p1'].blockComments).toBe(true);
+    });
+
+    it('이미 nicknameOnlyBlocks 에 있는 닉네임을 댓글 차단으로 업그레이드', async () => {
+      await bl.blockByNickname('once');
+      await bl.blockByNickname('once', { blockComments: true });
+      expect(bl.getData().nicknameOnlyBlocks).toHaveLength(1);
+      expect(bl.getData().nicknameOnlyBlocks[0].blockComments).toBe(true);
     });
   });
 
@@ -159,6 +203,14 @@ describe('BlockList', () => {
       await bl.blockByNickname('auto');
       await bl.updatePersonaCache('p1', 'auto');
       expect(bl.getData().blockedUsers['p1']?.nickname).toBe('auto');
+      expect(bl.getData().nicknameOnlyBlocks).toHaveLength(0);
+    });
+
+    it('댓글 차단 스코프가 있는 nicknameOnlyBlocks 승격 시 blockComments 를 보존', async () => {
+      await bl.blockByNickname('auto-comment', { blockComments: true });
+      await bl.updatePersonaCache('p1', 'auto-comment');
+      expect(bl.getData().blockedUsers['p1']?.nickname).toBe('auto-comment');
+      expect(bl.getData().blockedUsers['p1']?.blockComments).toBe(true);
       expect(bl.getData().nicknameOnlyBlocks).toHaveLength(0);
     });
 
@@ -213,6 +265,16 @@ describe('BlockList', () => {
       await bl.updatePersonaCache('p2', 'cache-only');
       const parsed = JSON.parse(bl.exportJSON());
       expect(parsed.blockedUsers['p1']).toBeDefined();
+      expect(parsed.personaCache).toBeUndefined();
+    });
+
+    it('exportJSON 은 version 2 를 유지하면서 blockComments 옵션 필드를 보존', async () => {
+      await bl.blockByPersonaId('p1', 'a', { blockComments: true });
+      await bl.blockByNickname('nick', { blockComments: true });
+      const parsed = JSON.parse(bl.exportJSON());
+      expect(parsed.version).toBe(2);
+      expect(parsed.blockedUsers['p1'].blockComments).toBe(true);
+      expect(parsed.nicknameOnlyBlocks[0].blockComments).toBe(true);
       expect(parsed.personaCache).toBeUndefined();
     });
 

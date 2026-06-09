@@ -90,15 +90,17 @@ class BlockListViewController: UIViewController, UITableViewDataSource, UITableV
             let user = personaBlocked[indexPath.row]
             let nickname = user["nickname"] as? String ?? ""
             let pid = user["personaId"] as? String ?? ""
+            let scope = (user["blockComments"] as? Bool == true) ? "글+댓글" : "글만"
             config.text = "\(nickname)  [ID]"
-            config.secondaryText = pid
+            config.secondaryText = "\(pid) · \(scope)"
             config.secondaryTextProperties.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
             config.secondaryTextProperties.color = .secondaryLabel
         } else {
             let block = nicknameBlocked[indexPath.row - personaBlocked.count]
             let nickname = block["nickname"] as? String ?? ""
+            let scope = (block["blockComments"] as? Bool == true) ? "글+댓글" : "글만"
             config.text = "\(nickname)  [닉네임]"
-            config.secondaryText = "닉네임만 확보"
+            config.secondaryText = "닉네임만 확보 · \(scope)"
             config.secondaryTextProperties.color = .secondaryLabel
         }
         cell.contentConfiguration = config

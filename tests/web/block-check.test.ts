@@ -2,7 +2,7 @@
 // 기존 tests/chrome-extension/block-filter.test.js 의 매트릭스를 shared 로 이전.
 
 import { describe, it, expect } from 'vitest';
-import { isBlocked } from '../../web/core/block-check';
+import { isBlocked, isCommentBlocked } from '../../web/core/block-check';
 import type { BlockListData } from '../../../shared/types';
 
 const sample: BlockListData = {
@@ -51,5 +51,45 @@ describe('isBlocked', () => {
       personaCache: {},
     };
     expect(isBlocked(empty, 'p', 'n')).toBe(false);
+  });
+});
+
+describe('isCommentBlocked', () => {
+  const commentSample: BlockListData = {
+    version: 2,
+    blockedUsers: {
+      postsOnly: { personaId: 'postsOnly', nickname: 'postsOnlyNick', blockedAt: '' },
+      comments: {
+        personaId: 'comments',
+        nickname: 'commentsNick',
+        blockedAt: '',
+        blockComments: true,
+      },
+    },
+    nicknameOnlyBlocks: [
+      { nickname: 'nickPostsOnly', blockedAt: '' },
+      { nickname: 'nickComments', blockedAt: '', blockComments: true },
+    ],
+    personaCache: {},
+  };
+
+  it('blockComments=true 인 personaId 차단만 댓글에 적용', () => {
+    expect(isCommentBlocked(commentSample, 'comments', 'any')).toBe(true);
+    expect(isCommentBlocked(commentSample, 'postsOnly', 'postsOnlyNick')).toBe(false);
+  });
+
+  it('blockedUsers 닉네임 fallback 도 blockComments=true 일 때만 댓글에 적용', () => {
+    expect(isCommentBlocked(commentSample, undefined, 'commentsNick')).toBe(true);
+    expect(isCommentBlocked(commentSample, undefined, 'postsOnlyNick')).toBe(false);
+  });
+
+  it('nicknameOnlyBlocks 도 blockComments=true 일 때만 댓글에 적용', () => {
+    expect(isCommentBlocked(commentSample, undefined, 'nickComments')).toBe(true);
+    expect(isCommentBlocked(commentSample, undefined, 'nickPostsOnly')).toBe(false);
+  });
+
+  it('blockData null / 매칭 없음은 false', () => {
+    expect(isCommentBlocked(null, 'comments', 'commentsNick')).toBe(false);
+    expect(isCommentBlocked(commentSample, 'missing', 'missing')).toBe(false);
   });
 });

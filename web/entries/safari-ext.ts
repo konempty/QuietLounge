@@ -4,12 +4,11 @@
 // 이 파일은 esbuild 가 IIFE 로 번들해
 // safari-extension/QuietLounge/Shared (Extension)/Resources/content-scripts/main.js 산출물을 만든다.
 // manifest.json 의 content_scripts 가 직접 가리키며 Xcode "Copy Bundle Resources" 가 .appex 에 복사.
-// 핵심 inject 로직은 web/core, 이 entry 는 Safari 고유 로직 (qlConfirm DOM modal /
+// 핵심 inject 로직은 web/core, 이 entry 는 Safari 고유 로직 (qlDialog DOM modal /
 // storage-bridge / bfcache liveButtons / macOS 알림 권한 배너 등) 만 담당.
 
 import { STORAGE_KEY, FILTER_MODE_KEY, DONT_SHOW_FILTER_HINT_KEY } from '../core/storage-keys';
 import { isActivePage } from '../core/pages';
-import { isBlocked as sharedIsBlocked } from '../core/block-check';
 import { runFilterPass } from '../core/filter-engine';
 import { injectBlockButtons, findPersonaId as sharedFindPersonaId } from '../core/inject-buttons';
 import {
@@ -102,27 +101,48 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
     await safariSet({ [STORAGE_KEY]: JSON.stringify(toSave) });
   }
 
-  // closure 캡쳐된 blockData 를 shared isBlocked 에 위임 — 4 플랫폼 동일 시맨틱.
-  function isBlocked(personaId, nickname) {
-    return sharedIsBlocked(blockData, personaId, nickname);
-  }
-
-  async function blockUser(personaId, nickname) {
+  async function blockUser(personaId, nickname, blockComments) {
     if (personaId) {
       const existing = blockData.blockedUsers[personaId];
+      const nicknameBlock = (blockData.nicknameOnlyBlocks || []).find(
+        (b) => b.nickname === nickname,
+      );
+      const shouldBlockComments =
+        !!blockComments || !!existing?.blockComments || !!nicknameBlock?.blockComments;
       blockData.blockedUsers[personaId] = {
         personaId,
         nickname,
-        blockedAt: existing?.blockedAt ?? new Date().toISOString(),
+        blockedAt: existing?.blockedAt ?? nicknameBlock?.blockedAt ?? new Date().toISOString(),
+        ...(shouldBlockComments ? { blockComments: true } : {}),
       };
       blockData.nicknameOnlyBlocks = blockData.nicknameOnlyBlocks.filter(
         (b) => b.nickname !== nickname,
       );
     } else {
-      if (isBlocked(undefined, nickname)) return;
+      const existingPersona = Object.values(blockData.blockedUsers || {}).find(
+        (u) => u.nickname === nickname,
+      );
+      if (existingPersona) {
+        if (blockComments && !existingPersona.blockComments) {
+          existingPersona.blockComments = true;
+          await saveBlockData();
+        }
+        return;
+      }
+      const existingNick = (blockData.nicknameOnlyBlocks || []).find(
+        (b) => b.nickname === nickname,
+      );
+      if (existingNick) {
+        if (blockComments && !existingNick.blockComments) {
+          existingNick.blockComments = true;
+          await saveBlockData();
+        }
+        return;
+      }
       blockData.nicknameOnlyBlocks.push({
         nickname,
         blockedAt: new Date().toISOString(),
+        ...(blockComments ? { blockComments: true } : {}),
       });
     }
     await saveBlockData();
@@ -198,6 +218,7 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
       blockData,
       filterMode,
       personaIdForPost: (id) => personaMap.get(id),
+      filterComments: true,
     });
     if (!extContextValid()) return;
     browser.runtime.sendMessage({ type: 'UPDATE_BADGE', count: totalBlocked });
@@ -205,7 +226,7 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
 
   // ── UI Injector (차단 버튼) ──
   // findPersonaId 와 path A / path B 분기는 web/core/inject-buttons.ts. Safari ext 책임은
-  // (a) qlConfirm DOM modal (Safari 의 confirm 봉쇄 우회 + iOS tap-through 가드) (b) bfcache 의
+  // (a) qlDialog DOM modal (Safari 의 confirm 봉쇄 우회 + iOS tap-through 가드) (b) bfcache 의
   // liveButtons WeakSet 가드 — 두 가지가 다른 플랫폼 entry 와 다른 부분.
 
   // ── 커스텀 확인 다이얼로그 (iOS Safari에서 confirm() 억제 대응) ──
@@ -215,7 +236,7 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
   // 다이얼로그 표시 직후 짧은 시간 동안 클릭을 무시해 synthetic click 한 번을 흘려보낸다.
   const QL_TAP_THROUGH_GUARD_MS = 350;
 
-  function qlConfirm(message) {
+  function qlDialog(message, buttons) {
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
       overlay.style.cssText =
@@ -230,17 +251,7 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
       msg.style.cssText = 'font-size:15px;margin:0 0 18px;line-height:1.4;';
 
       const btnRow = document.createElement('div');
-      btnRow.style.cssText = 'display:flex;gap:10px;';
-
-      const cancelBtn = document.createElement('button');
-      cancelBtn.textContent = '취소';
-      cancelBtn.style.cssText =
-        'flex:1;padding:10px;border:1px solid #444;background:transparent;color:#aaa;border-radius:8px;font-size:14px;cursor:pointer;';
-
-      const confirmBtn = document.createElement('button');
-      confirmBtn.textContent = '차단';
-      confirmBtn.style.cssText =
-        'flex:1;padding:10px;border:none;background:#e74c3c;color:#fff;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;';
+      btnRow.style.cssText = 'display:flex;flex-direction:column;gap:8px;';
 
       let armed = false;
       setTimeout(() => {
@@ -252,28 +263,46 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
         resolve(result);
       }
 
-      cancelBtn.addEventListener('click', (e) => {
-        if (!armed) return;
-        e.stopPropagation();
-        close(false);
-      });
-      confirmBtn.addEventListener('click', (e) => {
-        if (!armed) return;
-        e.stopPropagation();
-        close(true);
+      buttons.forEach((item) => {
+        const btn = document.createElement('button');
+        btn.textContent = item.label;
+        const styles = {
+          cancel: 'border:1px solid #444;background:transparent;color:#aaa;',
+          destructive: 'border:none;background:#e74c3c;color:#fff;font-weight:600;',
+          primary: `border:none;background:${QL_PRIMARY};color:#fff;font-weight:600;`,
+        };
+        btn.style.cssText =
+          'width:100%;padding:10px;border-radius:8px;font-size:14px;cursor:pointer;' +
+          (styles[item.style] || styles.primary);
+        btn.addEventListener('click', (e) => {
+          if (!armed) return;
+          e.stopPropagation();
+          close(item.value);
+        });
+        btnRow.appendChild(btn);
       });
       overlay.addEventListener('click', (e) => {
         if (!armed) return;
-        if (e.target === overlay) close(false);
+        if (e.target === overlay) close(null);
       });
 
-      btnRow.appendChild(cancelBtn);
-      btnRow.appendChild(confirmBtn);
       dialog.appendChild(msg);
       dialog.appendChild(btnRow);
       overlay.appendChild(dialog);
       document.body.appendChild(overlay);
     });
+  }
+
+  function qlBlockChoice(nickname) {
+    return qlDialog(`"${nickname}" 유저를 어떻게 차단할까요?`, [
+      { label: '글만 차단', value: 'postsOnly', style: 'primary' },
+      { label: '글과 댓글 차단', value: 'postsAndComments', style: 'destructive' },
+      { label: '취소', value: null, style: 'cancel' },
+    ]);
+  }
+
+  function qlAlert(message) {
+    return qlDialog(message, [{ label: '확인', value: true, style: 'primary' }]);
   }
 
   // 살아있는 핸들러가 있는 버튼 추적 (bfcache 복원 시 WeakSet 은 초기화됨 — 죽은 버튼은 제거 후 새로 등록).
@@ -332,15 +361,16 @@ import { applyPersonaCacheBatch } from '../core/persona-cache';
     },
 
     async onBlockClick(personaId, nickname) {
-      if (!(await qlConfirm(`"${nickname}" 유저를 차단하시겠습니까?`))) return;
-      await blockUser(personaId, nickname);
+      const choice = await qlBlockChoice(nickname);
+      if (!choice) return;
+      await blockUser(personaId, nickname, choice === 'postsAndComments');
       filterAll();
       runInjectBlockButtons();
       await maybeShowFilterModeHint();
     },
 
     async onMissingPersonaId() {
-      await qlConfirm('personaId를 찾을 수 없습니다. 글 상세 페이지에서 차단해주세요.');
+      await qlAlert('personaId를 찾을 수 없습니다. 글 상세 페이지에서 차단해주세요.');
     },
   };
 

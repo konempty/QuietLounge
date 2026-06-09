@@ -219,6 +219,59 @@ enum QuietLoungeCore {
 
     // MARK: - 차단 데이터 승격 + 닉네임 변경 추적
 
+    static func applyBlockUser(
+        to data: [String: Any],
+        personaId: String?,
+        nickname: String,
+        blockComments: Bool,
+        now: Date = Date()
+    ) -> [String: Any] {
+        var result = data
+        var users = result["blockedUsers"] as? [String: [String: Any]] ?? [:]
+        var nicks = result["nicknameOnlyBlocks"] as? [[String: Any]] ?? []
+        let nowIso = ISO8601DateFormatter().string(from: now)
+
+        if let pid = personaId {
+            let existing = users[pid]
+            let nicknameBlock = nicks.first { ($0["nickname"] as? String) == nickname }
+            var user: [String: Any] = [
+                "personaId": pid,
+                "nickname": nickname,
+                "blockedAt": existing?["blockedAt"] ?? nicknameBlock?["blockedAt"] ?? nowIso
+            ]
+            if blockComments ||
+                (existing?["blockComments"] as? Bool == true) ||
+                (nicknameBlock?["blockComments"] as? Bool == true) {
+                user["blockComments"] = true
+            }
+            users[pid] = user
+            nicks.removeAll { ($0["nickname"] as? String) == nickname }
+        } else if let key = users.first(where: { ($0.value["nickname"] as? String) == nickname })?.key {
+            if blockComments {
+                var user = users[key] ?? [:]
+                user["blockComments"] = true
+                users[key] = user
+            }
+        } else if let idx = nicks.firstIndex(where: { ($0["nickname"] as? String) == nickname }) {
+            if blockComments {
+                nicks[idx]["blockComments"] = true
+            }
+        } else {
+            var entry: [String: Any] = [
+                "nickname": nickname,
+                "blockedAt": nowIso
+            ]
+            if blockComments {
+                entry["blockComments"] = true
+            }
+            nicks.append(entry)
+        }
+
+        result["blockedUsers"] = users
+        result["nicknameOnlyBlocks"] = nicks
+        return result
+    }
+
     /// `personaCache` 갱신과 동시에 shared/block-list.ts 의 승격 규칙을 적용한다.
     /// - nicknameOnlyBlocks 에 현재/이전 닉네임이 있으면 blockedUsers 로 승격하고 해당 엔트리 제거
     /// - 이미 차단된 유저의 닉네임이 바뀐 경우 nickname 만 갱신 (옛 닉네임 추적은 더 이상 안 함)
@@ -243,12 +296,13 @@ enum QuietLoungeCore {
             let n = entry["nickname"] as? String
             return n == nickname || (nicknameChanged && n == previousCachedNickname)
         }) {
-            nicks.remove(at: idx)
+            let nicknameBlock = nicks.remove(at: idx)
             result["nicknameOnlyBlocks"] = nicks
             result = promoteBlock(
                 data: result,
                 personaId: personaId,
                 nickname: nickname,
+                blockComments: nicknameBlock["blockComments"] as? Bool == true,
                 nowIso: nowIso
             )
             return result
@@ -271,16 +325,21 @@ enum QuietLoungeCore {
         data: [String: Any],
         personaId: String,
         nickname: String,
+        blockComments: Bool,
         nowIso: String
     ) -> [String: Any] {
         var result = data
         var users = result["blockedUsers"] as? [String: [String: Any]] ?? [:]
         let existing = users[personaId]
-        users[personaId] = [
+        var user: [String: Any] = [
             "personaId": personaId,
             "nickname": nickname,
             "blockedAt": existing?["blockedAt"] ?? nowIso
         ]
+        if blockComments || (existing?["blockComments"] as? Bool == true) {
+            user["blockComments"] = true
+        }
+        users[personaId] = user
         result["blockedUsers"] = users
         return result
     }

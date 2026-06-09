@@ -52,6 +52,7 @@ import type { InjectButtonsAdapter, ProfileStatsAdapter } from '../platform/adap
       personaIdForPost: function (id) {
         return ql.personaMap[id];
       },
+      filterComments: true,
     });
   }
 

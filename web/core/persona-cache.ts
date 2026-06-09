@@ -12,11 +12,13 @@ export interface BlockedUser {
   personaId: string;
   nickname: string;
   blockedAt: string;
+  blockComments?: boolean;
 }
 
 export interface NicknameOnlyBlock {
   nickname: string;
   blockedAt: string;
+  blockComments?: boolean;
 }
 
 export interface PersonaCacheEntry {
@@ -70,10 +72,13 @@ export function applyPersonaCacheUpdate(
   );
   if (idx !== -1) {
     const [block] = data.nicknameOnlyBlocks.splice(idx, 1);
+    const existing = data.blockedUsers[personaId];
+    const blockComments = !!block.blockComments || !!existing?.blockComments;
     data.blockedUsers[personaId] = {
       personaId,
       nickname,
-      blockedAt: block.blockedAt,
+      blockedAt: existing?.blockedAt ?? block.blockedAt,
+      ...(blockComments ? { blockComments: true } : {}),
     };
     return { changed: true };
   }

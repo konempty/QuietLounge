@@ -501,15 +501,18 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
                   let nickname = payload["nickname"] as? String else { return }
             let personaId = payload["personaId"] as? String
 
-            let alert = UIAlertController(title: "유저 차단", message: "\"\(nickname)\" 유저를 차단하시겠습니까?", preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "취소", style: .cancel))
-            alert.addAction(UIAlertAction(title: "차단", style: .destructive) { [weak self] _ in
-                BlockDataManager.shared.blockUser(personaId: personaId, nickname: nickname)
-                // 첫 alert 가 dismiss 된 다음 tick 에 띄워야 "이미 present 중인 vc 위에 또 present" 경고가 안 남.
-                DispatchQueue.main.async {
-                    self?.maybeShowFilterModeHint()
-                }
+            let alert = UIAlertController(
+                title: "유저 차단",
+                message: "\"\(nickname)\" 유저를 어떻게 차단할까요?",
+                preferredStyle: .alert
+            )
+            alert.addAction(UIAlertAction(title: "글만 차단", style: .default) { [weak self] _ in
+                self?.blockUserFromBridge(personaId: personaId, nickname: nickname, blockComments: false)
             })
+            alert.addAction(UIAlertAction(title: "글과 댓글 차단", style: .destructive) { [weak self] _ in
+                self?.blockUserFromBridge(personaId: personaId, nickname: nickname, blockComments: true)
+            })
+            alert.addAction(UIAlertAction(title: "취소", style: .cancel))
             present(alert, animated: true)
 
         case "PERSONA_MAP_UPDATE":
@@ -522,6 +525,18 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKScriptMessage
 
         default:
             break
+        }
+    }
+
+    private func blockUserFromBridge(personaId: String?, nickname: String, blockComments: Bool) {
+        BlockDataManager.shared.blockUser(
+            personaId: personaId,
+            nickname: nickname,
+            blockComments: blockComments
+        )
+        // 첫 alert 가 dismiss 된 다음 tick 에 띄워야 "이미 present 중인 vc 위에 또 present" 경고가 안 남.
+        DispatchQueue.main.async { [weak self] in
+            self?.maybeShowFilterModeHint()
         }
     }
 

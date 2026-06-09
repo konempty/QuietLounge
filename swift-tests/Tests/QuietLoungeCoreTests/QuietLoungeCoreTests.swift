@@ -44,9 +44,9 @@ final class DateParsingTests: XCTestCase {
 
     // tz 보정 + fractional seconds 경로 (줄 28-29 커버)
     func test_tz_0900_with_fractional() {
-        let t = QuietLoungeCore.parseDate("2026-04-01T09:00:00.500+0900")
-        XCTAssertNotNil(t)
-        XCTAssertEqual(t!.timeIntervalSince(ref), 0.5, accuracy: 0.001)
+        let parsedDate = QuietLoungeCore.parseDate("2026-04-01T09:00:00.500+0900")
+        XCTAssertNotNil(parsedDate)
+        XCTAssertEqual(parsedDate!.timeIntervalSince(ref), 0.5, accuracy: 0.001)
     }
 
     // tz 보정 이후에도 실패하는 입력 (줄 31 이후 return nil)
@@ -58,9 +58,9 @@ final class DateParsingTests: XCTestCase {
 
     // 음수 tz 오프셋 + fractional
     func test_negative_tz_with_fractional() {
-        let t = QuietLoungeCore.parseDate("2026-04-01T00:00:00.250-0500")
-        XCTAssertNotNil(t)
-        XCTAssertEqual(t!.timeIntervalSince(ref), 5 * 3600 + 0.25, accuracy: 0.001)
+        let parsedDate = QuietLoungeCore.parseDate("2026-04-01T00:00:00.250-0500")
+        XCTAssertNotNil(parsedDate)
+        XCTAssertEqual(parsedDate!.timeIntervalSince(ref), 5 * 3600 + 0.25, accuracy: 0.001)
     }
 
     // 공백만 있는 문자열 — 빈값처럼 nil (비어있진 않지만 포맷 실패)
@@ -408,6 +408,92 @@ final class PersonaCachePromotionTests: XCTestCase {
         XCTAssertTrue((out["nicknameOnlyBlocks"] as? [[String: Any]])?.isEmpty ?? false)
     }
 
+    func test_댓글차단_scope가_있는_nicknameOnly_승격_시_blockComments_보존() {
+        var data = emptyData()
+        data["nicknameOnlyBlocks"] = [[
+            "nickname": "auto",
+            "blockedAt": fixedIso,
+            "blockComments": true
+        ]]
+        let out = QuietLoungeCore.applyPersonaCacheUpdate(
+            to: data, personaId: "p1", nickname: "auto", now: fixedDate
+        )
+        let users = out["blockedUsers"] as? [String: [String: Any]]
+        XCTAssertEqual(users?["p1"]?["nickname"] as? String, "auto")
+        XCTAssertEqual(users?["p1"]?["blockComments"] as? Bool, true)
+        XCTAssertTrue((out["nicknameOnlyBlocks"] as? [[String: Any]])?.isEmpty ?? false)
+    }
+
+    func test_직접_personaId_차단이_nicknameOnly_댓글차단_scope를_흡수() {
+        var data = emptyData()
+        data["nicknameOnlyBlocks"] = [[
+            "nickname": "auto",
+            "blockedAt": fixedIso,
+            "blockComments": true
+        ]]
+        let out = QuietLoungeCore.applyBlockUser(
+            to: data,
+            personaId: "p1",
+            nickname: "auto",
+            blockComments: false,
+            now: fixedDate
+        )
+        let users = out["blockedUsers"] as? [String: [String: Any]]
+        XCTAssertEqual(users?["p1"]?["nickname"] as? String, "auto")
+        XCTAssertEqual(users?["p1"]?["blockedAt"] as? String, fixedIso)
+        XCTAssertEqual(users?["p1"]?["blockComments"] as? Bool, true)
+        XCTAssertTrue((out["nicknameOnlyBlocks"] as? [[String: Any]])?.isEmpty ?? false)
+    }
+
+    func test_직접_personaId_차단이_기존_댓글차단_scope를_유지() {
+        var data = emptyData()
+        data["blockedUsers"] = [
+            "p1": [
+                "personaId": "p1",
+                "nickname": "old",
+                "blockedAt": "2026-01-01T00:00:00Z",
+                "blockComments": true
+            ]
+        ]
+        data["nicknameOnlyBlocks"] = [[
+            "nickname": "old",
+            "blockedAt": fixedIso
+        ]]
+        let out = QuietLoungeCore.applyBlockUser(
+            to: data,
+            personaId: "p1",
+            nickname: "old",
+            blockComments: false,
+            now: fixedDate
+        )
+        let users = out["blockedUsers"] as? [String: [String: Any]]
+        XCTAssertEqual(users?["p1"]?["blockedAt"] as? String, "2026-01-01T00:00:00Z")
+        XCTAssertEqual(users?["p1"]?["blockComments"] as? Bool, true)
+        XCTAssertTrue((out["nicknameOnlyBlocks"] as? [[String: Any]])?.isEmpty ?? false)
+    }
+
+    func test_기존_댓글차단_유저가_재승격되어도_blockComments_보존() {
+        var data = emptyData()
+        data["blockedUsers"] = [
+            "p1": [
+                "personaId": "p1",
+                "nickname": "old",
+                "blockedAt": "2026-01-01T00:00:00Z",
+                "blockComments": true
+            ]
+        ]
+        data["nicknameOnlyBlocks"] = [[
+            "nickname": "old",
+            "blockedAt": fixedIso
+        ]]
+        let out = QuietLoungeCore.applyPersonaCacheUpdate(
+            to: data, personaId: "p1", nickname: "old", now: fixedDate
+        )
+        let users = out["blockedUsers"] as? [String: [String: Any]]
+        XCTAssertEqual(users?["p1"]?["blockedAt"] as? String, "2026-01-01T00:00:00Z")
+        XCTAssertEqual(users?["p1"]?["blockComments"] as? Bool, true)
+    }
+
     func test_이전_닉네임_기준_승격_시_oldname_엔트리도_제거() {
         var data = emptyData()
         data["personaCache"] = ["p1": ["nickname": "oldname", "lastSeen": fixedIso]]
@@ -515,42 +601,42 @@ final class NavigationToolbarStateTests: XCTestCase {
     // computeNavigationToolbarState — 조합 상태
 
     func test_toolbar_초기_상태_홈에서_로딩_중() {
-        let s = QuietLoungeCore.computeNavigationToolbarState(
+        let state = QuietLoungeCore.computeNavigationToolbarState(
             canGoBack: false,
             canGoForward: false,
             isLoading: true,
             currentUrl: URL(string: "https://lounge.naver.com/")
         )
-        XCTAssertFalse(s.backEnabled)
-        XCTAssertFalse(s.forwardEnabled)
-        XCTAssertFalse(s.homeEnabled)
-        XCTAssertEqual(s.reloadMode, .stop)
+        XCTAssertFalse(state.backEnabled)
+        XCTAssertFalse(state.forwardEnabled)
+        XCTAssertFalse(state.homeEnabled)
+        XCTAssertEqual(state.reloadMode, .stop)
     }
 
     func test_toolbar_포스트_진입_후_뒤로만_가능() {
-        let s = QuietLoungeCore.computeNavigationToolbarState(
+        let state = QuietLoungeCore.computeNavigationToolbarState(
             canGoBack: true,
             canGoForward: false,
             isLoading: false,
             currentUrl: URL(string: "https://lounge.naver.com/posts/42")
         )
-        XCTAssertTrue(s.backEnabled)
-        XCTAssertFalse(s.forwardEnabled)
-        XCTAssertTrue(s.homeEnabled)
-        XCTAssertEqual(s.reloadMode, .reload)
+        XCTAssertTrue(state.backEnabled)
+        XCTAssertFalse(state.forwardEnabled)
+        XCTAssertTrue(state.homeEnabled)
+        XCTAssertEqual(state.reloadMode, .reload)
     }
 
     func test_toolbar_뒤로_간_직후_앞으로도_가능() {
-        let s = QuietLoungeCore.computeNavigationToolbarState(
+        let state = QuietLoungeCore.computeNavigationToolbarState(
             canGoBack: false,
             canGoForward: true,
             isLoading: false,
             currentUrl: URL(string: "https://lounge.naver.com/")
         )
-        XCTAssertFalse(s.backEnabled)
-        XCTAssertTrue(s.forwardEnabled)
-        XCTAssertFalse(s.homeEnabled)
-        XCTAssertEqual(s.reloadMode, .reload)
+        XCTAssertFalse(state.backEnabled)
+        XCTAssertTrue(state.forwardEnabled)
+        XCTAssertFalse(state.homeEnabled)
+        XCTAssertEqual(state.reloadMode, .reload)
     }
 
     func test_toolbar_로딩_중_stop_로딩_끝_reload() {
@@ -567,19 +653,19 @@ final class NavigationToolbarStateTests: XCTestCase {
 
     func test_toolbar_URL_nil이면_홈_버튼도_비활성() {
         // nil URL 은 아직 페이지 로드 전. "홈으로 가기" 를 눌러야 할 상태가 아니니 비활성이 안전.
-        let s = QuietLoungeCore.computeNavigationToolbarState(
+        let state = QuietLoungeCore.computeNavigationToolbarState(
             canGoBack: false, canGoForward: false, isLoading: true, currentUrl: nil
         )
-        XCTAssertFalse(s.homeEnabled)
+        XCTAssertFalse(state.homeEnabled)
     }
 
     func test_toolbar_외부_페이지에서는_홈_버튼_활성() {
         // 사용자가 외부 링크로 이탈한 상황 — 홈 버튼으로 돌아올 수 있어야 한다.
-        let s = QuietLoungeCore.computeNavigationToolbarState(
+        let state = QuietLoungeCore.computeNavigationToolbarState(
             canGoBack: true, canGoForward: false, isLoading: false,
             currentUrl: URL(string: "https://naver.com/")
         )
-        XCTAssertTrue(s.homeEnabled)
+        XCTAssertTrue(state.homeEnabled)
     }
 
     // MARK: - 툴바 안내 팝업 표시 여부
