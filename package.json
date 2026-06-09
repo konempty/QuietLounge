@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "네이버 라운지(`lounge.naver.com`)에서 특정 유저의 게시글을 숨기는 클라이언트 사이드 차단 도구.",
   "main": "scripts/build.mjs",
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@10.34.1",
   "engines": {
-    "node": ">=20",
-    "pnpm": ">=9"
+    "node": ">=22",
+    "pnpm": ">=10.28.1"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
