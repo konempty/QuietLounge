@@ -30,7 +30,6 @@
 		C2C98C692F7A61E900588733 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C98C2A2F7A61E800588733 /* SafariWebExtensionHandler.swift */; };
 		C2C98C6A2F7A61E900588733 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2C98C2A2F7A61E800588733 /* SafariWebExtensionHandler.swift */; };
 		C2C98C812F7A61E900588733 /* background in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7C2F7A61E900588733 /* background */; };
-		C2C98C822F7A61E900588733 /* popup in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7D2F7A61E900588733 /* popup */; };
 		C2C98C832F7A61E900588733 /* content-scripts in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7E2F7A61E900588733 /* content-scripts */; };
 		C2C98C842F7A61E900588733 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7F2F7A61E900588733 /* icons */; };
 		C2C98C852F7A61E900588733 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C802F7A61E900588733 /* manifest.json */; };
@@ -39,8 +38,6 @@
 		C2C98C882F7A61E900588733 /* content-scripts in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7E2F7A61E900588733 /* content-scripts */; };
 		C2C98C892F7A61E900588733 /* icons in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C7F2F7A61E900588733 /* icons */; };
 		C2C98C8A2F7A61E900588733 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = C2C98C802F7A61E900588733 /* manifest.json */; };
-		E11D4F012FA0000100AAB001 /* popup (macOS) in Resources */ = {isa = PBXBuildFile; fileRef = E11D4F022FA0000100AAB001 /* popup (macOS) */; };
-		E1B05F022FB0000100AAB001 /* webview-scripts in Resources */ = {isa = PBXBuildFile; fileRef = E1B05F012FB0000100AAB001 /* webview-scripts */; };
 		C2D68CD12F7BBA6100033FEF /* WebViewScripts.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CD02F7BBA6100033FEF /* WebViewScripts.swift */; };
 		C2D68CD22F7BBA6100033FEF /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCD2F7BBA6100033FEF /* SettingsViewController.swift */; };
 		C2D68CD32F7BBA6100033FEF /* BlockDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCB2F7BBA6100033FEF /* BlockDataManager.swift */; };
@@ -49,8 +46,10 @@
 		C2D68CD62F7BBA6100033FEF /* WebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CCF2F7BBA6100033FEF /* WebViewController.swift */; };
 		C2D68CDA2F7BBA6100033FEF /* KeywordAlertManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CD92F7BBA6100033FEF /* KeywordAlertManager.swift */; };
 		C2D68CE62F7BBA6100033FEF /* QuietLoungeCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D68CE52F7BBA6100033FEF /* QuietLoungeCore.swift */; };
+		E11D4F012FA0000100AAB001 /* popup in Resources */ = {isa = PBXBuildFile; fileRef = E11D4F022FA0000100AAB001 /* popup */; };
 		E11D4F062FA0000100AAB001 /* AlertSetupViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11D4F072FA0000100AAB001 /* AlertSetupViewController.swift */; };
 		E11D4F082FA0000100AAB001 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = E11D4F092FA0000100AAB001 /* AppColors.swift */; };
+		E1B05F022FB0000100AAB001 /* webview-scripts in Resources */ = {isa = PBXBuildFile; fileRef = E1B05F012FB0000100AAB001 /* webview-scripts */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -122,8 +121,6 @@
 		C2C98C7E2F7A61E900588733 /* content-scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "content-scripts"; path = "Resources/content-scripts"; sourceTree = "<group>"; };
 		C2C98C7F2F7A61E900588733 /* icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = icons; path = Resources/icons; sourceTree = "<group>"; };
 		C2C98C802F7A61E900588733 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = manifest.json; path = Resources/manifest.json; sourceTree = "<group>"; };
-		E11D4F022FA0000100AAB001 /* popup (macOS) */ = {isa = PBXFileReference; lastKnownFileType = folder; name = popup; path = Resources/popup-macos; sourceTree = "<group>"; };
-		E1B05F012FB0000100AAB001 /* webview-scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "webview-scripts"; path = "Resources/webview-scripts"; sourceTree = "<group>"; };
 		C2D68CCB2F7BBA6100033FEF /* BlockDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockDataManager.swift; sourceTree = "<group>"; };
 		C2D68CCC2F7BBA6100033FEF /* BlockListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockListViewController.swift; sourceTree = "<group>"; };
 		C2D68CCD2F7BBA6100033FEF /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
@@ -136,8 +133,10 @@
 		C2D68CE32F7BBA6100033FEF /* QuietLounge.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QuietLounge.entitlements; sourceTree = "<group>"; };
 		C2D68CE42F7BBA6100033FEF /* QuietLounge Extension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "QuietLounge Extension.entitlements"; sourceTree = "<group>"; };
 		C2D68CE52F7BBA6100033FEF /* QuietLoungeCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuietLoungeCore.swift; sourceTree = "<group>"; };
+		E11D4F022FA0000100AAB001 /* popup */ = {isa = PBXFileReference; lastKnownFileType = folder; name = popup; path = "Resources/popup-macos"; sourceTree = "<group>"; };
 		E11D4F072FA0000100AAB001 /* AlertSetupViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertSetupViewController.swift; sourceTree = "<group>"; };
 		E11D4F092FA0000100AAB001 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
+		E1B05F012FB0000100AAB001 /* webview-scripts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "webview-scripts"; path = "Resources/webview-scripts"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -284,7 +283,7 @@
 			children = (
 				C2C98C7C2F7A61E900588733 /* background */,
 				C2C98C7D2F7A61E900588733 /* popup */,
-				E11D4F022FA0000100AAB001 /* popup (macOS) */,
+				E11D4F022FA0000100AAB001 /* popup */,
 				C2C98C7E2F7A61E900588733 /* content-scripts */,
 				C2C98C7F2F7A61E900588733 /* icons */,
 				C2C98C802F7A61E900588733 /* manifest.json */,
@@ -382,92 +381,13 @@
 		};
 /* End PBXNativeTarget section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		91C267B18E71FA996000E275 /* Verify webview-scripts artifacts */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Verify webview-scripts artifacts";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# webview-scripts/{before,after}.js 산출물은 .gitignore 라 lounge/ root 에서 `pnpm build`\n# 가 선행돼야 한다. Bundle resource 가 *folder reference* 라 빈 폴더로도 빌드 통과해\n# 런타임 preconditionFailure 만 남는 회귀 차단 — Bundle 복사 후 파일 존재 검증으로 fail-fast.\n\nDEST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/webview-scripts\"\nMISSING=\"\"\nfor f in before.js after.js; do\n  if [ ! -f \"${DEST}/${f}\" ]; then\n    MISSING=\"${MISSING} ${f}\"\n  fi\ndone\nif [ -n \"${MISSING}\" ]; then\n  echo \"error: webview-scripts esbuild artifacts missing in Bundle:${MISSING}\"\n  echo \"error: Run 'pnpm install && pnpm build' from the lounge/ root before Xcode build.\"\n  exit 1\nfi\n";
-		};
-		BAB0BD46BB9421948AF933AE /* Verify content-scripts artifacts */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Verify content-scripts artifacts";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# content-scripts/*.js 산출물은 .gitignore — `pnpm build` 선행 필요. macOS Extension target.\nDEST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/content-scripts\"\nMISSING=\"\"\nfor f in main.js api-interceptor.js injector.js storage-bridge.js; do\n  if [ ! -f \"${DEST}/${f}\" ]; then\n    MISSING=\"${MISSING} ${f}\"\n  fi\ndone\nif [ -n \"${MISSING}\" ]; then\n  echo \"error: content-scripts esbuild artifacts missing in Bundle:${MISSING}\"\n  echo \"error: Run 'pnpm install && pnpm build' from the lounge/ root before Xcode build.\"\n  exit 1\nfi\n";
-		};
-		FEF73490BA466CEC7D01150A /* Verify content-scripts artifacts */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Verify content-scripts artifacts";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# content-scripts/*.js 산출물은 .gitignore — `pnpm build` 선행 필요. iOS Extension target.\nDEST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/content-scripts\"\nMISSING=\"\"\nfor f in main.js api-interceptor.js injector.js storage-bridge.js; do\n  if [ ! -f \"${DEST}/${f}\" ]; then\n    MISSING=\"${MISSING} ${f}\"\n  fi\ndone\nif [ -n \"${MISSING}\" ]; then\n  echo \"error: content-scripts esbuild artifacts missing in Bundle:${MISSING}\"\n  echo \"error: Run 'pnpm install && pnpm build' from the lounge/ root before Xcode build.\"\n  exit 1\nfi\n";
-		};
-		E11D4F032FA0000100AAB001 /* Rename popup-macos to popup */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Rename popup-macos to popup";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# Xcode blue folder reference 는 on-disk 폴더명을 보존하므로 popup-macos 가 그대로 복사됨.\n# 공유 manifest.json 이 \"popup/popup.html\" 을 참조하기 때문에 macOS 전용 빌드에서는\n# 번들 복사 후 popup-macos 를 popup 으로 rename 해 경로를 맞춘다.\n\nDEST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\nif [ -d \"${DEST}/popup-macos\" ]; then\n  rm -rf \"${DEST}/popup\"\n  mv \"${DEST}/popup-macos\" \"${DEST}/popup\"\nfi\n";
-		};
-/* End PBXShellScriptBuildPhase section */
-
 /* Begin PBXProject section */
 		C2C98C1C2F7A61E700588733 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2640;
-				LastUpgradeCheck = 2640;
+				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					C2C98C2E2F7A61E800588733 = {
 						CreatedOnToolsVersion = 26.4;
@@ -554,11 +474,90 @@
 				C2C98C842F7A61E900588733 /* icons in Resources */,
 				C2C98C852F7A61E900588733 /* manifest.json in Resources */,
 				C2C98C832F7A61E900588733 /* content-scripts in Resources */,
-				E11D4F012FA0000100AAB001 /* popup (macOS) in Resources */,
+				E11D4F012FA0000100AAB001 /* popup in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		91C267B18E71FA996000E275 /* Verify webview-scripts artifacts */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Verify webview-scripts artifacts";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# webview-scripts/{before,after}.js 산출물은 .gitignore 라 lounge/ root 에서 `pnpm build`\n# 가 선행돼야 한다. Bundle resource 가 *folder reference* 라 빈 폴더로도 빌드 통과해\n# 런타임 preconditionFailure 만 남는 회귀 차단 — Bundle 복사 후 파일 존재 검증으로 fail-fast.\n\nDEST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/webview-scripts\"\nMISSING=\"\"\nfor f in before.js after.js; do\n  if [ ! -f \"${DEST}/${f}\" ]; then\n    MISSING=\"${MISSING} ${f}\"\n  fi\ndone\nif [ -n \"${MISSING}\" ]; then\n  echo \"error: webview-scripts esbuild artifacts missing in Bundle:${MISSING}\"\n  echo \"error: Run 'pnpm install && pnpm build' from the lounge/ root before Xcode build.\"\n  exit 1\nfi\n";
+		};
+		BAB0BD46BB9421948AF933AE /* Verify content-scripts artifacts */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Verify content-scripts artifacts";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# content-scripts/*.js 산출물은 .gitignore — `pnpm build` 선행 필요. macOS Extension target.\nDEST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/content-scripts\"\nMISSING=\"\"\nfor f in main.js api-interceptor.js injector.js storage-bridge.js; do\n  if [ ! -f \"${DEST}/${f}\" ]; then\n    MISSING=\"${MISSING} ${f}\"\n  fi\ndone\nif [ -n \"${MISSING}\" ]; then\n  echo \"error: content-scripts esbuild artifacts missing in Bundle:${MISSING}\"\n  echo \"error: Run 'pnpm install && pnpm build' from the lounge/ root before Xcode build.\"\n  exit 1\nfi\n";
+		};
+		E11D4F032FA0000100AAB001 /* Rename popup-macos to popup */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Rename popup-macos to popup";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Xcode blue folder reference 는 on-disk 폴더명을 보존하므로 popup-macos 가 그대로 복사됨.\n# 공유 manifest.json 이 \"popup/popup.html\" 을 참조하기 때문에 macOS 전용 빌드에서는\n# 번들 복사 후 popup-macos 를 popup 으로 rename 해 경로를 맞춘다.\n\nDEST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\nif [ -d \"${DEST}/popup-macos\" ]; then\n  rm -rf \"${DEST}/popup\"\n  mv \"${DEST}/popup-macos\" \"${DEST}/popup\"\nfi\n";
+		};
+		FEF73490BA466CEC7D01150A /* Verify content-scripts artifacts */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Verify content-scripts artifacts";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# content-scripts/*.js 산출물은 .gitignore — `pnpm build` 선행 필요. iOS Extension target.\nDEST=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/content-scripts\"\nMISSING=\"\"\nfor f in main.js api-interceptor.js injector.js storage-bridge.js; do\n  if [ ! -f \"${DEST}/${f}\" ]; then\n    MISSING=\"${MISSING} ${f}\"\n  fi\ndone\nif [ -n \"${MISSING}\" ]; then\n  echo \"error: content-scripts esbuild artifacts missing in Bundle:${MISSING}\"\n  echo \"error: Run 'pnpm install && pnpm build' from the lounge/ root before Xcode build.\"\n  exit 1\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		C2C98C2B2F7A61E800588733 /* Sources */ = {
@@ -691,7 +690,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = Q3X65N3243;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -713,6 +714,7 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -752,7 +754,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = Q3X65N3243;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -767,6 +771,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
@@ -777,7 +782,6 @@
 				CODE_SIGN_ENTITLEMENTS = "iOS (Extension)/QuietLounge Extension.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 6;
-				DEVELOPMENT_TEAM = Q3X65N3243;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "QuietLounge Extension";
@@ -812,7 +816,6 @@
 				CODE_SIGN_ENTITLEMENTS = "iOS (Extension)/QuietLounge Extension.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 6;
-				DEVELOPMENT_TEAM = Q3X65N3243;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "QuietLounge Extension";
@@ -850,7 +853,6 @@
 				CODE_SIGN_ENTITLEMENTS = "iOS (App)/QuietLounge.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 6;
-				DEVELOPMENT_TEAM = Q3X65N3243;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (App)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = QuietLounge;
@@ -896,7 +898,6 @@
 				CODE_SIGN_ENTITLEMENTS = "iOS (App)/QuietLounge.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 6;
-				DEVELOPMENT_TEAM = Q3X65N3243;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (App)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = QuietLounge;
@@ -941,7 +942,7 @@
 				CODE_SIGN_ENTITLEMENTS = "macOS (Extension)/QuietLounge Extension.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 7;
-				DEVELOPMENT_TEAM = Q3X65N3243;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -963,6 +964,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = kr.konempty.quietlounge.safari;
 				PRODUCT_NAME = "QuietLounge Extension";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -979,7 +981,7 @@
 				CODE_SIGN_ENTITLEMENTS = "macOS (Extension)/QuietLounge Extension.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 7;
-				DEVELOPMENT_TEAM = Q3X65N3243;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -1001,6 +1003,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = kr.konempty.quietlounge.safari;
 				PRODUCT_NAME = "QuietLounge Extension";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -1019,7 +1022,7 @@
 				CODE_SIGN_ENTITLEMENTS = "macOS (App)/QuietLounge.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 7;
-				DEVELOPMENT_TEAM = Q3X65N3243;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
@@ -1062,7 +1065,7 @@
 				CODE_SIGN_ENTITLEMENTS = "macOS (App)/QuietLounge.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 7;
-				DEVELOPMENT_TEAM = Q3X65N3243;
+				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
